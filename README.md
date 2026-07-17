@@ -2,6 +2,20 @@
 
 Unity 6 + OpenXR prototype for exploring multiple safety-training sites and talking with Microsoft Rocketbox NPCs. The experience contains five workplace zones in one continuous campus:
 
+![Chemical hands-on safety training with PPE and mission HUD](docs/images/chemical-hands-on-ppe.png)
+
+## Training mechanics at a glance
+
+![Safety-training mechanics workflow](docs/images/mechanics-workflow.svg)
+
+The assessment engine owns hazards, action order, completion, and scoring. The NPC coach provides grounded, role-aware explanations and natural chat interaction without changing the deterministic training outcome.
+
+## In-game documentation captures
+
+| Training hub | Electrical safety coach |
+| --- | --- |
+| ![Five-module training hub](docs/images/training-hub.png) | ![Electrical coach dialogue and protected cable-crossing task](docs/images/electrical-coach-dialogue.png) |
+
 - Construction: fall protection and blocked-access hazards
 - Warehouse: spill and vehicle-route hazards
 - Fire response: extinguisher access and evacuation hazards
