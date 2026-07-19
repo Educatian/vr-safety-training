@@ -132,6 +132,23 @@ namespace SafetyTraining.Runtime
             dismissal = StartCoroutine(DismissAfterDelay());
         }
 
+        public void PresentCoachFeedback(string message)
+        {
+            if (agent == null || speechBubble == null || string.IsNullOrWhiteSpace(message))
+                return;
+            if (NpcChatPanel.Instance?.IsOpenFor(agent) ?? false)
+                return;
+
+            agent.SetScriptedReply(message);
+            displayedReply = null;
+            conversationStarted = true;
+            if (siteTitle != null)
+                siteTitle.gameObject.SetActive(false);
+            if (dismissal != null)
+                StopCoroutine(dismissal);
+            dismissal = StartCoroutine(DismissAfterDelay());
+        }
+
         IEnumerator DismissAfterDelay()
         {
             yield return new WaitForSecondsRealtime(25f);

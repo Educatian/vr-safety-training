@@ -3,6 +3,7 @@
   "rootNamespace": "SafetyTraining.Tests.EditMode",
   "references": [
     "SafetyTraining.Core",
+    "SafetyTraining.Editor",
     "SafetyTraining.Runtime",
     "Unity.XR.Interaction.Toolkit",
     "Unity.TextMeshPro"

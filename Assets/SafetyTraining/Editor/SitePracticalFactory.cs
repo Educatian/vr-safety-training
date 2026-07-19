@@ -52,7 +52,11 @@ namespace SafetyTraining.Editor
                     Spec("Set vehicle route barrier", "concrete_road_barrier_1k.fbx", 0.75f, 0.75f, 0.52f, 90f,
                         "Move the barrier between the pedestrian and vehicle paths.", 0.8f, 0.7f, 90f),
                     Spec("Relocate aisle load", "industrial_storage_cart_1k.fbx", -1.65f, 1.8f, 0.66f, 160f,
-                        "Return the cart to the cargo staging bay.", 2.5f, -2.25f, 180f)
+                        "Return the cart to the cargo staging bay.", 2.5f, -2.25f, 180f),
+                    Spec("Chock loading dock wheels", "plastic_crate_02_1k.fbx", -1.85f, 0.25f, 0.62f, -18f,
+                        "Place the wheel chock set at the trailer bay before loading resumes.", 3.15f, 1.6f, 0f),
+                    Spec("Post pedestrian route checklist", "clipboard_1k.fbx", -0.25f, 1.35f, 0.86f, 8f,
+                        "Deliver the signed route checklist to the pedestrian crossing board.", -2.85f, -0.85f, 0f)
                 });
             Create(fire, TrainingSiteId.FireResponse,
                 "Fire-equipment readiness sequence.",
@@ -64,7 +68,13 @@ namespace SafetyTraining.Editor
                     Spec("Ready fire response kit", "metal_toolbox_1k.fbx", 0.75f, 0.75f, 0.72f, -12f,
                         "Place the response kit beside the accessible fire point.", -3.6f, -1.8f, 0f),
                     Spec("Verify emergency egress", "clipboard_1k.fbx", 0f, 0.05f, 0.86f, 12f,
-                        "Complete the exit-route walkdown and sign the check sheet.", 0f, 2.3f, 0f)
+                        "Complete the exit-route walkdown and sign the check sheet.", 0f, 2.3f, 0f),
+                    Spec("Stage hose access barrier", "concrete_road_barrier_1k.fbx", 1.25f, 1.25f, 0.5f, 90f,
+                        "Move the barrier so hose access remains open and stored material stays outside the lane.",
+                        2.7f, 1.45f, 90f),
+                    Spec("Place extinguisher inspection record", "clipboard_1k.fbx", 1.95f, 0.25f, 0.86f, -10f,
+                        "Place the inspection record at the fire point after confirming access and gauge status.",
+                        -3.35f, -0.25f, 0f)
                 });
             Create(chemical, TrainingSiteId.ChemicalProcessing,
                 "Chemical-release control sequence.",
@@ -76,7 +86,13 @@ namespace SafetyTraining.Editor
                     Spec("Apply GHS identification", "clipboard_1k.fbx", 0.75f, 0.75f, 0.86f, -10f,
                         "Confirm the product identity and attach the correct GHS record.", 2.5f, 0.55f, 0f),
                     Spec("Test emergency eyewash", "metal_toolbox_1k.fbx", -1.65f, 1.8f, 0.68f, -8f,
-                        "Use the test kit and document clear flow at the eyewash.", 0.1f, -1.7f, 0f)
+                        "Use the test kit and document clear flow at the eyewash.", 0.1f, -1.7f, 0f),
+                    Spec("Segregate incompatible drum", "hand_truck_1k.fbx", -1.85f, 0.25f, 0.74f, 175f,
+                        "Move the drum-handling aid to the segregated storage lane before transfer.",
+                        3.05f, -1.2f, 180f),
+                    Spec("Place SDS review packet", "clipboard_1k.fbx", -0.95f, 2.05f, 0.86f, 5f,
+                        "Bring the SDS review packet to the debrief table for chemical identity confirmation.",
+                        -2.65f, 1.15f, 0f)
                 });
             Create(electrical, TrainingSiteId.ElectricalMaintenance,
                 "Electrical-isolation control sequence.",
@@ -88,7 +104,13 @@ namespace SafetyTraining.Editor
                     Spec("Verify zero energy", "clipboard_1k.fbx", -0.25f, 1.35f, 0.86f, -8f,
                         "Record the approved absence-of-voltage verification.", 2.35f, 0.4f, 0f),
                     Spec("Protect cable crossing", "concrete_road_barrier_1k.fbx", -1.65f, 1.8f, 0.5f, 90f,
-                        "Position the protective control across the exposed cable route.", 0.3f, -0.1f, 90f)
+                        "Position the protective control across the exposed cable route.", 0.3f, -0.1f, 90f),
+                    Spec("Stage insulated tool kit", "metal_toolbox_1k.fbx", -1.0f, 0.25f, 0.72f, 14f,
+                        "Place the insulated tool kit inside the verified work boundary, not near energized panels.",
+                        -1.6f, 1.5f, 0f),
+                    Spec("Post arc-flash boundary notice", "clipboard_1k.fbx", 1.85f, 2.05f, 0.86f, -12f,
+                        "Post the signed arc-flash boundary notice at the access point before work continues.",
+                        2.75f, -0.7f, 0f)
                 });
         }
 

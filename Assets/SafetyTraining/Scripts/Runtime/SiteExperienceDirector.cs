@@ -39,11 +39,11 @@ namespace SafetyTraining.Runtime
 
         void UpdateActiveZone(Vector3 playerPosition)
         {
-            if (activeZone != null && activeZone.HorizontalDistance(playerPosition) <= exitRadius)
+            if (activeZone != null && activeZone.HorizontalDistance(playerPosition) <= ExitRadius(activeZone))
                 return;
 
             var nearest = FindNearest(playerPosition, out var nearestDistance);
-            if (nearestDistance <= enterRadius)
+            if (nearest != null && nearestDistance <= EnterRadius(nearest))
             {
                 if (nearest != activeZone)
                     SwitchZone(nearest);
@@ -51,6 +51,16 @@ namespace SafetyTraining.Runtime
             }
 
             SwitchZone(null);
+        }
+
+        float EnterRadius(SiteExperienceZone zone)
+        {
+            return Mathf.Max(enterRadius, zone.InfluenceRadius);
+        }
+
+        float ExitRadius(SiteExperienceZone zone)
+        {
+            return Mathf.Max(exitRadius, zone.InfluenceRadius + 1.5f);
         }
 
         SiteExperienceZone FindNearest(Vector3 playerPosition, out float distance)

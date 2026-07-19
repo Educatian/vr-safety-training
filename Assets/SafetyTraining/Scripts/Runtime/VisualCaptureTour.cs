@@ -41,7 +41,7 @@ namespace SafetyTraining.Runtime
             }
 
             UnityEngine.XR.XRSettings.enabled = false;
-            DisablePoseOverrides(viewer);
+            VisualCaptureCamera.ConfigureForCapture(viewer);
             yield return CaptureView(viewer, outputDirectory, "01-campus-hub.png",
                 new Vector3(0f, 2.2f, -10.2f), new Vector3(0f, 0.9f, -3.5f));
 
@@ -133,6 +133,8 @@ namespace SafetyTraining.Runtime
         public static void PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId siteId)
         {
             (NpcChatPanel.Instance ?? FindFirstObjectByType<NpcChatPanel>())?.Close();
+            var isolation = SiteIsolationController.Instance ?? FindFirstObjectByType<SiteIsolationController>();
+            isolation?.ShowSite(siteId);
             var director = FindFirstObjectByType<SiteExperienceDirector>();
             if (director != null)
                 director.enabled = false;
@@ -160,30 +162,6 @@ namespace SafetyTraining.Runtime
                 hud.SetVisible(false);
         }
 
-        static void DisablePoseOverrides(Camera viewer)
-        {
-            foreach (var behaviour in viewer.transform.root.GetComponentsInChildren<Behaviour>(true))
-                if (behaviour is DesktopExplorerController ||
-                    behaviour.GetType().Name.Contains("TrackedPoseDriver", StringComparison.Ordinal))
-                    behaviour.enabled = false;
-            viewer.rect = new Rect(0f, 0f, 1f, 1f);
-            viewer.targetTexture = null;
-            viewer.stereoTargetEye = StereoTargetEyeMask.None;
-            viewer.clearFlags = CameraClearFlags.Skybox;
-            DisableRigRenderers(viewer);
-        }
-
-        static void DisableRigRenderers(Camera viewer)
-        {
-            foreach (var rigRenderer in viewer.transform.root.GetComponentsInChildren<Renderer>(true))
-                if (rigRenderer.GetComponentInParent<TrainingHud>() == null)
-                    rigRenderer.enabled = false;
-            foreach (var rigCanvas in viewer.transform.root.GetComponentsInChildren<Canvas>(true))
-                if (rigCanvas.GetComponentInParent<TrainingHud>() == null &&
-                    rigCanvas.GetComponentInParent<NpcChatPanel>() == null)
-                    rigCanvas.enabled = false;
-        }
-
         static IEnumerator CaptureNpc(
             Camera viewer,
             string directory,
@@ -193,7 +171,7 @@ namespace SafetyTraining.Runtime
             HideCaptureHud();
             var site = GameObject.Find(siteObjectName);
             var coach = site != null ? site.GetComponentInChildren<NpcConversationAgent>() : null;
-            if (coach != null && TryGetBounds(coach.gameObject, out var idleBounds))
+            if (coach != null && VisualCaptureFraming.TryGetBounds(coach.gameObject, out var idleBounds))
             {
                 coach.GetComponent<NpcRelaxedPose>()?.ReturnToIdle();
                 yield return new WaitForSecondsRealtime(0.4f);
@@ -223,7 +201,7 @@ namespace SafetyTraining.Runtime
                    Time.realtimeSinceStartup < replyDeadline)
                 yield return null;
 
-            if (coach != null && TryGetBounds(coach.gameObject, out var bounds))
+            if (coach != null && VisualCaptureFraming.TryGetBounds(coach.gameObject, out var bounds))
             {
                 var distance = Mathf.Max(3.2f, bounds.size.y * 1.65f);
                 var dialogueFocus = bounds.center + Vector3.up * 0.65f;
@@ -265,24 +243,6 @@ namespace SafetyTraining.Runtime
                 hud.SetVisible(true);
         }
 
-        static bool TryGetBounds(GameObject target, out Bounds bounds)
-        {
-            var renderers = target.GetComponentsInChildren<Renderer>(true)
-                .Where(renderer => renderer.GetComponent<TextMesh>() == null &&
-                                   renderer.GetComponent<BillboardLabel>() == null)
-                .ToArray();
-            if (renderers.Length == 0)
-            {
-                bounds = default;
-                return false;
-            }
-
-            bounds = renderers[0].bounds;
-            for (var index = 1; index < renderers.Length; index++)
-                bounds.Encapsulate(renderers[index].bounds);
-            return true;
-        }
-
         static IEnumerator CaptureView(
             Camera viewer,
             string directory,
@@ -290,56 +250,14 @@ namespace SafetyTraining.Runtime
             Vector3 position,
             Vector3 focus)
         {
-            DisableRigRenderers(viewer);
+            VisualCaptureCamera.HideNonHudRigRenderers(viewer);
             viewer.rect = new Rect(0f, 0f, 1f, 1f);
             viewer.targetTexture = null;
             viewer.transform.SetPositionAndRotation(position, Quaternion.LookRotation(focus - position));
             yield return null;
             yield return new WaitForEndOfFrame();
-            CaptureCameraPng(viewer, Path.Combine(directory, fileName), 1168, 692);
+            VisualCaptureCamera.CapturePng(viewer, Path.Combine(directory, fileName));
             yield return new WaitForSecondsRealtime(ReadSeconds(HoldVariable, 1f));
-        }
-
-        static void CaptureCameraPng(Camera viewer, string path, int width, int height)
-        {
-            DisableRigRenderers(viewer);
-            var previousActive = RenderTexture.active;
-            var target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
-            var image = new Texture2D(width, height, TextureFormat.RGB24, false);
-            var captureObject = new GameObject("Visual QA Capture Camera");
-            var capture = captureObject.AddComponent<Camera>();
-            try
-            {
-                capture.enabled = false;
-                capture.stereoTargetEye = StereoTargetEyeMask.None;
-                capture.clearFlags = CameraClearFlags.Skybox;
-                capture.backgroundColor = viewer.backgroundColor;
-                capture.cullingMask = viewer.cullingMask;
-                capture.fieldOfView = viewer.fieldOfView;
-                capture.nearClipPlane = viewer.nearClipPlane;
-                capture.farClipPlane = viewer.farClipPlane;
-                capture.allowHDR = viewer.allowHDR;
-                capture.allowMSAA = viewer.allowMSAA;
-                capture.targetTexture = target;
-                capture.aspect = (float)width / height;
-                capture.transform.SetPositionAndRotation(viewer.transform.position, viewer.transform.rotation);
-                capture.rect = new Rect(0f, 0f, 1f, 1f);
-                capture.pixelRect = new Rect(0f, 0f, width, height);
-                RenderTexture.active = target;
-                GL.Clear(true, true, new Color(0.47f, 0.62f, 0.8f));
-                capture.Render();
-                RenderTexture.active = target;
-                image.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
-                image.Apply();
-                File.WriteAllBytes(path, image.EncodeToPNG());
-            }
-            finally
-            {
-                RenderTexture.active = previousActive;
-                Destroy(captureObject);
-                Destroy(target);
-                Destroy(image);
-            }
         }
     }
 }

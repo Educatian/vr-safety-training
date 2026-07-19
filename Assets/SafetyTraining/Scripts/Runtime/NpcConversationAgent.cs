@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using SafetyTraining.Core;
 using UnityEngine;
 
 namespace SafetyTraining.Runtime
@@ -18,6 +19,7 @@ namespace SafetyTraining.Runtime
         readonly List<string> transcript = new List<string>();
 
         public string LastReply { get; private set; } = "Ask me about this training site.";
+        public SafetyTraining.Core.TrainingSiteId SiteId => siteId;
         public string SiteName => siteId switch
         {
             SafetyTraining.Core.TrainingSiteId.FireResponse => "Fire Response",
@@ -46,7 +48,7 @@ namespace SafetyTraining.Runtime
                 siteName = siteId.ToString(),
                 npcRole = npcRole,
                 learnerMessage = learnerMessage,
-                safetyFacts = verifiedSafetyFacts,
+                safetyFacts = $"{verifiedSafetyFacts} {OshaScenarioCatalog.GetSiteCoachBrief(siteId)}",
                 progress = BuildProgressContext(),
                 transcript = string.Join("\n", transcript)
             };
@@ -83,6 +85,14 @@ namespace SafetyTraining.Runtime
         public void ConfigureEndpoint(LlmEndpointConfig config)
         {
             endpointConfig = config;
+        }
+
+        public void SetScriptedReply(string message)
+        {
+            LastReply = message;
+            transcript.Add($"Coach: {message}");
+            if (transcript.Count > 8)
+                transcript.RemoveRange(0, transcript.Count - 8);
         }
 
         string BuildProgressContext()

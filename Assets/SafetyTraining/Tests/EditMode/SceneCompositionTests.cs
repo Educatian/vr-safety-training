@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Reflection;
+using System.IO;
 using NUnit.Framework;
 using SafetyTraining.Core;
 using SafetyTraining.Runtime;
@@ -676,13 +677,155 @@ namespace SafetyTraining.Tests.EditMode
             var chat = Object.FindFirstObjectByType<NpcChatPanel>();
             var coach = Object.FindFirstObjectByType<NpcConversationAgent>();
             chat.Open(coach, "Safety Coach");
-            var disableRigRenderers = typeof(VisualCaptureTour).GetMethod("DisableRigRenderers",
-                BindingFlags.NonPublic | BindingFlags.Static);
+            var captureCamera = typeof(VisualCaptureTour).Assembly.GetType("SafetyTraining.Runtime.VisualCaptureCamera");
+            var disableRigRenderers = captureCamera.GetMethod("HideNonHudRigRenderers",
+                BindingFlags.Public | BindingFlags.Static);
 
             disableRigRenderers.Invoke(null, new object[] { Camera.main });
 
             Assert.That(chat.GetComponent<Canvas>().enabled, Is.True);
             chat.Close();
+        }
+
+        [Test]
+        public void SpatialTelemetry_RecordsLocalCoordinatesForActiveSite()
+        {
+            var coordinator = Object.FindFirstObjectByType<TrainingCoordinator>();
+            var logger = coordinator.GetComponent<TrainingEventLogger>() ??
+                coordinator.gameObject.AddComponent<TrainingEventLogger>();
+            var construction = Object.FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
+                .Single(site => site.SiteId == TrainingSiteId.Construction);
+            Camera.main.transform.position = construction.transform.position + new Vector3(-5.2f, 1.2f, 0.8f);
+            coordinator.EnterSite(TrainingSiteId.Construction);
+            typeof(TrainingEventLogger).GetMethod("Update", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(logger, null);
+            var logPath = (string)typeof(TrainingEventLogger).GetField("logPath",
+                BindingFlags.NonPublic | BindingFlags.Instance).GetValue(logger);
+            var content = System.IO.File.ReadAllText(logPath);
+
+            Assert.That(content, Does.Contain("\"eventType\":\"site_enter\""));
+            Assert.That(content, Does.Contain("\"eventType\":\"spatial_sample\""));
+            Assert.That(content, Does.Contain("\"zoneId\":\"construction_left_evidence\""));
+            Assert.That(content, Does.Contain("\"zoneName\":\"Left Evidence Run\""));
+            Assert.That(content, Does.Contain("\"metricKind\":\"distance_meters\""));
+            Assert.That(content, Does.Contain("\"siteX\":"));
+        }
+
+        [Test]
+        public void SpatialTelemetry_RecordsSampleDistanceForMovementAnalytics()
+        {
+            var coordinator = Object.FindFirstObjectByType<TrainingCoordinator>();
+            var logger = coordinator.GetComponent<TrainingEventLogger>() ??
+                coordinator.gameObject.AddComponent<TrainingEventLogger>();
+            var construction = Object.FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
+                .Single(site => site.SiteId == TrainingSiteId.Construction);
+            Camera.main.transform.position = construction.transform.position + new Vector3(-5.2f, 1.2f, 0.8f);
+            coordinator.EnterSite(TrainingSiteId.Construction);
+            typeof(TrainingEventLogger).GetMethod("Update", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(logger, null);
+
+            Camera.main.transform.position += new Vector3(0.6f, 0f, 0.8f);
+            typeof(TrainingEventLogger).GetField("nextSpatialSampleAt",
+                BindingFlags.NonPublic | BindingFlags.Instance).SetValue(logger, 0f);
+            typeof(TrainingEventLogger).GetMethod("Update", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(logger, null);
+            var logPath = (string)typeof(TrainingEventLogger).GetField("logPath",
+                BindingFlags.NonPublic | BindingFlags.Instance).GetValue(logger);
+            var content = System.IO.File.ReadAllText(logPath);
+
+            Assert.That(content, Does.Contain("\"eventType\":\"spatial_sample\""));
+            Assert.That(content, Does.Contain("\"durationOrDistance\":1.0"));
+            Assert.That(content, Does.Contain("\"metricKind\":\"distance_meters\""));
+        }
+
+        [Test]
+        public void InquiryTelemetry_RecordsZoneAndLocalCoordinatesForEvidenceEvents()
+        {
+            var coordinator = Object.FindFirstObjectByType<TrainingCoordinator>();
+            var logger = coordinator.GetComponent<InquiryEventLogger>() ??
+                coordinator.gameObject.AddComponent<InquiryEventLogger>();
+            var construction = Object.FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
+                .Single(site => site.SiteId == TrainingSiteId.Construction);
+            Camera.main.transform.position = construction.transform.position + new Vector3(-5.2f, 1.2f, 0.8f);
+
+            logger.Record(new InquiryTelemetryEvent
+            {
+                SiteId = TrainingSiteId.Construction,
+                EventType = "evidence_collected",
+                Phase = "evidence",
+                ObjectId = "fall_edge_photo",
+                HazardType = "fall_protection",
+                Detail = "Learner inspected exposed edge evidence.",
+                EvidenceCount = 2
+            });
+            var logPath = (string)typeof(InquiryEventLogger).GetField("logPath",
+                BindingFlags.NonPublic | BindingFlags.Instance).GetValue(logger);
+            var content = System.IO.File.ReadAllText(logPath);
+
+            Assert.That(content, Does.Contain("\"eventType\":\"evidence_collected\""));
+            Assert.That(content, Does.Contain("\"zoneId\":\"construction_left_evidence\""));
+            Assert.That(content, Does.Contain("\"zoneName\":\"Left Evidence Run\""));
+            Assert.That(content, Does.Contain("\"siteX\":"));
+        }
+
+        [Test]
+        public void CollectingEvidenceTriggersSameSiteCoachBubbleFeedback()
+        {
+            var controller = Object.FindFirstObjectByType<InquirySessionController>();
+            typeof(InquirySessionController).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(controller, null);
+            var evidence = Object.FindObjectsByType<EvidenceObject>(FindObjectsSortMode.None)
+                .First(item => item.SiteId == TrainingSiteId.Warehouse && !item.IsDistractor);
+            typeof(EvidenceObject).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(evidence, null);
+            var coach = Object.FindObjectsByType<NpcConversationAgent>(FindObjectsSortMode.None)
+                .First(item => item.SiteId == TrainingSiteId.Warehouse);
+            var talk = coach.GetComponent<NpcTalkInteractable>();
+            typeof(NpcConversationAgent).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(coach, null);
+            typeof(NpcTalkInteractable).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(talk, null);
+
+            evidence.Collect();
+
+            Assert.That(talk.ConversationActive, Is.True);
+            Assert.That(coach.LastReply, Does.Contain(evidence.Title));
+            Assert.That(controller.EvidenceCount(TrainingSiteId.Warehouse), Is.EqualTo(1));
+            Assert.That(controller.DistractorCount(TrainingSiteId.Warehouse), Is.Zero);
+        }
+
+        [Test]
+        public void AnalyticsLoggers_ShareSessionIdForRouteAndInquiryJoining()
+        {
+            SafetyTrainingSession.ResetForTests();
+            var root = new GameObject("Analytics Session Test Harness");
+            try
+            {
+                var trainingLogger = root.AddComponent<TrainingEventLogger>();
+                var inquiryLogger = root.AddComponent<InquiryEventLogger>();
+                typeof(TrainingEventLogger).GetMethod("EnsureLogPath", BindingFlags.NonPublic | BindingFlags.Instance)
+                    .Invoke(trainingLogger, null);
+                typeof(InquiryEventLogger).GetMethod("EnsureLogPath", BindingFlags.NonPublic | BindingFlags.Instance)
+                    .Invoke(inquiryLogger, null);
+                var trainingSession = (string)typeof(TrainingEventLogger).GetField("sessionId",
+                    BindingFlags.NonPublic | BindingFlags.Instance).GetValue(trainingLogger);
+                var inquirySession = (string)typeof(InquiryEventLogger).GetField("sessionId",
+                    BindingFlags.NonPublic | BindingFlags.Instance).GetValue(inquiryLogger);
+                var trainingPath = (string)typeof(TrainingEventLogger).GetField("logPath",
+                    BindingFlags.NonPublic | BindingFlags.Instance).GetValue(trainingLogger);
+                var inquiryPath = (string)typeof(InquiryEventLogger).GetField("logPath",
+                    BindingFlags.NonPublic | BindingFlags.Instance).GetValue(inquiryLogger);
+
+                Assert.That(trainingSession, Is.Not.Empty);
+                Assert.That(inquirySession, Is.EqualTo(trainingSession));
+                Assert.That(trainingPath, Does.Contain(trainingSession));
+                Assert.That(inquiryPath, Does.Contain(trainingSession));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                SafetyTrainingSession.ResetForTests();
+            }
         }
 
         [Test]
@@ -836,7 +979,7 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
-        public void EveryNonConstructionSite_HasThreeOrderedHandsOnActions()
+        public void EveryNonConstructionSite_HasFiveOrderedHandsOnActions()
         {
             // Given: the generated five-site training scene.
             var siteRoots = new[]
@@ -857,12 +1000,11 @@ namespace SafetyTraining.Tests.EditMode
                     .OrderBy(component => (int)component.GetType().GetProperty("StepIndex").GetValue(component))
                     .ToArray();
 
-                // Then: the site offers a complete, clickable three-step practical.
                 Assert.That(controllers, Has.Length.EqualTo(1), siteRoot.name);
-                Assert.That(actions, Has.Length.EqualTo(3), siteRoot.name);
+                Assert.That(actions, Has.Length.EqualTo(5), siteRoot.name);
                 Assert.That(actions.Select(component =>
                         (int)component.GetType().GetProperty("StepIndex").GetValue(component)),
-                    Is.EqualTo(new[] { 0, 1, 2 }), siteRoot.name);
+                    Is.EqualTo(new[] { 0, 1, 2, 3, 4 }), siteRoot.name);
                 Assert.That(actions.All(component => component.GetComponent<Collider>() != null),
                     Is.True, siteRoot.name);
             }
@@ -876,7 +1018,7 @@ namespace SafetyTraining.Tests.EditMode
                                     component.GetType().Name == "ConstructionActionInteractable")
                 .ToArray();
 
-            Assert.That(actions, Has.Length.EqualTo(17));
+            Assert.That(actions, Has.Length.EqualTo(25));
             foreach (var action in actions)
             {
                 var placement = action.GetComponents<MonoBehaviour>()
@@ -923,6 +1065,68 @@ namespace SafetyTraining.Tests.EditMode
             constructionFirst.transform.localPosition = constructionFirst.TargetLocalPosition;
             constructionFirst.TryPerform("DesktopDrag");
             Assert.That(construction.CompletedSteps, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void PracticalPlacementAttempts_UpdateSameSiteCoachBubble()
+        {
+            var coordinator = Object.FindFirstObjectByType<TrainingCoordinator>();
+            typeof(TrainingCoordinator).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(coordinator, null);
+            var controller = GameObject.Find("Warehouse").GetComponent<SitePracticalController>();
+            typeof(SitePracticalController).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(controller, null);
+            var coach = Object.FindObjectsByType<NpcConversationAgent>(FindObjectsSortMode.None)
+                .Single(item => item.SiteId == TrainingSiteId.Warehouse);
+            var talk = coach.GetComponent<NpcTalkInteractable>();
+            typeof(NpcConversationAgent).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(coach, null);
+            typeof(NpcTalkInteractable).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(talk, null);
+            var first = controller.GetComponentsInChildren<SitePracticalAction>(true)
+                .Single(action => action.StepIndex == 0);
+            typeof(SitePracticalAction).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(first, null);
+
+            controller.Begin();
+            first.TryPerform("DesktopDrag");
+
+            Assert.That(talk.ConversationActive, Is.True);
+            Assert.That(coach.LastReply, Does.Contain("Placement check"));
+            Assert.That(coach.LastReply, Does.Contain(first.Instruction));
+
+            first.transform.localPosition = first.TargetLocalPosition;
+            first.TryPerform("DesktopDrag");
+
+            Assert.That(coach.LastReply, Does.Contain("Step 1/5 complete"));
+            Assert.That(coach.LastReply, Does.Contain("Next:"));
+        }
+
+        [Test]
+        public void PlacementTelemetry_IncludesStepCountAndInstruction()
+        {
+            SafetyTrainingSession.ResetForTests();
+            var root = new GameObject("Placement Telemetry Test Harness");
+            try
+            {
+                var logger = root.AddComponent<TrainingEventLogger>();
+                typeof(TrainingEventLogger).GetMethod("EnsureLogPath", BindingFlags.NonPublic | BindingFlags.Instance)
+                    .Invoke(logger, null);
+                logger.RecordPlacement(TrainingSiteId.Warehouse, 1, 5, "Set vehicle route barrier",
+                    "Move the barrier between the pedestrian and vehicle paths.", 0.42f, true, "DesktopDrag");
+                var logPath = (string)typeof(TrainingEventLogger).GetField("logPath",
+                    BindingFlags.NonPublic | BindingFlags.Instance).GetValue(logger);
+                var content = File.ReadAllText(logPath);
+
+                Assert.That(content, Does.Contain("\"eventType\":\"placement_attempt\""));
+                Assert.That(content, Does.Contain("\"totalSteps\":5"));
+                Assert.That(content, Does.Contain("\"instruction\":\"Move the barrier between the pedestrian and vehicle paths.\""));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                SafetyTrainingSession.ResetForTests();
+            }
         }
 
         [Test]

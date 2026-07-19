@@ -130,10 +130,24 @@ namespace SafetyTraining.Runtime
             OverallScore = CalculateOverallScore();
         }
 
-        public void RecordPlacementAttempt(TrainingSiteId siteId, int stepIndex, string actionName,
-            float releaseDistance, bool success, string inputMode)
+        public void RecordPlacementAttempt(TrainingSiteId siteId, int stepIndex, int totalSteps,
+            string actionName, string instruction, float releaseDistance, bool success, string inputMode)
         {
-            eventLogger?.RecordPlacement(siteId, stepIndex, actionName, releaseDistance, success, inputMode);
+            eventLogger?.RecordPlacement(siteId, stepIndex, totalSteps, actionName, instruction,
+                releaseDistance, success, inputMode);
+        }
+
+        public void PresentPracticalCoachFeedback(TrainingSiteId siteId, string message)
+        {
+            var coaches = FindObjectsByType<NpcConversationAgent>(FindObjectsSortMode.None);
+            for (var index = 0; index < coaches.Length; index++)
+            {
+                var coach = coaches[index];
+                if (coach.SiteId != siteId)
+                    continue;
+                coach.GetComponent<NpcTalkInteractable>()?.PresentCoachFeedback(message);
+                return;
+            }
         }
 
         public void SetHandsOnFeedback(string message)
@@ -153,7 +167,7 @@ namespace SafetyTraining.Runtime
 
         public void RecordCoachTurn(TrainingSiteId siteId)
         {
-            guidedPlan.RecordCoachTurn(siteId);
+            guidedPlan.RecordCoachTurn(siteId); eventLogger?.RecordCoachTurn(siteId);
         }
 
         public string GetProgress(TrainingSiteId siteId)
@@ -186,9 +200,11 @@ namespace SafetyTraining.Runtime
                 _ => siteId.ToString()
             };
             ActiveSiteName = siteName.ToUpperInvariant();
-            LastFeedback = "4 checks | 2 coach questions | 4-minute field review.";
+            var inquiryPrompt = InquirySessionController.PromptFor(siteId);
+            LastFeedback = $"Inquiry brief: {inquiryPrompt}";
             HudFeedback = LastFeedback;
             practicals?.Begin(siteId);
+            InquirySessionController.Instance?.StartInquiry(siteId, inquiryPrompt);
             TrainingHud.Instance?.SetVisible(true);
         }
 
@@ -235,13 +251,16 @@ namespace SafetyTraining.Runtime
             {
                 case InspectionOutcome.CorrectHazard when result.IsComplete:
                     return $"Correct +100: {target.DisplayName}. Site complete ({result.Score} points).\n" +
-                           $"{target.Rationale}\nControl: {target.CorrectiveAction}";
+                           $"{target.Rationale}\nControl: {target.Compliance.LearnerAction}\n" +
+                           $"{target.Compliance.HudReference} | Role: {target.Compliance.Authority}";
                 case InspectionOutcome.CorrectHazard:
                     return $"Correct +100: {target.DisplayName} ({result.HazardsFound}/{result.HazardsRequired}).\n" +
-                           $"{target.Rationale}\nControl: {target.CorrectiveAction}";
+                           $"{target.Rationale}\nControl: {target.Compliance.LearnerAction}\n" +
+                           $"{target.Compliance.HudReference} | Role: {target.Compliance.Authority}";
                 case InspectionOutcome.SafeObjectSelected:
                     return $"False positive -25: {target.DisplayName} is controlled.\n" +
-                           $"{target.Rationale}\nSite score: {result.Score}.";
+                           $"{target.Rationale}\n{target.Compliance.HudReference} | Role: {target.Compliance.Authority}\n" +
+                           $"Site score: {result.Score}.";
                 case InspectionOutcome.AlreadyInspected:
                     return "That condition has already been recorded.";
                 case InspectionOutcome.UnknownTarget:
@@ -259,9 +278,11 @@ namespace SafetyTraining.Runtime
                     $"Correct +100 | {target.DisplayName}\nSite complete: {result.Score} points.",
                 InspectionOutcome.CorrectHazard =>
                     $"Correct +100 | {target.DisplayName} " +
-                    $"({result.HazardsFound}/{result.HazardsRequired})\nControl: {target.CorrectiveAction}",
+                    $"({result.HazardsFound}/{result.HazardsRequired})\n" +
+                    $"{target.Compliance.HudReference} | {target.Compliance.Authority}",
                 InspectionOutcome.SafeObjectSelected =>
-                    $"False positive -25 | {target.DisplayName} is controlled.\nSite score: {result.Score}.",
+                    $"False positive -25 | {target.DisplayName} is controlled.\n" +
+                    $"{target.Compliance.HudReference} | Site score: {result.Score}.",
                 InspectionOutcome.AlreadyInspected => "That condition is already recorded.",
                 InspectionOutcome.UnknownTarget => "That object is outside the current inspection.",
                 _ => throw new ArgumentOutOfRangeException()

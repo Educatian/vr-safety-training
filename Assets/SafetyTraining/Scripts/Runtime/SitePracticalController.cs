@@ -55,20 +55,25 @@ namespace SafetyTraining.Runtime
             if (action.StepIndex != nextStep)
             {
                 var expected = actions.ElementAtOrDefault(nextStep);
-                Publish($"Sequence check: complete {expected?.ActionName ?? "the current control"} first.");
+                var sequenceMessage = $"Sequence check: complete {expected?.ActionName ?? "the current control"} first.";
+                Publish(sequenceMessage);
+                TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(siteId, sequenceMessage);
                 return;
             }
             if (!insideTarget)
             {
-                TrainingCoordinator.Instance?.RecordPlacementAttempt(siteId, action.StepIndex,
-                    action.ActionName, releaseDistance, false, inputMode);
-                Publish($"Placement check: move {action.ActionName} into the highlighted DROP HERE zone.");
+                TrainingCoordinator.Instance?.RecordPlacementAttempt(siteId, action.StepIndex, actions.Count,
+                    action.ActionName, action.Instruction, releaseDistance, false, inputMode);
+                var retryMessage = $"Placement check: move {action.ActionName} into the highlighted DROP HERE zone. " +
+                                   $"{action.Instruction}";
+                Publish(retryMessage);
+                TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(siteId, retryMessage);
                 return;
             }
 
             action.MarkComplete();
-            TrainingCoordinator.Instance?.RecordPlacementAttempt(siteId, action.StepIndex,
-                action.ActionName, releaseDistance, true, inputMode);
+            TrainingCoordinator.Instance?.RecordPlacementAttempt(siteId, action.StepIndex, actions.Count,
+                action.ActionName, action.Instruction, releaseDistance, true, inputMode);
             nextStep++;
             RefreshCurrentStep();
             TrainingCoordinator.Instance?.AddHandsOnBonus(25);
@@ -77,11 +82,14 @@ namespace SafetyTraining.Runtime
             if (IsComplete)
             {
                 Publish(completion);
+                TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(siteId, completion);
                 return;
             }
 
             var next = actions[nextStep];
-            Publish($"Step {nextStep}/{actions.Count} complete. Next: {next.ActionName}. {next.Instruction}");
+            var successMessage = $"Step {nextStep}/{actions.Count} complete. Next: {next.ActionName}. {next.Instruction}";
+            Publish(successMessage);
+            TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(siteId, successMessage);
         }
 
         void CacheActions()

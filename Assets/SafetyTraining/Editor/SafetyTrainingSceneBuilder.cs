@@ -48,6 +48,7 @@ namespace SafetyTraining.Editor
             var lobby = CreateTrainingHubLobby();
             var coordinator = new GameObject("Training Coordinator");
             coordinator.AddComponent<TrainingCoordinator>();
+            coordinator.AddComponent<InquirySessionController>();
             coordinator.AddComponent<SiteExperienceDirector>();
             var isolation = coordinator.AddComponent<SiteIsolationController>();
             CreateHud();
@@ -96,6 +97,7 @@ namespace SafetyTraining.Editor
                 SafetyCoachFactory.ConstructionCoachPath);
             SitePracticalFactory.CreateAll(warehouse, fire, chemical, electrical);
 
+            SafetyWorldExpansionFactory.ExpandAll(construction, warehouse, fire, chemical, electrical);
             CreateReturnPortal(construction, TrainingSiteId.Construction, new Color(0.95f, 0.55f, 0.08f));
             CreateReturnPortal(warehouse, TrainingSiteId.Warehouse, new Color(0.12f, 0.48f, 0.85f));
             CreateReturnPortal(fire, TrainingSiteId.FireResponse, new Color(0.78f, 0.16f, 0.1f));
@@ -403,12 +405,12 @@ namespace SafetyTraining.Editor
         {
             var position = siteId switch
             {
-                TrainingSiteId.Construction => new Vector3(0f, 0f, 2.85f),
-                TrainingSiteId.Warehouse => new Vector3(0f, 0f, 2.85f),
-                TrainingSiteId.FireResponse => new Vector3(0f, 0f, 2.85f),
-                TrainingSiteId.ChemicalProcessing => new Vector3(0f, 0f, 2.85f),
-                TrainingSiteId.ElectricalMaintenance => new Vector3(0f, 0f, 2.85f),
-                _ => new Vector3(0f, 0f, 2.85f)
+                TrainingSiteId.Construction => new Vector3(5.2f, 0f, -7.2f),
+                TrainingSiteId.Warehouse => new Vector3(5.2f, 0f, -7.2f),
+                TrainingSiteId.FireResponse => new Vector3(5.2f, 0f, -7.2f),
+                TrainingSiteId.ChemicalProcessing => new Vector3(5.2f, 0f, -7.2f),
+                TrainingSiteId.ElectricalMaintenance => new Vector3(5.2f, 0f, -7.2f),
+                _ => new Vector3(5.2f, 0f, -7.2f)
             };
             IndustrialPortalBuilder.CreateReturnPortal(site, siteId, position,
                 HubArrival, color);

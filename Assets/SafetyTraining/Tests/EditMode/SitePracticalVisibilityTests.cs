@@ -25,7 +25,7 @@ namespace SafetyTraining.Tests.EditMode
             var actions = Object.FindObjectsByType<SitePracticalAction>(FindObjectsSortMode.None);
 
             // When: their learner-entry positions are evaluated in site-local coordinates.
-            Assert.That(actions, Has.Length.EqualTo(12));
+            Assert.That(actions, Has.Length.EqualTo(20));
             foreach (var action in actions)
             {
                 var zone = action.GetComponentInParent<SiteExperienceZone>();

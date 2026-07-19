@@ -236,9 +236,9 @@ namespace SafetyTraining.Editor
             foreach (var z in new[] { worldBounds.min.z, worldBounds.max.z })
                 localBounds.Encapsulate(root.InverseTransformPoint(new Vector3(x, y, z)));
 
-            foreach (var collider in root.GetComponents<Collider>())
-                Object.DestroyImmediate(collider);
-            var box = root.gameObject.AddComponent<BoxCollider>();
+            var box = root.GetComponent<BoxCollider>();
+            if (box == null)
+                box = root.gameObject.AddComponent<BoxCollider>();
             box.center = localBounds.center;
             box.size = localBounds.size + Vector3.one * 0.06f;
         }
@@ -260,7 +260,10 @@ namespace SafetyTraining.Editor
 
             var originalScale = root.localScale;
             if (root.TryGetComponent<BoxCollider>(out var box))
+            {
+                box.center = Vector3.Scale(box.center, originalScale);
                 box.size = Vector3.Scale(box.size, originalScale);
+            }
             else if (root.TryGetComponent<CapsuleCollider>(out var capsule))
             {
                 capsule.radius *= Mathf.Max(originalScale.x, originalScale.z);

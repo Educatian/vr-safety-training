@@ -26,6 +26,7 @@ namespace SafetyTraining.Runtime
         public string DisplayName => displayName;
         public string Rationale => rationale;
         public string CorrectiveAction => correctiveAction;
+        public OshaScenarioDefinition Compliance => OshaScenarioCatalog.GetRequired(siteId, targetId);
 
         void Awake()
         {

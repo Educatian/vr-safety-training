@@ -41,15 +41,22 @@ namespace SafetyTraining.Runtime
             if (action.StepIndex != nextStep)
             {
                 var expected = actions.ElementAtOrDefault(nextStep);
-                Publish($"Sequence check: complete {expected?.ActionName ?? "the remaining control"} first.");
+                var sequenceMessage = $"Sequence check: complete {expected?.ActionName ?? "the remaining control"} first.";
+                Publish(sequenceMessage);
+                TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(
+                    SafetyTraining.Core.TrainingSiteId.Construction, sequenceMessage);
                 return;
             }
             if (!insideTarget)
             {
                 TrainingCoordinator.Instance?.RecordPlacementAttempt(
-                    SafetyTraining.Core.TrainingSiteId.Construction, action.StepIndex, action.ActionName,
-                    releaseDistance, false, inputMode);
-                Publish($"Placement check: move {action.ActionName} into the highlighted DROP HERE zone.");
+                    SafetyTraining.Core.TrainingSiteId.Construction, action.StepIndex, actions.Count,
+                    action.ActionName, action.Instruction, releaseDistance, false, inputMode);
+                var retryMessage = $"Placement check: move {action.ActionName} into the highlighted DROP HERE zone. " +
+                                   $"{action.Instruction}";
+                Publish(retryMessage);
+                TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(
+                    SafetyTraining.Core.TrainingSiteId.Construction, retryMessage);
                 return;
             }
 
@@ -57,8 +64,8 @@ namespace SafetyTraining.Runtime
             nextStep++;
             RefreshCurrentStep();
             TrainingCoordinator.Instance?.RecordPlacementAttempt(
-                SafetyTraining.Core.TrainingSiteId.Construction, action.StepIndex, action.ActionName,
-                releaseDistance, true, inputMode);
+                SafetyTraining.Core.TrainingSiteId.Construction, action.StepIndex, actions.Count,
+                action.ActionName, action.Instruction, releaseDistance, true, inputMode);
             TrainingCoordinator.Instance?.AddHandsOnBonus(20);
             var coach = FindObjectsByType<NpcSiteCompanion>(FindObjectsSortMode.None)
                 .FirstOrDefault(item => item.SiteId == SafetyTraining.Core.TrainingSiteId.Construction);
@@ -66,12 +73,19 @@ namespace SafetyTraining.Runtime
             if (nextStep >= actions.Count)
             {
                 complete = true;
-                Publish("Construction practical complete: controls installed and verified. Debrief with the coach.");
+                var completionMessage =
+                    "Construction practical complete: controls installed and verified. Debrief with the coach.";
+                Publish(completionMessage);
+                TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(
+                    SafetyTraining.Core.TrainingSiteId.Construction, completionMessage);
                 return;
             }
 
             var next = actions[nextStep];
-            Publish($"Step {nextStep}/{actions.Count} complete. Next: {next.ActionName}. {next.Instruction}");
+            var successMessage = $"Step {nextStep}/{actions.Count} complete. Next: {next.ActionName}. {next.Instruction}";
+            Publish(successMessage);
+            TrainingCoordinator.Instance?.PresentPracticalCoachFeedback(
+                SafetyTraining.Core.TrainingSiteId.Construction, successMessage);
         }
 
         void Publish(string message)
