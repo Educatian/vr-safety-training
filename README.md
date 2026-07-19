@@ -16,6 +16,18 @@ The assessment engine owns hazards, action order, completion, and scoring. The N
 | --- | --- |
 | ![Five-module training hub](docs/images/training-hub.png) | ![Electrical coach dialogue and protected cable-crossing task](docs/images/electrical-coach-dialogue.png) |
 
+### Current five-site pilot capture
+
+| Hub | Construction | Warehouse |
+| --- | --- | --- |
+| ![Current pilot hub](docs/images/pilot-campus-hub.jpg) | ![Expanded construction site](docs/images/pilot-construction-overview.jpg) | ![Expanded warehouse site](docs/images/pilot-warehouse-overview.jpg) |
+
+| Fire response | Chemical processing | Electrical maintenance |
+| --- | --- | --- |
+| ![Expanded fire-response site](docs/images/pilot-fire-response-overview.jpg) | ![Expanded chemical-processing site](docs/images/pilot-chemical-overview.jpg) | ![Expanded electrical-maintenance site](docs/images/pilot-electrical-overview.jpg) |
+
+[Watch the compressed pilot walkthrough](docs/media/VR-Safety-Pilot-Demo.mp4). The detailed engineering and OSHA-readiness evidence is in [the demo pilot validation report](docs/PILOT_VALIDATION_REPORT.md).
+
 - Construction: fall protection and blocked-access hazards
 - Warehouse: spill and vehicle-route hazards
 - Fire response: extinguisher access and evacuation hazards
@@ -28,9 +40,15 @@ Five bright route lanes and portal pads move the learner across a continuous wal
 
 ## Run the completed prototype
 
-Run `Builds/Windows/VR-Safety-Training.exe`, or open this folder with Unity `6000.0.75f1` and play `Assets/SafetyTraining/Scenes/SafetyTrainingExplorer.unity`. The generated scene already contains the XR Origin, controller interaction, three sites, HUD, portals, hazards, and Rocketbox coaches. `Safety Training > Build Prototype Scene` regenerates it.
+Run `Builds/Windows/VR-Safety-Training.exe`, or open this folder with Unity `6000.0.75f1` and play `Assets/SafetyTraining/Scenes/SafetyTrainingExplorer.unity`. The generated scene already contains the XR Origin, controller interaction, five sites, HUD, portals, hazards, evidence objects, spatial-analytics zones, hands-on tasks, and Rocketbox coaches. `Safety Training > Build Prototype Scene` regenerates it.
 
 The scene supports WASD movement, right-mouse look, and mouse selection as a desktop fallback. In VR, inspection targets, coaches, and site portals use `XRSimpleInteractable` selection. Green and amber colors appear only after a learner makes a selection. The HUD uses a compact dark field-ops panel with site header, score, and wrapped feedback text.
+
+The lobby includes a `DESKTOP / IVR` experience toggle. On Windows, IVR starts when Meta Quest Link (or another OpenXR runtime) is available; otherwise the learner remains in desktop mode with an actionable status message. A Quest standalone build always selects IVR. Use `Safety Training > Build Meta Quest APK` after installing Unity Android Build Support, Android SDK/NDK Tools, and OpenJDK.
+
+![Desktop and IVR mode selection in the isolated training hub](docs/images/pilot-quest-toggle-hub.jpg)
+
+The validated standalone APK is at `Builds/MetaQuest/VR-Safety-Training-Quest.apk` (93.6 MB). See [Meta Quest deployment and QA](docs/META_QUEST.md) for Link mode, standalone installation, controls, and the remaining physical-headset checks.
 
 ## Construction practical
 
@@ -48,11 +66,14 @@ Click any Rocketbox coach to open the live chat panel. Students can type a quest
 
 ## Validation
 
-- Core scoring smoke test: passed
-- Unity EditMode suite: 11/11 passed
-- OpenXR Project Validation: 0 issues out of 16 checks
-- Independent visual QA: two reviewers passed the 13-frame construction-focused set under `Captures/construction-hands-on-v1`
-- Windows standalone build: succeeded at `Builds/Windows/VR-Safety-Training.exe`
+- Unity EditMode suite: 124/124 passed
+- OpenXR Standalone Project Validation: 0 outstanding issues
+- OpenXR Meta Quest Android Project Validation: 0 outstanding issues
+- Windows standalone build: succeeded at `Builds/Windows/VR-Safety-Training.exe` (161.8 MB)
+- Meta Quest standalone APK: succeeded at `Builds/MetaQuest/VR-Safety-Training-Quest.apk` (93.6 MB)
+- Five-site capture tour: hub, overview, real-prop, NPC idle/walk/dialogue, and settled frames generated
+- Automated demo pilot: 1,200 simulated seconds, 31 analytics zones, 20 inspections, 31 evidence interactions, 25 practical successes, and analysis-ready CSV/JSONL export
+- Physical-headset usability and frame-timing validation: still required before an unsupervised learner study
 
 ## LLM endpoint
 

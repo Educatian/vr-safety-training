@@ -266,8 +266,13 @@ namespace SafetyTraining.Editor
                 rig.transform.position = new Vector3(0f, 0.02f, -10.2f);
                 rig.AddComponent<StartupGroundingGuard>();
                 var rigCamera = rig.GetComponentInChildren<Camera>(true);
-                if (rigCamera != null && rigCamera.GetComponent<DesktopExplorerController>() == null)
-                    rigCamera.gameObject.AddComponent<DesktopExplorerController>();
+                if (rigCamera != null)
+                {
+                    var desktop = rigCamera.GetComponent<DesktopExplorerController>() ??
+                                  rigCamera.gameObject.AddComponent<DesktopExplorerController>();
+                    var rigExperience = rig.AddComponent<ExperienceModeController>();
+                    rigExperience.Configure(desktop);
+                }
                 return;
             }
 
@@ -282,6 +287,8 @@ namespace SafetyTraining.Editor
             camera.transform.SetPositionAndRotation(new Vector3(0f, 1.7f, -8f), Quaternion.Euler(10f, 0f, 0f));
             camera.gameObject.AddComponent<DesktopExplorerController>();
             camera.gameObject.AddComponent<StartupGroundingGuard>();
+            var fallbackExperience = camera.gameObject.AddComponent<ExperienceModeController>();
+            fallbackExperience.Configure(camera.GetComponent<DesktopExplorerController>());
         }
 
         static Transform CreateNavigationGround()
@@ -345,6 +352,17 @@ namespace SafetyTraining.Editor
             var subtitle = SafetyScenePrimitives.Label("SELECT A HANDS-ON FIELD MODULE", root,
                 new Vector3(0f, 3.3f, -1.82f), 0.08f);
             subtitle.color = new Color(0.72f, 0.82f, 0.85f);
+
+            var modePanel = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Desktop IVR Experience Toggle", root,
+                new Vector3(0f, 2.82f, -1.84f), new Vector3(2.7f, 0.4f, 0.08f),
+                new Color(0.08f, 0.24f, 0.42f));
+            modePanel.AddComponent<XRSimpleInteractable>();
+            var modeLabel = SafetyScenePrimitives.Label("EXPERIENCE: AUTO\nCLICK FOR IVR", root,
+                new Vector3(0f, 2.88f, -1.9f), 0.065f);
+            modeLabel.alignment = TextAlignment.Center;
+            modeLabel.anchor = TextAnchor.MiddleCenter;
+            modeLabel.color = Color.white;
+            modePanel.AddComponent<ExperienceModeToggle>().Configure(modeLabel);
 
             SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Lobby Hazard Stripe Upper", root,
                 new Vector3(0f, 3.93f, -1.83f), new Vector3(13.1f, 0.08f, 0.08f),

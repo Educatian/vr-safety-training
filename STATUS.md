@@ -1,6 +1,6 @@
 # Current build status
 
-Updated: 2026-07-16
+Updated: 2026-07-19
 
 - Unity 6.0 LTS project scaffold: complete
 - OpenXR + XR Interaction Toolkit package manifest: complete
@@ -28,12 +28,21 @@ Updated: 2026-07-16
 - Runtime/editor source revalidation: passed with 0 warnings and 0 errors
 - Unity license and scene generation: complete
 - Generated scene: `Assets/SafetyTraining/Scenes/SafetyTrainingExplorer.unity`
-- OpenXR Project Validation: 0 issues out of 16 checks
-- Unity EditMode tests: 11/11 passed
-- Final visual tour: `Captures/construction-hands-on-v1` (13/13 frames generated, including the hands-on construction frame)
-- Independent visual QA: functional PASS and typography/visual PASS
+- Inquiry expansion: 31 evidence objects, 20 inspection targets, hypothesis/final-explanation flow, and site-specific evidence collection across five modules
+- Spatial analytics: 31 authored zones, 1 Hz XYZ tracking, zone dwell, route distance, retries, coach turns, hypotheses, and final-report export to JSONL/CSV
+- OSHA scenario catalog: authority-aware learner actions and federal construction references for every inspection target
+- OpenXR Standalone Project Validation: 0 outstanding issues
+- Unity EditMode tests: 124/124 passed
+- Desktop/IVR mode: lobby toggle, Windows OpenXR/Meta Quest Link activation, no-runtime Desktop fallback, and forced IVR on Quest Android
+- Meta Quest validation: Android OpenXR 0 outstanding issues; ARM64, IL2CPP, API 29+, Meta Quest Support, Touch profiles, Vulkan/OpenGLES3
+- Meta Quest APK: succeeded, `Builds/MetaQuest/VR-Safety-Training-Quest.apk` (93.6 MB)
+- Current visual tour: `Captures/pilot-quest-toggle` (38 frames; hub plus five expanded sites, real props, and NPC idle/walk/dialogue states)
+- Pilot walkthrough: `docs/media/VR-Safety-Pilot-Demo.mp4` (43.6 seconds, compressed H.264)
+- Automated 20-minute pilot: 1,200 simulated seconds; all five sites; 31 zones; 20 inspections; 31 evidence interactions; 25 hands-on successes; analytics map generated
+- Desktop startup stability: passed with zero XR-root/camera positional or angular drift in the observation window
+- VR performance default: Standalone quality reduced from Ultra to High; build output 161.8 MB
 - Windows standalone build: succeeded, `Builds/Windows/VR-Safety-Training.exe`
 
 ## Prototype status
 
-Complete and runnable. Remaining items are optional production polish: replace the static Rocketbox poses with authored idle animations and conduct physical-headset usability testing for the target device.
+Feature-complete for a supervised engineering demo. Before an unsupervised learner study: run physical-headset performance/comfort testing, conduct at least five formative human pilot sessions, review accessibility, and obtain a host-site/qualified-safety-professional content review. See `docs/PILOT_VALIDATION_REPORT.md`.

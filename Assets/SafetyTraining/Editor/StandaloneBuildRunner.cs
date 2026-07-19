@@ -29,7 +29,36 @@ namespace SafetyTraining.Editor
                     $"Windows build failed: {report.summary.result}, errors={report.summary.totalErrors}");
 
             UnityEngine.Debug.Log(
-                $"Windows build succeeded: {outputPath} ({report.summary.totalSize} bytes)");
+                $"Windows build succeeded: {outputPath} ({new FileInfo(outputPath).Length} executable bytes, " +
+                $"{report.summary.totalSize} total build bytes)");
+        }
+
+        [MenuItem("Safety Training/Build Meta Quest APK")]
+        public static void BuildMetaQuest()
+        {
+            if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
+                throw new InvalidOperationException(
+                    "Meta Quest build requires Unity Android Build Support, Android SDK/NDK Tools, and OpenJDK.");
+            if (!OpenXrProjectConfigurator.ConfigureAndroid())
+                throw new InvalidOperationException("Meta Quest OpenXR configuration failed.");
+
+            var outputDirectory = Path.GetFullPath(Path.Combine("Builds", "MetaQuest"));
+            Directory.CreateDirectory(outputDirectory);
+            var outputPath = Path.Combine(outputDirectory, "VR-Safety-Training-Quest.apk");
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = outputPath,
+                target = BuildTarget.Android,
+                options = BuildOptions.CleanBuildCache
+            });
+
+            if (report.summary.result != BuildResult.Succeeded)
+                throw new InvalidOperationException(
+                    $"Meta Quest build failed: {report.summary.result}, errors={report.summary.totalErrors}");
+            UnityEngine.Debug.Log(
+                $"Meta Quest APK succeeded: {outputPath} ({new FileInfo(outputPath).Length} APK bytes, " +
+                $"{report.summary.totalSize} total build bytes)");
         }
     }
 }

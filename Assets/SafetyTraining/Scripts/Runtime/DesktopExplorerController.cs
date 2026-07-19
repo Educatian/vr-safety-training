@@ -24,17 +24,32 @@ namespace SafetyTraining.Runtime
         Vector3 stableRootPosition;
         InteractiveHoverFeedback hoveredTarget;
         HandsOnPlacementInteractable draggedPlacement;
+        readonly List<MonoBehaviour> disabledXrWriters = new();
+        bool modeExternallySelected;
 
         public bool DesktopMode => desktopMode;
 
         void Start()
         {
-            locomotionRoot = transform.root;
-            characterController = locomotionRoot.GetComponent<CharacterController>();
-            desktopMode = !HasRunningXrDisplay();
-            if (!desktopMode)
+            EnsureInitialized();
+            if (!modeExternallySelected)
+                ApplyDesktopMode(!HasRunningXrDisplay());
+        }
+
+        public void SetDesktopMode(bool value)
+        {
+            modeExternallySelected = true;
+            EnsureInitialized();
+            ApplyDesktopMode(value);
+        }
+
+        void ApplyDesktopMode(bool value)
+        {
+            desktopMode = value;
+            enabled = value;
+            if (!value)
             {
-                enabled = false;
+                RestoreXrPoseAndLocomotionWriters();
                 return;
             }
 
@@ -44,6 +59,14 @@ namespace SafetyTraining.Runtime
             stableRootPosition = locomotionRoot.position;
             startupStabilityDeadline = Time.unscaledTime + 2f;
             Debug.Log("Desktop preview mode: XR pose and locomotion writers disabled; camera is controlled through the rig root.");
+        }
+
+        void EnsureInitialized()
+        {
+            if (locomotionRoot != null)
+                return;
+            locomotionRoot = transform.root;
+            characterController = locomotionRoot.GetComponent<CharacterController>();
         }
 
         void Update()
@@ -107,6 +130,7 @@ namespace SafetyTraining.Runtime
                 var candidate = hit.collider.transform;
                 var feedback = candidate.GetComponentInParent<InteractiveHoverFeedback>();
                 if (feedback == null && candidate.GetComponentInParent<SitePortal>() == null &&
+                    candidate.GetComponentInParent<ExperienceModeToggle>() == null &&
                     candidate.GetComponentInParent<InspectionTarget>() == null &&
                     candidate.GetComponentInParent<ConstructionActionInteractable>() == null &&
                     candidate.GetComponentInParent<SitePracticalAction>() == null &&
@@ -168,6 +192,13 @@ namespace SafetyTraining.Runtime
             if (portal != null)
             {
                 portal.Activate();
+                return;
+            }
+
+            var modeToggle = target.GetComponentInParent<ExperienceModeToggle>();
+            if (modeToggle != null)
+            {
+                modeToggle.Toggle();
                 return;
             }
 
@@ -238,8 +269,20 @@ namespace SafetyTraining.Runtime
                 var typeNamespace = type.Namespace ?? string.Empty;
                 if (typeName.Contains("TrackedPoseDriver") ||
                     typeNamespace.StartsWith("UnityEngine.XR.Interaction.Toolkit.Locomotion"))
+                {
+                    if (behaviour.enabled && !disabledXrWriters.Contains(behaviour))
+                        disabledXrWriters.Add(behaviour);
                     behaviour.enabled = false;
+                }
             }
+        }
+
+        void RestoreXrPoseAndLocomotionWriters()
+        {
+            foreach (var behaviour in disabledXrWriters)
+                if (behaviour != null)
+                    behaviour.enabled = true;
+            disabledXrWriters.Clear();
         }
     }
 }

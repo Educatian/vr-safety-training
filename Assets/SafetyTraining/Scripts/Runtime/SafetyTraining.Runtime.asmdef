@@ -4,7 +4,8 @@
   "references": [
     "SafetyTraining.Core",
     "Unity.XR.Interaction.Toolkit",
-    "Unity.TextMeshPro"
+    "Unity.TextMeshPro",
+    "Unity.XR.Management"
   ],
   "autoReferenced": true
 }
