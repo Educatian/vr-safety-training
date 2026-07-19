@@ -1,5 +1,6 @@
 using SafetyTraining.Core;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
@@ -9,7 +10,12 @@ namespace SafetyTraining.Runtime
     public sealed class LearningObjectiveBoard : MonoBehaviour
     {
         [SerializeField] TrainingSiteId siteId;
-        [SerializeField] TextMesh body;
+        [SerializeField] Text objectiveIdDisplay;
+        [SerializeField] Text titleDisplay;
+        [SerializeField] Text statementDisplay;
+        [SerializeField] Text evidenceDisplay;
+        [SerializeField] Text standardDisplay;
+        [SerializeField] Text pageDisplay;
         int page;
         XRSimpleInteractable interactable;
 
@@ -29,9 +35,18 @@ namespace SafetyTraining.Runtime
         {
             if (DesktopPointerInputGate.CanUseWorldPointer) NextPage();
         }
-        public void Configure(TrainingSiteId site, TextMesh display)
+        public void Configure(TrainingSiteId site, Text objectiveId, Text title, Text statement,
+            Text evidence, Text standard, Text pageLabel)
         {
-            siteId = site; body = display; page = 0; Refresh();
+            siteId = site;
+            objectiveIdDisplay = objectiveId;
+            titleDisplay = title;
+            statementDisplay = statement;
+            evidenceDisplay = evidence;
+            standardDisplay = standard;
+            pageDisplay = pageLabel;
+            page = 0;
+            Refresh();
         }
         public void NextPage()
         {
@@ -41,28 +56,14 @@ namespace SafetyTraining.Runtime
         }
         void Refresh()
         {
-            if (body == null) return;
             var objective = LearningObjectiveCatalog.ObjectiveAt(siteId, page);
-            body.text = Wrap($"{objective.Id}  {objective.Title.ToUpperInvariant()}\n\nOBJECTIVE\n{objective.Statement}\n\nASSESSMENT EVIDENCE\n{objective.AssessmentEvidence}\n\nSTANDARD\n{objective.Standards}\n\nSELECT BOARD FOR NEXT OBJECTIVE", 58);
-        }
-        static string Wrap(string value, int width)
-        {
-            var output = new System.Text.StringBuilder();
-            foreach (var paragraph in value.Split('\n'))
-            {
-                var length = 0;
-                foreach (var word in paragraph.Split(' '))
-                {
-                    if (length > 0 && length + word.Length + 1 > width)
-                    {
-                        output.Append('\n'); length = 0;
-                    }
-                    if (length > 0) { output.Append(' '); length++; }
-                    output.Append(word); length += word.Length;
-                }
-                output.Append('\n');
-            }
-            return output.ToString().TrimEnd();
+            if (objectiveIdDisplay != null) objectiveIdDisplay.text = objective.Id;
+            if (titleDisplay != null) titleDisplay.text = objective.Title.ToUpperInvariant();
+            if (statementDisplay != null) statementDisplay.text = objective.Statement;
+            if (evidenceDisplay != null) evidenceDisplay.text = objective.AssessmentEvidence;
+            if (standardDisplay != null) standardDisplay.text = objective.Standards;
+            if (pageDisplay != null)
+                pageDisplay.text = $"SELECT PANEL FOR NEXT OBJECTIVE   {page + 1}/{LearningObjectiveCatalog.ForSite(siteId).Count}";
         }
         void OnSelected(SelectEnterEventArgs _) => NextPage();
     }

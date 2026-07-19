@@ -256,7 +256,7 @@ namespace SafetyTraining.Runtime
             {
                 var focus = bounds.center;
                 yield return CaptureView(viewer, directory, fileName,
-                    focus - board.transform.forward * 5.8f + Vector3.up * 0.1f, focus);
+                    focus - board.transform.forward * 3.8f + Vector3.up * 0.1f, focus);
             }
             ShowCaptureHud();
         }
@@ -274,7 +274,7 @@ namespace SafetyTraining.Runtime
                     var focus = bounds.center + Vector3.up * 0.05f;
                     yield return CaptureView(viewer, directory,
                         $"02{(char)('d' + index)}-construction-{station.DecisionId}.png",
-                        focus - station.transform.forward * 5.9f, focus);
+                        focus - station.transform.forward * 4.0f, focus);
                 }
             }
 
@@ -287,12 +287,12 @@ namespace SafetyTraining.Runtime
                 HideCaptureHud();
                 var focus = formworkBounds.center;
                 yield return CaptureView(viewer, directory, "02g-formwork-diagnostic-feedback.png",
-                    focus - formwork.transform.forward * 5.9f, focus);
+                    focus - formwork.transform.forward * 4.0f, focus);
                 options.FirstOrDefault(item => item.IsCorrect)?.Select();
                 yield return new WaitForSecondsRealtime(0.35f);
                 ShowCaptureHud();
                 yield return CaptureView(viewer, directory, "02h-formwork-verified-hud.png",
-                    focus - formwork.transform.forward * 5.9f, focus);
+                    focus - formwork.transform.forward * 4.0f, focus);
             }
             ShowCaptureHud();
         }

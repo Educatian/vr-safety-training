@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using SafetyTraining.Core;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SafetyTraining.Runtime
 {
@@ -8,14 +9,14 @@ namespace SafetyTraining.Runtime
     {
         [SerializeField] string decisionId;
         [SerializeField] string title;
-        [SerializeField] TextMesh feedbackDisplay;
+        [SerializeField] Text feedbackDisplay;
         readonly HashSet<string> attemptedOptions = new();
         bool solved;
 
         public string DecisionId => decisionId;
         public bool IsSolved => solved;
 
-        public void Configure(string id, string displayTitle, TextMesh feedback)
+        public void Configure(string id, string displayTitle, Text feedback)
         {
             decisionId = id; title = displayTitle; feedbackDisplay = feedback;
             SetFeedback("SELECT A CONTROL DECISION", new Color(0.55f, 0.84f, 1f));
