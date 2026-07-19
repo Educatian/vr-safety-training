@@ -555,24 +555,69 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
-        public void NpcCompanionsCanRecoverFormationAtDesktopTraversalSpeed()
+        public void NpcCompanionsUseHumanScaleWalkAndCatchUpSpeeds()
         {
-            var explorer = Object.FindFirstObjectByType<DesktopExplorerController>();
-            var playerSpeed = (float)typeof(DesktopExplorerController)
-                .GetField("moveSpeed", BindingFlags.Instance | BindingFlags.NonPublic)
-                .GetValue(explorer);
+            var walkSpeedField = typeof(NpcSiteCompanion)
+                .GetField("walkSpeed", BindingFlags.Instance | BindingFlags.NonPublic);
             var catchUpSpeedField = typeof(NpcSiteCompanion)
                 .GetField("catchUpSpeed", BindingFlags.Instance | BindingFlags.NonPublic);
-            var catchUpDistanceField = typeof(NpcSiteCompanion)
-                .GetField("catchUpDistance", BindingFlags.Instance | BindingFlags.NonPublic);
 
-            Assert.That(catchUpDistanceField, Is.Not.Null);
+            Assert.That(walkSpeedField, Is.Not.Null);
+            Assert.That(catchUpSpeedField, Is.Not.Null);
             foreach (var companion in Object.FindObjectsByType<NpcSiteCompanion>(FindObjectsSortMode.None))
             {
+                var walkSpeed = (float)walkSpeedField.GetValue(companion);
                 var catchUpSpeed = (float)catchUpSpeedField.GetValue(companion);
-                var catchUpDistance = (float)catchUpDistanceField.GetValue(companion);
-                Assert.That(catchUpSpeed, Is.GreaterThanOrEqualTo(playerSpeed * 1.2f), companion.name);
-                Assert.That(catchUpDistance, Is.LessThanOrEqualTo(2.2f), companion.name);
+                Assert.That(walkSpeed, Is.InRange(1.2f, 1.9f),
+                    $"{companion.name} should match a natural adult walk cadence.");
+                Assert.That(catchUpSpeed, Is.InRange(walkSpeed, 3.0f),
+                    $"{companion.name} should not sprint while playing a walk clip.");
+            }
+        }
+
+        [Test]
+        public void NpcPosesPreserveTheImportedHeadBindRotation()
+        {
+            var headField = typeof(NpcRelaxedPose)
+                .GetField("head", BindingFlags.Instance | BindingFlags.NonPublic);
+            var headBaseField = typeof(NpcRelaxedPose)
+                .GetField("headBase", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(headField, Is.Not.Null);
+            Assert.That(headBaseField, Is.Not.Null,
+                "Procedural head motion must be relative to the imported rig bind pose.");
+            foreach (var pose in Object.FindObjectsByType<NpcRelaxedPose>(FindObjectsSortMode.None))
+            {
+                typeof(NpcRelaxedPose).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .Invoke(pose, null);
+                var head = (Transform)headField.GetValue(pose);
+                var headBase = (Quaternion)headBaseField.GetValue(pose);
+                Assert.That(head, Is.Not.Null, pose.name);
+                Assert.That(Quaternion.Angle(head.localRotation, headBase), Is.LessThan(0.1f), pose.name);
+            }
+        }
+
+        [Test]
+        public void NpcCompanionsRecoverFormationWithoutVisibleSprintAnimation()
+        {
+            var walkSpeedField = typeof(NpcSiteCompanion)
+                .GetField("walkSpeed", BindingFlags.Instance | BindingFlags.NonPublic);
+            var catchUpSpeedField = typeof(NpcSiteCompanion)
+                .GetField("catchUpSpeed", BindingFlags.Instance | BindingFlags.NonPublic);
+            var recoveryDistanceField = typeof(NpcSiteCompanion)
+                .GetField("recoveryDistance", BindingFlags.Instance | BindingFlags.NonPublic);
+            var visibilityMethod = typeof(NpcSiteCompanion)
+                .GetMethod("IsVisibleToViewer", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(visibilityMethod, Is.Not.Null,
+                "Long-distance recovery must be gated so the coach never visibly teleports.");
+            foreach (var companion in Object.FindObjectsByType<NpcSiteCompanion>(FindObjectsSortMode.None))
+            {
+                var walkSpeed = (float)walkSpeedField.GetValue(companion);
+                var catchUpSpeed = (float)catchUpSpeedField.GetValue(companion);
+                var recoveryDistance = (float)recoveryDistanceField.GetValue(companion);
+                Assert.That(catchUpSpeed, Is.LessThanOrEqualTo(walkSpeed * 1.5f), companion.name);
+                Assert.That(recoveryDistance, Is.InRange(5f, 9f), companion.name);
             }
         }
 
@@ -1255,15 +1300,18 @@ namespace SafetyTraining.Tests.EditMode
             {
                 var root = GameObject.Find(name);
                 var model = root.transform.Cast<Transform>()
-                    .First(child => child.name.StartsWith("RealAsset - korean_fire_extinguisher"));
-                var tag = root.GetComponentsInChildren<TextMesh>(true)
-                    .First(label => label.text.Contains("FIRE EXTINGUISHER"));
+                    .First(child => child.name.StartsWith("RealAsset - US_ABC_Fire_Extinguisher"));
+                var label = model.GetComponentsInChildren<Transform>(true)
+                    .FirstOrDefault(item => item.name.StartsWith("English Label ABC") ||
+                                            item.name.StartsWith("Text"));
 
-                Assert.That(Mathf.DeltaAngle(model.localEulerAngles.x, 270f), Is.EqualTo(0f).Within(0.1f), name);
-                Assert.That(tag.text, Does.Contain("P.A.S.S."), name);
-                Assert.That(tag.GetComponentInParent<BillboardLabel>(), Is.Not.Null, name);
-                Assert.That(Mathf.Abs(tag.GetComponentInParent<BillboardLabel>().transform.localPosition.x),
-                    Is.GreaterThanOrEqualTo(0.7f), name);
+                Assert.That(Quaternion.Angle(model.localRotation, Quaternion.identity),
+                    Is.LessThan(0.1f), name);
+                Assert.That(label, Is.Not.Null, $"{name} needs an integrated English ABC / P.A.S.S. label. " +
+                    "Imported children: " + string.Join(", ",
+                        model.GetComponentsInChildren<Transform>(true).Select(item => item.name)));
+                Assert.That(root.transform.Find("English Fire Extinguisher Tag"), Is.Null,
+                    $"{name} must not use a floating label that obscures the equipment.");
             }
         }
 
@@ -1274,17 +1322,16 @@ namespace SafetyTraining.Tests.EditMode
             {
                 var root = GameObject.Find(name).transform;
                 var model = root.Cast<Transform>()
-                    .First(child => child.name.StartsWith("RealAsset - korean_fire_extinguisher"));
+                    .First(child => child.name.StartsWith("RealAsset - US_ABC_Fire_Extinguisher"));
                 var modelRenderers = model.GetComponentsInChildren<Renderer>(true)
                     .Where(renderer => renderer.enabled).ToArray();
                 var modelBounds = modelRenderers[0].bounds;
                 foreach (var renderer in modelRenderers.Skip(1))
                     modelBounds.Encapsulate(renderer.bounds);
-                var plate = root.Find("English Fire Extinguisher Tag/English Tag Backplate").GetComponent<Renderer>();
                 var collider = root.GetComponent<BoxCollider>();
 
                 Assert.That(modelBounds.min.y, Is.EqualTo(root.position.y - 0.02f).Within(0.015f), name);
-                Assert.That(plate.bounds.min.x, Is.GreaterThan(modelBounds.max.x + 0.04f), name);
+                Assert.That(root.Find("English Fire Extinguisher Tag"), Is.Null, name);
                 Assert.That(root.Find("Fire Extinguisher Floor Base"), Is.Not.Null, name);
                 Assert.That(root.Find("Fire Extinguisher Floor Support"), Is.Not.Null, name);
                 Assert.That(collider, Is.Not.Null, name);

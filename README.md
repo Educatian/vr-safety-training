@@ -70,6 +70,16 @@ The construction pass uses authored multi-part model assemblies rather than sing
 
 The site is also dressed with downloaded Poly Haven CC0 assets: a hand truck, sectioned ladder, cement bag, drill, and industrial barrel. Source attribution and local files are tracked under `Assets/ThirdParty/PolyHaven/`.
 
+## Blender-authored US site asset pack
+
+The five training modules now include 15 individually modeled, texture-light US workplace props. Construction uses modular formwork, capped rebar, and an adjustable shoring rack; Warehouse uses an electric forklift, selective pallet rack, and dock leveler; Fire Response uses an upright ABC extinguisher with an integrated English `ABC / P.A.S.S.` label, hose cabinet, and crash-bar exit door; Chemical Processing uses an IBC tote, eyewash/shower, and flammable-liquid cabinet; Electrical Maintenance uses a NEMA panel, lockout/tagout station, and safety disconnect.
+
+| All Blender props in their training sites | NPC idle, walking, gesture, and settled QA |
+| --- | --- |
+| ![Fifteen individually modeled US safety props](docs/images/blender-site-props-contact.jpg) | ![Five-site NPC motion sequence QA](docs/images/npc-motion-qa.jpg) |
+
+Editable Blender sources are under `SourceAssets/Blender/`; reproducible generators are under `Tools/Blender/`; the five generated modeling-reference sheets are under `docs/design/`. Imported FBX files disable animation, cameras, lights, and readability, use medium mesh compression, and remain below the per-prop 12,000-triangle Quest budget.
+
 Rocketbox coaches now run an idle behavior loop: subtle body sway/weight shift for generic rigs, timed field-pointing and explanation gestures where humanoid bones are available, head motion during conversation, and a separate talking pose so chat interaction does not snap the NPC back to the default pose.
 
 Environment lighting uses a warm directional sun with soft shadows, site work lights, tri-light ambient color, linear distance fog, a procedural sky, and one baked reflection probe per workplace. The baked probes avoid the GPU/headless instability of realtime cubemap updates while preserving stable VR performance.
@@ -78,10 +88,10 @@ Click any Rocketbox coach to open the live chat panel. Students can type a quest
 
 ## Validation
 
-- Unity EditMode suite: 124/124 passed
+- Unity EditMode suite: 140/140 passed
 - OpenXR Standalone Project Validation: 0 outstanding issues
 - OpenXR Meta Quest Android Project Validation: 0 outstanding issues
-- Windows standalone build: succeeded at `Builds/Windows/VR-Safety-Training.exe` (161.8 MB)
+- Windows standalone build: succeeded at `Builds/Windows/VR-Safety-Training.exe` (163 MB folder)
 - Meta Quest standalone APK: succeeded at `Builds/MetaQuest/VR-Safety-Training-Quest.apk` (93.6 MB)
 - Five-site capture tour: hub, overview, real-prop, NPC idle/walk/dialogue, and settled frames generated
 - Automated demo pilot: 1,200 simulated seconds, 31 analytics zones, 20 inspections, 31 evidence interactions, 25 practical successes, and analysis-ready CSV/JSONL export

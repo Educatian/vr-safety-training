@@ -51,6 +51,7 @@ namespace SafetyTraining.Runtime
                 constructionOrigin + new Vector3(0f, 2.2f, -6.8f), constructionOrigin + new Vector3(0f, 1f, 0.2f));
             yield return CapturePropShowcase(viewer, outputDirectory, "02b-construction-real-props.png",
                 constructionOrigin);
+            yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Construction Site", "construction");
             yield return CaptureLearningBoard(viewer, outputDirectory,
                 "02c-construction-learning-objectives.png", SafetyTraining.Core.TrainingSiteId.Construction);
             yield return CaptureEngineeringStations(viewer, outputDirectory);
@@ -76,6 +77,7 @@ namespace SafetyTraining.Runtime
                 warehouseOrigin + new Vector3(0f, 2.2f, -6.8f), warehouseOrigin + new Vector3(0f, 1f, 0.2f));
             yield return CapturePropShowcase(viewer, outputDirectory, "05b-warehouse-real-props.png",
                 warehouseOrigin);
+            yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Warehouse", "warehouse");
             yield return CaptureNpc(viewer, outputDirectory, "Warehouse", "06-warehouse-npc.png");
 
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.FireResponse);
@@ -84,6 +86,7 @@ namespace SafetyTraining.Runtime
                 fireOrigin + new Vector3(0f, 2.2f, -6.8f), fireOrigin + new Vector3(0f, 1f, 0.2f));
             yield return CapturePropShowcase(viewer, outputDirectory, "07b-fire-response-real-props.png",
                 fireOrigin);
+            yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Fire Response", "fire");
             yield return CaptureNpc(viewer, outputDirectory, "Fire Response", "08-fire-response-npc.png");
 
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.ChemicalProcessing);
@@ -92,6 +95,7 @@ namespace SafetyTraining.Runtime
                 chemicalOrigin + new Vector3(0f, 2.2f, -6.8f), chemicalOrigin + new Vector3(0f, 1f, 0.2f));
             yield return CapturePropShowcase(viewer, outputDirectory, "09b-chemical-real-props.png",
                 chemicalOrigin);
+            yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Chemical Processing", "chemical");
             yield return CaptureNpc(viewer, outputDirectory, "Chemical Processing", "10-chemical-npc.png");
 
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.ElectricalMaintenance);
@@ -100,6 +104,7 @@ namespace SafetyTraining.Runtime
                 electricalOrigin + new Vector3(0f, 2.2f, -6.8f), electricalOrigin + new Vector3(0f, 1f, 0.2f));
             yield return CapturePropShowcase(viewer, outputDirectory, "11b-electrical-real-props.png",
                 electricalOrigin);
+            yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Electrical Maintenance", "electrical");
             yield return CaptureNpc(viewer, outputDirectory, "Electrical Maintenance", "12-electrical-npc.png");
 
             File.WriteAllText(Path.Combine(outputDirectory, "tour-complete.txt"),
@@ -246,6 +251,35 @@ namespace SafetyTraining.Runtime
                 hud.SetVisible(true);
         }
 
+        static IEnumerator CaptureCustomPropCloseups(
+            Camera viewer,
+            string directory,
+            string siteObjectName,
+            string siteSlug)
+        {
+            HideCaptureHud();
+            var site = GameObject.Find(siteObjectName);
+            if (site == null)
+                yield break;
+            var props = site.GetComponentsInChildren<Transform>(true)
+                .Where(item => item.name.StartsWith("RealAsset - US_", StringComparison.Ordinal))
+                .OrderBy(item => item.name)
+                .ToArray();
+            foreach (var prop in props)
+            {
+                if (!VisualCaptureFraming.TryGetBounds(prop.gameObject, out var bounds))
+                    continue;
+                var focus = bounds.center + Vector3.up * bounds.extents.y * 0.08f;
+                var distance = Mathf.Max(2.4f, bounds.extents.magnitude * 2.35f);
+                var direction = new Vector3(0.78f, 0.38f, -1f).normalized;
+                var assetSlug = prop.name.Replace("RealAsset - ", string.Empty)
+                    .Replace(" ", "-").ToLowerInvariant();
+                yield return CaptureView(viewer, directory,
+                    $"asset-{siteSlug}-{assetSlug}.png", focus + direction * distance, focus);
+            }
+            ShowCaptureHud();
+        }
+
         static IEnumerator CaptureLearningBoard(Camera viewer, string directory, string fileName,
             SafetyTraining.Core.TrainingSiteId siteId)
         {
@@ -309,7 +343,6 @@ namespace SafetyTraining.Runtime
             viewer.targetTexture = null;
             viewer.transform.SetPositionAndRotation(position, Quaternion.LookRotation(focus - position));
             yield return null;
-            yield return new WaitForEndOfFrame();
             VisualCaptureCamera.CapturePng(viewer, Path.Combine(directory, fileName));
             yield return new WaitForSecondsRealtime(ReadSeconds(HoldVariable, 1f));
         }

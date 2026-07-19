@@ -8,6 +8,7 @@ namespace SafetyTraining.Runtime
 
         Animator animator;
         Transform head;
+        Quaternion headBase;
         Transform leftUpperArm;
         Transform leftLowerArm;
         Transform rightUpperArm;
@@ -60,6 +61,8 @@ namespace SafetyTraining.Runtime
                     rightLegBase = rightUpperLeg.localRotation;
             }
             baseRotation = transform.localRotation;
+            if (head != null)
+                headBase = head.localRotation;
             hasLocomotionController = animator.runtimeAnimatorController != null &&
                                       HasParameter("Moving", AnimatorControllerParameterType.Bool);
         }
@@ -100,11 +103,14 @@ namespace SafetyTraining.Runtime
             ApplyHeadMotion(Time.time, activeConversation);
         }
 
-        public void SetMoving(bool value)
+        public void SetMoving(bool value, float pace = 1f)
         {
             moving = value;
             if (hasLocomotionController)
+            {
                 animator.SetBool("Moving", value);
+                animator.speed = value ? Mathf.Clamp(pace, 0.85f, 1.35f) : 1f;
+            }
         }
 
         public bool IsEncouraging => gesture is Gesture.Encourage or Gesture.Celebrate;
@@ -183,8 +189,9 @@ namespace SafetyTraining.Runtime
                 return;
             var yaw = Mathf.Sin(time * (talking ? 1.7f : 0.45f)) * (talking ? 8f : 3f);
             var pitch = Mathf.Sin(time * 0.65f) * 2f;
-            head.localRotation = Quaternion.Slerp(head.localRotation,
-                Quaternion.Euler(pitch, yaw, 0f), 0.06f);
+            var animatedRotation = animator != null && animator.enabled ? head.localRotation : headBase;
+            head.localRotation = Quaternion.Slerp(animatedRotation,
+                animatedRotation * Quaternion.Euler(pitch, yaw, 0f), 0.32f);
         }
 
         void ApplyGenericIdle(float time)

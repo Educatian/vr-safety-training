@@ -7,12 +7,15 @@ namespace SafetyTraining.Editor
     internal static class ImportedPropDresser
     {
         const string Models = "Assets/ThirdParty/PolyHaven/Models/";
+        const string CustomModels = "Assets/SafetyTraining/Models/ConstructionCustom/";
+        const string SiteModels = "Assets/SafetyTraining/Models/SiteSafetyCustom/";
 
         readonly struct PropSpec
         {
-            public PropSpec(string asset, Vector3 position, Vector3 scale, Vector3 rotation)
+            public PropSpec(string asset, Vector3 position, Vector3 scale, Vector3 rotation,
+                bool custom = false, bool site = false)
             {
-                AssetPath = Models + asset;
+                AssetPath = (site ? SiteModels : custom ? CustomModels : Models) + asset;
                 Position = position;
                 Scale = scale;
                 Rotation = Quaternion.Euler(rotation);
@@ -39,24 +42,36 @@ namespace SafetyTraining.Editor
             ReplaceVisual(site, "Inspection Clipboard",
                 Spec("clipboard_1k.fbx", Vector3.zero, 0.85f, new Vector3(0f, 12f, 0f)));
 
-            Add(site, Spec("industrial_storage_cart_1k.fbx", new Vector3(3.15f, 0f, -1.7f), 0.72f,
+            AddGrounded(site, Spec("industrial_storage_cart_1k.fbx", new Vector3(3.15f, 0f, -1.7f), 0.72f,
                 new Vector3(0f, 180f, 0f)));
-            Add(site, Spec("cement_bag_1k.fbx", new Vector3(1.55f, 0.15f, -2.25f), 0.75f,
+            AddGrounded(site, Spec("cement_bag_1k.fbx", new Vector3(1.55f, 0f, -2.25f), 0.75f,
                 new Vector3(0f, -18f, 0f)));
-            Add(site, Spec("Drill_01_1k.fbx", new Vector3(-0.7f, 1.12f, -3.25f), 0.32f,
+            AddGrounded(site, Spec("Drill_01_1k.fbx", new Vector3(-0.7f, 0f, -3.25f), 0.32f,
                 new Vector3(0f, 25f, 90f)));
+            AddStaticGrounded(site, CustomSpec("US_Modular_Formwork_Panel.fbx",
+                new Vector3(-5.2f, 0f, 2.6f), 1f, new Vector3(0f, 18f, 0f)));
+            AddStaticGrounded(site, CustomSpec("US_Capped_Rebar_Bundle.fbx",
+                new Vector3(4.2f, 0f, 2.2f), 1f, new Vector3(0f, -12f, 0f)));
+            AddStaticGrounded(site, CustomSpec("US_Adjustable_Shoring_Rack.fbx",
+                new Vector3(5.0f, 0f, 4.1f), 0.9f, new Vector3(0f, -12f, 0f)));
         }
 
         public static void DressWarehouse(Transform site)
         {
             ReplaceCargo(site, "Pallet in Vehicle Lane", "plastic_crate_02_1k.fbx");
             ReplaceCargo(site, "Cargo in Staging Bay", "cardboard_box_01_1k.fbx");
-            Add(site, Spec("hand_truck_1k.fbx", new Vector3(-2.5f, 0f, -2.1f), 0.7f,
+            AddGrounded(site, Spec("hand_truck_1k.fbx", new Vector3(-2.5f, 0f, -2.1f), 0.7f,
                 new Vector3(0f, 180f, 0f)));
-            Add(site, Spec("industrial_storage_cart_1k.fbx", new Vector3(-0.9f, 0f, -2.5f), 0.68f,
+            AddGrounded(site, Spec("industrial_storage_cart_1k.fbx", new Vector3(-0.9f, 0f, -2.5f), 0.68f,
                 new Vector3(0f, 165f, 0f)));
-            Add(site, Spec("metal_toolbox_1k.fbx", new Vector3(-2.55f, 0.15f, -2.35f), 0.65f,
+            AddGrounded(site, Spec("metal_toolbox_1k.fbx", new Vector3(-2.55f, 0f, -2.35f), 0.65f,
                 new Vector3(0f, -10f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Electric_Warehouse_Forklift.fbx",
+                new Vector3(4.7f, 0f, 2.4f), 0.9f, new Vector3(0f, -18f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Selective_Pallet_Rack_Bay.fbx",
+                new Vector3(-5.2f, 0f, 2.5f), 0.95f, new Vector3(0f, 12f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Loading_Dock_Leveler.fbx",
+                new Vector3(4.5f, 0f, -3.4f), 0.9f, new Vector3(0f, -8f, 0f)));
         }
 
         public static void DressFireResponse(Transform site)
@@ -72,8 +87,12 @@ namespace SafetyTraining.Editor
                 obstruction.name = "Blocked Access Obstruction";
                 obstruction.SetParent(blockedExtinguisher, true);
             }
-            Add(site, Spec("ladder_sectioned_01_1k.fbx", new Vector3(-1.4f, 0.02f, -2.2f), 0.8f,
-                new Vector3(0f, -18f, 0f)));
+            AddGrounded(site, Spec("ladder_sectioned_01_1k.fbx", new Vector3(-1.4f, 0f, -2.2f), 0.8f,
+                new Vector3(0f, -18f, 90f)));
+            AddStaticGrounded(site, SiteSpec("US_Recessed_Fire_Hose_Cabinet.fbx",
+                new Vector3(-5.1f, 0f, 2.7f), 0.9f, new Vector3(0f, 8f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Commercial_Emergency_Exit_Door.fbx",
+                new Vector3(4.7f, 0f, 2.5f), 0.9f, new Vector3(0f, -10f, 0f)));
         }
 
         public static void DressChemicalProcessing(Transform site)
@@ -81,16 +100,28 @@ namespace SafetyTraining.Editor
             ReplaceDrum(site, "Leaking Solvent Drum");
             ReplaceDrum(site, "Unlabeled Chemical Drum");
             ReplaceDrum(site, "Labeled Compatible Drum");
-            Add(site, Spec("cement_bag_1k.fbx", new Vector3(-1.2f, 0.1f, -2.4f), 0.6f,
+            AddGrounded(site, Spec("cement_bag_1k.fbx", new Vector3(-1.2f, 0f, -2.4f), 0.6f,
                 new Vector3(0f, 24f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_275_Gallon_IBC_Tote.fbx",
+                new Vector3(-4.8f, 0f, 2.6f), 0.9f, new Vector3(0f, 10f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Emergency_Eyewash_Shower.fbx",
+                new Vector3(4.8f, 0f, 2.5f), 0.95f, new Vector3(0f, -14f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Flammable_Liquid_Cabinet.fbx",
+                new Vector3(4.7f, 0f, -3.2f), 0.9f, new Vector3(0f, -10f, 0f)));
         }
 
         public static void DressElectricalMaintenance(Transform site)
         {
-            Add(site, Spec("Drill_01_1k.fbx", new Vector3(2.3f, 0.8f, -1.3f), 0.35f,
+            AddGrounded(site, Spec("Drill_01_1k.fbx", new Vector3(2.3f, 0f, -1.3f), 0.35f,
                 new Vector3(0f, 15f, 90f)));
-            Add(site, Spec("ladder_sectioned_01_1k.fbx", new Vector3(-1.7f, 0.02f, -2.3f), 0.75f,
-                new Vector3(0f, 20f, 0f)));
+            AddGrounded(site, Spec("ladder_sectioned_01_1k.fbx", new Vector3(-1.7f, 0f, -2.3f), 0.75f,
+                new Vector3(0f, 20f, 90f)));
+            AddStaticGrounded(site, SiteSpec("US_NEMA_Electrical_Panel.fbx",
+                new Vector3(-4.8f, 0f, 2.5f), 0.95f, new Vector3(0f, 12f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Lockout_Tagout_Station.fbx",
+                new Vector3(4.7f, 0f, 2.6f), 0.95f, new Vector3(0f, -12f, 0f)));
+            AddStaticGrounded(site, SiteSpec("US_Safety_Disconnect_Switch.fbx",
+                new Vector3(4.6f, 0f, -3.2f), 0.95f, new Vector3(0f, -8f, 0f)));
         }
 
         static void ReplaceStack(Transform site, string name, string asset, int count, float scale)
@@ -161,12 +192,11 @@ namespace SafetyTraining.Editor
             if (root == null)
                 return;
 
-            var model = Add(root, Spec("korean_fire_extinguisher_01_1k.fbx", Vector3.zero, 125f,
-                new Vector3(-90f, 0f, 0f)));
+            var model = Add(root, SiteSpec("US_ABC_Fire_Extinguisher.fbx", Vector3.zero, 1f,
+                Vector3.zero));
             GroundOnParentFloor(model, root, -0.02f);
             FitRootColliderToVisuals(root);
             CreateExtinguisherFloorStand(root);
-            CreateEnglishExtinguisherTag(root);
         }
 
         static void CreateExtinguisherFloorStand(Transform parent)
@@ -278,6 +308,16 @@ namespace SafetyTraining.Editor
             return new PropSpec(asset, position, Vector3.one * uniformScale, rotation);
         }
 
+        static PropSpec CustomSpec(string asset, Vector3 position, float uniformScale, Vector3 rotation)
+        {
+            return new PropSpec(asset, position, Vector3.one * uniformScale, rotation, true);
+        }
+
+        static PropSpec SiteSpec(string asset, Vector3 position, float uniformScale, Vector3 rotation)
+        {
+            return new PropSpec(asset, position, Vector3.one * uniformScale, rotation, false, true);
+        }
+
         static GameObject Add(Transform parent, PropSpec spec)
         {
             var asset = AssetDatabase.LoadAssetAtPath<GameObject>(spec.AssetPath);
@@ -294,6 +334,23 @@ namespace SafetyTraining.Editor
             instance.transform.localScale = spec.Scale;
             foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
                 Object.DestroyImmediate(collider);
+            return instance;
+        }
+
+        static GameObject AddGrounded(Transform parent, PropSpec spec)
+        {
+            var instance = Add(parent, spec);
+            GroundOnParentFloor(instance, parent, 0.012f);
+            return instance;
+        }
+
+        static GameObject AddStaticGrounded(Transform parent, PropSpec spec)
+        {
+            var instance = AddGrounded(parent, spec);
+            if (instance == null)
+                return null;
+            foreach (var item in instance.GetComponentsInChildren<Transform>(true))
+                item.gameObject.isStatic = true;
             return instance;
         }
     }

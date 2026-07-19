@@ -9,8 +9,8 @@ namespace SafetyTraining.Runtime
         [SerializeField] TrainingSiteId siteId;
         [SerializeField, Min(0.5f)] float sideOffset = 1.35f;
         [SerializeField, Min(0f)] float frontOffset = 2f;
-        [SerializeField, Min(0.1f)] float walkSpeed = 3.2f;
-        [SerializeField, Min(0.1f)] float catchUpSpeed = 6.25f;
+        [SerializeField, Min(0.1f)] float walkSpeed = 1.55f;
+        [SerializeField, Min(0.1f)] float catchUpSpeed = 2.15f;
         [SerializeField, Min(0.5f)] float catchUpDistance = 1.8f;
         [SerializeField, Min(1f)] float recoveryDistance = 8f;
         [SerializeField, Min(1f)] float chatRange = 3.2f;
@@ -113,6 +113,14 @@ namespace SafetyTraining.Runtime
             var separation = Vector3.Distance(transform.position, safeTarget);
             if (separation > recoveryDistance)
             {
+                if (!IsVisibleToViewer())
+                {
+                    transform.position = safeTarget;
+                    moving = false;
+                    pose?.SetMoving(false);
+                    FaceViewer();
+                    return;
+                }
                 moving = true;
                 MoveToward(safeTarget, catchUpSpeed);
                 return;
@@ -193,25 +201,40 @@ namespace SafetyTraining.Runtime
             delta.y = 0f;
             if (!accompanying)
                 moving = delta.sqrMagnitude > 0.12f;
-            pose?.SetMoving(moving);
             if (!moving)
             {
+                pose?.SetMoving(false);
                 FaceViewer();
                 return;
             }
 
-            var step = Mathf.Min(delta.magnitude, speed * Time.deltaTime);
             var direction = delta.normalized;
-            step = LimitStepByCollision(direction, step);
-            transform.position += direction * step;
+            var targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation,
+                Time.deltaTime * 320f);
+            var facing = Mathf.Clamp01((Vector3.Dot(transform.forward, direction) - 0.15f) / 0.85f);
+            pose?.SetMoving(facing > 0.2f, speed / Mathf.Max(0.1f, walkSpeed));
+            var travelDirection = Vector3.Slerp(transform.forward, direction, 0.35f).normalized;
+            var step = Mathf.Min(delta.magnitude, speed * Time.deltaTime * facing);
+            step = LimitStepByCollision(travelDirection, step);
+            transform.position += travelDirection * step;
             if (step <= 0.001f)
             {
+                if (facing <= 0.2f)
+                    return;
                 moving = false;
                 pose?.SetMoving(false);
                 return;
             }
-            var targetRotation = Quaternion.LookRotation(delta.normalized, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 7f);
+        }
+
+        bool IsVisibleToViewer()
+        {
+            if (viewer == null)
+                return false;
+            var viewport = viewer.WorldToViewportPoint(transform.position + Vector3.up);
+            return viewport.z > 0f && viewport.x > -0.08f && viewport.x < 1.08f &&
+                   viewport.y > -0.08f && viewport.y < 1.08f;
         }
 
         float LimitStepByCollision(Vector3 direction, float requestedStep)

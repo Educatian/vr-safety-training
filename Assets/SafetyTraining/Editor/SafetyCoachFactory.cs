@@ -23,7 +23,7 @@ namespace SafetyTraining.Editor
         public static void Create(Transform parent, TrainingSiteId siteId, string role, string facts,
             string coachPath)
         {
-            var coach = InstantiateModel(parent, coachPath, out var animator);
+            var coach = InstantiateModel(parent, coachPath, siteId, out var animator);
             CoachPpeBuilder.Apply(siteId, coach, animator);
             ConfigureCollider(coach);
             coach.AddComponent<XRSimpleInteractable>();
@@ -38,7 +38,8 @@ namespace SafetyTraining.Editor
             coach.AddComponent<NpcSiteCompanion>().Configure(siteId);
         }
 
-        static GameObject InstantiateModel(Transform parent, string coachPath, out Animator animator)
+        static GameObject InstantiateModel(Transform parent, string coachPath, TrainingSiteId siteId,
+            out Animator animator)
         {
             var coachAsset = AssetDatabase.LoadAssetAtPath<GameObject>(coachPath);
             if (coachAsset == null)
@@ -50,7 +51,9 @@ namespace SafetyTraining.Editor
 
             var coach = (GameObject)PrefabUtility.InstantiatePrefab(coachAsset, parent);
             coach.name = "Rocketbox Safety Coach";
-            coach.transform.localPosition = new Vector3(0f, 0f, -3.7f);
+            coach.transform.localPosition = siteId == TrainingSiteId.Construction
+                ? new Vector3(2.35f, 0f, -3.7f)
+                : new Vector3(0f, 0f, -3.7f);
             coach.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             var primaryModel = coach.GetComponentInChildren<SkinnedMeshRenderer>(true);
             for (var current = primaryModel?.transform; current != null; current = current.parent)
