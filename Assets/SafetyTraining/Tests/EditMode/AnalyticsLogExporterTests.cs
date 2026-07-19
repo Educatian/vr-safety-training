@@ -80,5 +80,25 @@ namespace SafetyTraining.Tests.EditMode
             Assert.That(result.InquiryRowCount, Is.EqualTo(1));
             Assert.That(File.ReadAllText(result.InquiryPath), Does.Contain("\"Crane swing path, missing spotter\""));
         }
+
+        [Test]
+        public void ExportDirectory_PreservesObjectiveCriterionAndEarnedAssessmentEvidence()
+        {
+            var logs = Path.Combine(tempRoot, "logs");
+            var output = Path.Combine(tempRoot, "output");
+            Directory.CreateDirectory(logs);
+            File.WriteAllText(Path.Combine(logs, "inquiry_learner003.jsonl"),
+                "{\"timestampUtc\":\"2026-07-18T16:02:00.0000000Z\",\"sessionId\":\"learner003\",\"eventType\":\"assessment_evidence\",\"phase\":\"learning_outcome\",\"site\":\"Construction\",\"objectId\":\"decision:crane-radius\",\"objectiveId\":\"CON-02\",\"criterionId\":\"decision:crane-radius\",\"outcome\":\"met\",\"earnedPoints\":50,\"possiblePoints\":50,\"detail\":\"Verified 50 ft radius\",\"siteX\":11.35,\"siteY\":1.2,\"siteZ\":0.2}\n");
+
+            var result = AnalyticsLogExporter.ExportDirectory(logs, output);
+
+            var inquiryCsv = File.ReadAllText(result.InquiryPath);
+            Assert.That(inquiryCsv, Does.Contain("objectiveId,criterionId,earnedPoints,possiblePoints"));
+            Assert.That(inquiryCsv, Does.Contain("CON-02,decision:crane-radius,50,50"));
+            var summaryCsv = File.ReadAllText(result.RouteSummaryPath);
+            Assert.That(summaryCsv, Does.Contain("assessmentAttempts,assessmentEvidenceEarned,objectivesTouched"));
+            Assert.That(summaryCsv, Does.Contain("learner003,Construction"));
+            Assert.That(summaryCsv, Does.EndWith(",1,50,1\r\n").Or.EndWith(",1,50,1\n"));
+        }
     }
 }

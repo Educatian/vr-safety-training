@@ -16,6 +16,10 @@ namespace SafetyTraining.Editor
         public string Phase = string.Empty;
         public string HazardType = string.Empty;
         public string Detail = string.Empty;
+        public string ObjectiveId = string.Empty;
+        public string CriterionId = string.Empty;
+        public int EarnedPoints;
+        public int PossiblePoints;
         public int EvidenceCount;
         public int CollectedItemCount;
         public int DistractorCount;
@@ -75,6 +79,9 @@ namespace SafetyTraining.Editor
         public int PlacementAttempts;
         public int PlacementSuccesses;
         public int CoachTurns;
+        public int AssessmentAttempts;
+        public int AssessmentEvidenceEarned;
+        public int ObjectivesTouched;
     }
 
     public readonly struct AnalyticsExportResult

@@ -48,6 +48,7 @@ namespace SafetyTraining.Editor
             var lobby = CreateTrainingHubLobby();
             var coordinator = new GameObject("Training Coordinator");
             coordinator.AddComponent<TrainingCoordinator>();
+            coordinator.AddComponent<LearningOutcomeTracker>();
             coordinator.AddComponent<InquirySessionController>();
             coordinator.AddComponent<SiteExperienceDirector>();
             var isolation = coordinator.AddComponent<SiteIsolationController>();
@@ -98,6 +99,7 @@ namespace SafetyTraining.Editor
             SitePracticalFactory.CreateAll(warehouse, fire, chemical, electrical);
 
             SafetyWorldExpansionFactory.ExpandAll(construction, warehouse, fire, chemical, electrical);
+            LearningContentFactory.CreateAll(construction, warehouse, fire, chemical, electrical);
             CreateReturnPortal(construction, TrainingSiteId.Construction, new Color(0.95f, 0.55f, 0.08f));
             CreateReturnPortal(warehouse, TrainingSiteId.Warehouse, new Color(0.12f, 0.48f, 0.85f));
             CreateReturnPortal(fire, TrainingSiteId.FireResponse, new Color(0.78f, 0.16f, 0.1f));

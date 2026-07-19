@@ -42,6 +42,11 @@ namespace SafetyTraining.Runtime
                 collectedItemCount = telemetry.CollectedItemCount,
                 distractorCount = telemetry.DistractorCount,
                 isDistractor = telemetry.IsDistractor,
+                objectiveId = telemetry.ObjectiveId,
+                criterionId = telemetry.CriterionId,
+                outcome = telemetry.Outcome,
+                earnedPoints = telemetry.EarnedPoints,
+                possiblePoints = telemetry.PossiblePoints,
                 zoneId = analyticsZone != null ? analyticsZone.ZoneId : string.Empty,
                 zoneName = analyticsZone != null ? analyticsZone.DisplayName : string.Empty,
                 worldX = position.x,
@@ -97,6 +102,11 @@ namespace SafetyTraining.Runtime
             public int collectedItemCount;
             public int distractorCount;
             public bool isDistractor;
+            public string objectiveId = string.Empty;
+            public string criterionId = string.Empty;
+            public string outcome = string.Empty;
+            public int earnedPoints;
+            public int possiblePoints;
             public string zoneId = string.Empty;
             public string zoneName = string.Empty;
             public float worldX;

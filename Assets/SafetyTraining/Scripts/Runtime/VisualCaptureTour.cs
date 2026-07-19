@@ -51,6 +51,9 @@ namespace SafetyTraining.Runtime
                 constructionOrigin + new Vector3(0f, 2.2f, -6.8f), constructionOrigin + new Vector3(0f, 1f, 0.2f));
             yield return CapturePropShowcase(viewer, outputDirectory, "02b-construction-real-props.png",
                 constructionOrigin);
+            yield return CaptureLearningBoard(viewer, outputDirectory,
+                "02c-construction-learning-objectives.png", SafetyTraining.Core.TrainingSiteId.Construction);
+            yield return CaptureEngineeringStations(viewer, outputDirectory);
             var constructionHazard = FindObjectsByType<InspectionTarget>(FindObjectsSortMode.None)
                 .FirstOrDefault(target => target.TargetId == "fall-edge");
             if (constructionHazard != null)
@@ -241,6 +244,57 @@ namespace SafetyTraining.Runtime
                 siteOrigin + new Vector3(0f, 0.75f, 0f));
             if (hud != null)
                 hud.SetVisible(true);
+        }
+
+        static IEnumerator CaptureLearningBoard(Camera viewer, string directory, string fileName,
+            SafetyTraining.Core.TrainingSiteId siteId)
+        {
+            HideCaptureHud();
+            var board = FindObjectsByType<LearningObjectiveBoard>(FindObjectsSortMode.None)
+                .FirstOrDefault(item => item.SiteId == siteId);
+            if (board != null && VisualCaptureFraming.TryGetBounds(board.gameObject, out var bounds))
+            {
+                var focus = bounds.center;
+                yield return CaptureView(viewer, directory, fileName,
+                    focus - board.transform.forward * 5.8f + Vector3.up * 0.1f, focus);
+            }
+            ShowCaptureHud();
+        }
+
+        static IEnumerator CaptureEngineeringStations(Camera viewer, string directory)
+        {
+            var stations = FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .OrderBy(item => item.transform.position.z).ToArray();
+            for (var index = 0; index < stations.Length; index++)
+            {
+                HideCaptureHud();
+                var station = stations[index];
+                if (VisualCaptureFraming.TryGetBounds(station.gameObject, out var bounds))
+                {
+                    var focus = bounds.center + Vector3.up * 0.05f;
+                    yield return CaptureView(viewer, directory,
+                        $"02{(char)('d' + index)}-construction-{station.DecisionId}.png",
+                        focus - station.transform.forward * 5.9f, focus);
+                }
+            }
+
+            var formwork = stations.FirstOrDefault(item => item.DecisionId == "formwork-capacity");
+            if (formwork != null && VisualCaptureFraming.TryGetBounds(formwork.gameObject, out var formworkBounds))
+            {
+                var options = formwork.GetComponentsInChildren<EngineeringDecisionOption>(true);
+                options.FirstOrDefault(item => !item.IsCorrect)?.Select();
+                yield return new WaitForSecondsRealtime(0.25f);
+                HideCaptureHud();
+                var focus = formworkBounds.center;
+                yield return CaptureView(viewer, directory, "02g-formwork-diagnostic-feedback.png",
+                    focus - formwork.transform.forward * 5.9f, focus);
+                options.FirstOrDefault(item => item.IsCorrect)?.Select();
+                yield return new WaitForSecondsRealtime(0.35f);
+                ShowCaptureHud();
+                yield return CaptureView(viewer, directory, "02h-formwork-verified-hud.png",
+                    focus - formwork.transform.forward * 5.9f, focus);
+            }
+            ShowCaptureHud();
         }
 
         static IEnumerator CaptureView(

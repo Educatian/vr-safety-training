@@ -13,6 +13,7 @@ namespace SafetyTraining.Runtime
             public Text ScoreDisplay;
             public Text StateDisplay;
             public Text FeedbackDisplay;
+            public Text ObjectivesDisplay;
             public Text ProgressDisplay;
             public RectTransform ProgressFill;
             public Image StateIcon;
@@ -23,6 +24,7 @@ namespace SafetyTraining.Runtime
         [SerializeField] Text scoreDisplay;
         [SerializeField] Text stateDisplay;
         [SerializeField] Text feedbackDisplay;
+        [SerializeField] Text objectivesDisplay;
         [SerializeField] Text progressDisplay;
         [SerializeField] RectTransform progressFill;
         [SerializeField] Image stateIcon;
@@ -53,7 +55,7 @@ namespace SafetyTraining.Runtime
             var elapsedSeconds = Mathf.FloorToInt(coordinator.SessionElapsedSeconds);
             var stateKey = $"{coordinator.OverallScore}|{coordinator.HudFeedback}|" +
                            $"{coordinator.ActiveSiteName}|{coordinator.CertificationComplete}|" +
-                           $"{coordinator.ReviewedConditionCount}|{elapsedSeconds}";
+                           $"{coordinator.ReviewedConditionCount}|{coordinator.ActiveLearningSummary}|{elapsedSeconds}";
             if (shownFeedback == stateKey)
                 return;
 
@@ -63,6 +65,8 @@ namespace SafetyTraining.Runtime
                 siteDisplay.text = coordinator.CertificationComplete ? "MISSION COMPLETE" : coordinator.ActiveSiteName;
             if (scoreDisplay != null)
                 scoreDisplay.text = coordinator.OverallScore.ToString("0000");
+            if (objectivesDisplay != null)
+                objectivesDisplay.text = coordinator.ActiveLearningSummary;
             if (progressDisplay != null)
                 progressDisplay.text = $"SESSION {elapsedSeconds / 60:00}:{elapsedSeconds % 60:00} / 20:00";
             if (progressFill != null)
@@ -79,6 +83,7 @@ namespace SafetyTraining.Runtime
             scoreDisplay = bindings.ScoreDisplay;
             stateDisplay = bindings.StateDisplay;
             feedbackDisplay = bindings.FeedbackDisplay;
+            objectivesDisplay = bindings.ObjectivesDisplay;
             progressDisplay = bindings.ProgressDisplay;
             progressFill = bindings.ProgressFill;
             stateIcon = bindings.StateIcon;

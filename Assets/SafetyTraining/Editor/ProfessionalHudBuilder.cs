@@ -59,6 +59,15 @@ namespace SafetyTraining.Editor
             var score = Text("Score Value", scoreShell.transform, "0000", font, 30, Primary,
                 new Vector2(-18f, -36f), new Vector2(205f, 38f), TextAnchor.UpperRight);
 
+            var evidenceShell = Shell("Learning Evidence Shell", root.transform, panelSprite,
+                new Vector2(36f, -126f), new Vector2(540f, 72f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+            AddRail(evidenceShell.transform, new Vector2(8f, -10f), new Vector2(5f, 48f), new Color(0.32f, 0.68f, 1f));
+            Text("Learning Evidence Label", evidenceShell.transform, "LEARNING EVIDENCE", font, 14, Muted,
+                new Vector2(28f, -11f), new Vector2(470f, 20f), TextAnchor.UpperLeft);
+            var objectives = Text("Learning Evidence", evidenceShell.transform,
+                "APPROACH A WORK ZONE TO LOAD OBJECTIVES", font, 17, Primary,
+                new Vector2(28f, -34f), new Vector2(485f, 28f), TextAnchor.UpperLeft);
+
             var feedbackShell = Shell("Feedback Shell", root.transform, panelSprite,
                 new Vector2(0f, 16f), new Vector2(820f, 140f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
             var icon = Image("State Icon", feedbackShell.transform, iconSprite, Accent,
@@ -87,6 +96,7 @@ namespace SafetyTraining.Editor
                 ScoreDisplay = score,
                 StateDisplay = state,
                 FeedbackDisplay = feedback,
+                ObjectivesDisplay = objectives,
                 ProgressDisplay = progressLabel,
                 ProgressFill = progress.rectTransform,
                 StateIcon = icon

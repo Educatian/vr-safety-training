@@ -110,6 +110,10 @@ namespace SafetyTraining.Runtime
             var eventType = evidence.IsDistractor ? "distractor_selected" : "evidence_collected";
             Record(evidence.SiteId, eventType, "evidence", evidence.EvidenceId,
                 evidence.Observation, evidence.IsDistractor, evidence.HazardType);
+            LearningOutcomeTracker.Instance?.Record(evidence.SiteId,
+                LearningObjectiveCatalog.ObjectiveAt(evidence.SiteId, 0).Id,
+                $"field:{evidence.EvidenceId}", !evidence.IsDistractor,
+                $"{evidence.Title}: {evidence.Observation}");
             TrainingCoordinator.Instance?.SetContextFeedback(
                 $"{evidence.Title}\nRelevant evidence: {EvidenceCount(evidence.SiteId)}. " +
                 $"Comparison samples: {DistractorCount(evidence.SiteId)}. {evidence.Observation}");
@@ -120,11 +124,17 @@ namespace SafetyTraining.Runtime
         {
             hypotheses[site] = hypothesis;
             Record(site, "hypothesis_selected", "hypothesis", string.Empty, hypothesis, false);
+            var objectives = LearningObjectiveCatalog.ForSite(site);
+            LearningOutcomeTracker.Instance?.Record(site, objectives[objectives.Count - 1].Id,
+                "hypothesis", !string.IsNullOrWhiteSpace(hypothesis), hypothesis);
         }
 
         public void SubmitFinalExplanation(TrainingSiteId site, string explanation)
         {
             Record(site, "final_explanation_submitted", "report", string.Empty, explanation, false);
+            var objectives = LearningObjectiveCatalog.ForSite(site);
+            LearningOutcomeTracker.Instance?.Record(site, objectives[objectives.Count - 1].Id,
+                "final_report", !string.IsNullOrWhiteSpace(explanation), explanation);
         }
 
         public void BlockReportSubmission(TrainingSiteId site, int minimumEvidenceRequired, string hypothesis)

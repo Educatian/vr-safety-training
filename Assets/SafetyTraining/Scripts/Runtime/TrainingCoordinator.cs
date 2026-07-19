@@ -14,6 +14,7 @@ namespace SafetyTraining.Runtime
 
         TrainingEventLogger eventLogger;
         PracticalProgressRegistry practicals;
+        LearningOutcomeTracker learningOutcomes;
 
         public static TrainingCoordinator Instance { get; private set; }
         public string LastFeedback { get; private set; } =
@@ -54,6 +55,9 @@ namespace SafetyTraining.Runtime
             }
         }
         public TrainingSiteId? ActiveSite { get; private set; }
+        public string ActiveLearningSummary => ActiveSite.HasValue
+            ? (learningOutcomes != null ? learningOutcomes.CompactSummary(ActiveSite.Value) : "ASSESSMENT INITIALIZING")
+            : "APPROACH A WORK ZONE TO LOAD OBJECTIVES";
         public float SessionElapsedSeconds => guidedPlan.ElapsedSeconds;
         public int CompletedCoachTurns => guidedPlan.CompletedCoachTurns;
         public bool CertificationComplete => AllSitesComplete && guidedPlan.IsComplete &&
@@ -95,6 +99,7 @@ namespace SafetyTraining.Runtime
 
             Instance = this;
             eventLogger = GetComponent<TrainingEventLogger>() ?? gameObject.AddComponent<TrainingEventLogger>();
+            learningOutcomes = GetComponent<LearningOutcomeTracker>() ?? gameObject.AddComponent<LearningOutcomeTracker>();
             BuildSessions();
             practicals = new PracticalProgressRegistry();
         }
@@ -135,6 +140,11 @@ namespace SafetyTraining.Runtime
         {
             eventLogger?.RecordPlacement(siteId, stepIndex, totalSteps, actionName, instruction,
                 releaseDistance, success, inputMode);
+            var objectiveIndex = siteId == TrainingSiteId.Construction ? 2 : 1;
+            if (learningOutcomes != null)
+                learningOutcomes.Record(siteId, LearningObjectiveCatalog.ObjectiveAt(siteId, objectiveIndex).Id,
+                    $"practical:{stepIndex}", success,
+                    $"{actionName}: {instruction}; release distance {releaseDistance:0.00} m; input {inputMode}");
         }
 
         public void PresentPracticalCoachFeedback(TrainingSiteId siteId, string message)
@@ -201,7 +211,8 @@ namespace SafetyTraining.Runtime
             };
             ActiveSiteName = siteName.ToUpperInvariant();
             var inquiryPrompt = InquirySessionController.PromptFor(siteId);
-            LastFeedback = $"Inquiry brief: {inquiryPrompt}";
+            var openingObjective = LearningObjectiveCatalog.ObjectiveAt(siteId, 0);
+            LastFeedback = $"{openingObjective.Id} | {openingObjective.Title}\n{inquiryPrompt}";
             HudFeedback = LastFeedback;
             practicals?.Begin(siteId);
             InquirySessionController.Instance?.StartInquiry(siteId, inquiryPrompt);

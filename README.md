@@ -1,5 +1,17 @@
 # VR Safety Training Explorer
 
+Civil/construction engineering learning objectives, assessment evidence, and the three calculation-based Construction decisions are documented in [docs/CIVIL_ENGINEERING_LEARNING_DESIGN.md](docs/CIVIL_ENGINEERING_LEARNING_DESIGN.md).
+
+## Civil engineering learning evidence
+
+| Explicit objective board | Formwork demand/capacity decision |
+| --- | --- |
+| ![Construction learning objectives and assessment evidence](docs/images/construction-learning-objectives.png) | ![Formwork and shoring engineering calculation station](docs/images/construction-formwork-capacity.png) |
+
+| Diagnostic feedback after an unsafe choice | Verified decision with HUD evidence update |
+| --- | --- |
+| ![Diagnostic engineering decision feedback](docs/images/construction-formwork-diagnostic.png) | ![Verified formwork decision and learning evidence HUD](docs/images/construction-formwork-verified.png) |
+
 Unity 6 + OpenXR prototype for exploring multiple safety-training sites and talking with Microsoft Rocketbox NPCs. The experience contains five workplace zones in one continuous campus:
 
 ![Chemical hands-on safety training with PPE and mission HUD](docs/images/chemical-hands-on-ppe.png)

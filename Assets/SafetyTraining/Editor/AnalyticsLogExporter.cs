@@ -70,6 +70,10 @@ namespace SafetyTraining.Editor
                         Phase = AnalyticsCsv.ReadString(json, "phase"),
                         HazardType = AnalyticsCsv.ReadString(json, "hazardType"),
                         Detail = AnalyticsCsv.ReadString(json, "detail", AnalyticsCsv.ReadString(json, "hypothesis")),
+                        ObjectiveId = AnalyticsCsv.ReadString(json, "objectiveId"),
+                        CriterionId = AnalyticsCsv.ReadString(json, "criterionId"),
+                        EarnedPoints = AnalyticsCsv.ReadInteger(json, "earnedPoints"),
+                        PossiblePoints = AnalyticsCsv.ReadInteger(json, "possiblePoints"),
                         EvidenceCount = AnalyticsCsv.ReadInteger(json, "evidenceCount"),
                         CollectedItemCount = AnalyticsCsv.ReadInteger(json, "collectedItemCount"),
                         DistractorCount = AnalyticsCsv.ReadInteger(json, "distractorCount"),
@@ -165,7 +169,13 @@ namespace SafetyTraining.Editor
                     PlacementAttempts = ordered.Count(entry => entry.EventType == "placement_attempt"),
                     PlacementSuccesses = ordered.Count(entry =>
                         entry.EventType == "placement_attempt" && entry.Outcome == "success"),
-                    CoachTurns = ordered.Count(entry => entry.EventType == "coach_turn")
+                    CoachTurns = ordered.Count(entry => entry.EventType == "coach_turn"),
+                    AssessmentAttempts = ordered.Count(entry => entry.EventType == "assessment_evidence"),
+                    AssessmentEvidenceEarned = ordered
+                        .Where(entry => entry.EventType == "assessment_evidence")
+                        .Sum(entry => entry.EarnedPoints),
+                    ObjectivesTouched = ordered.Select(entry => entry.ObjectiveId)
+                        .Where(value => !string.IsNullOrEmpty(value)).Distinct().Count()
                 });
             }
             return rows.OrderBy(row => row.SessionId)
@@ -183,7 +193,7 @@ namespace SafetyTraining.Editor
         {
             "timestampUtc", "sessionId", "eventType", "phase", "site", "zoneId", "zoneName", "subjectId",
             "hazardType", "outcome", "detail", "evidenceCount", "collectedItemCount", "distractorCount",
-            "isDistractor", "siteX", "siteY", "siteZ"
+            "isDistractor", "objectiveId", "criterionId", "earnedPoints", "possiblePoints", "siteX", "siteY", "siteZ"
         };
 
         static readonly string[] DwellHeader =
@@ -197,7 +207,7 @@ namespace SafetyTraining.Editor
             "sessionId", "site", "firstSeenUtc", "lastSeenUtc", "visitSeconds", "zoneDwellSeconds",
             "pathDistanceMeters", "zonesVisited", "spatialSamples", "inspections", "evidenceCollected",
             "distractorSelections", "hypothesesSelected", "reportBlocks", "finalReports", "placementAttempts",
-            "placementSuccesses", "coachTurns"
+            "placementSuccesses", "coachTurns", "assessmentAttempts", "assessmentEvidenceEarned", "objectivesTouched"
         };
 
         static string[] ToSpatialRow(AnalyticsEntry entry)
@@ -243,6 +253,10 @@ namespace SafetyTraining.Editor
                 AnalyticsCsv.FormatInteger(entry.CollectedItemCount),
                 AnalyticsCsv.FormatInteger(entry.DistractorCount),
                 entry.IsDistractor ? "true" : "false",
+                entry.ObjectiveId,
+                entry.CriterionId,
+                AnalyticsCsv.FormatInteger(entry.EarnedPoints),
+                AnalyticsCsv.FormatInteger(entry.PossiblePoints),
                 AnalyticsCsv.FormatFloat(entry.SiteX),
                 AnalyticsCsv.FormatFloat(entry.SiteY),
                 AnalyticsCsv.FormatFloat(entry.SiteZ)
@@ -285,7 +299,10 @@ namespace SafetyTraining.Editor
                 AnalyticsCsv.FormatInteger(entry.FinalReports),
                 AnalyticsCsv.FormatInteger(entry.PlacementAttempts),
                 AnalyticsCsv.FormatInteger(entry.PlacementSuccesses),
-                AnalyticsCsv.FormatInteger(entry.CoachTurns)
+                AnalyticsCsv.FormatInteger(entry.CoachTurns),
+                AnalyticsCsv.FormatInteger(entry.AssessmentAttempts),
+                AnalyticsCsv.FormatInteger(entry.AssessmentEvidenceEarned),
+                AnalyticsCsv.FormatInteger(entry.ObjectivesTouched)
             };
         }
     }

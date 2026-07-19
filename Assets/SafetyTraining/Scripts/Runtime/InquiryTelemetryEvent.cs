@@ -15,5 +15,10 @@ namespace SafetyTraining.Runtime
         public int CollectedItemCount { get; set; }
         public int DistractorCount { get; set; }
         public bool IsDistractor { get; set; }
+        public string ObjectiveId { get; set; } = string.Empty;
+        public string CriterionId { get; set; } = string.Empty;
+        public string Outcome { get; set; } = string.Empty;
+        public int EarnedPoints { get; set; }
+        public int PossiblePoints { get; set; }
     }
 }
