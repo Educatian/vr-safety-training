@@ -126,7 +126,7 @@ namespace SafetyTraining.Editor
             {
                 Spec("crane-swing-radius", "Crane swing radius evidence", "Struck-by",
                     "Suspended-load area needs a controlled exclusion boundary.",
-                    "overhead_crane_1k.fbx", new Vector3(0f, 0.2f, 8.2f)),
+                    "overhead_crane_1k.fbx", new Vector3(8f, 0.2f, 11f)),
                 Spec("fall-edge-gap", "Open edge sightline", "Fall",
                     "Second-level work needs guardrail or approved fall arrest.",
                     "modular_factory_facade_1k.fbx", new Vector3(-7.6f, 0.2f, 5.8f)),

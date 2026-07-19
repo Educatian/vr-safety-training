@@ -268,8 +268,7 @@ namespace SafetyTraining.Editor
 
         static void AddConstruction(Transform site)
         {
-            SafetyWorldAssetPainter.AddModel(site, "Gantry Lift Frame", "overhead_crane_1k.fbx",
-                new Vector3(0f, 0f, 8.4f), 9.5f, new Vector3(0f, 90f, 0f));
+
             SafetyWorldAssetPainter.AddModel(site, "Facade Skeleton Wing A", "modular_factory_facade_1k.fbx",
                 new Vector3(-7f, 0f, 6.5f), 6.2f, Vector3.zero);
             SafetyWorldAssetPainter.AddModel(site, "Generator Dust Source", "portable_generator_1k.fbx",

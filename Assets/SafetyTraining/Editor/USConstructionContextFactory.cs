@@ -52,10 +52,10 @@ namespace SafetyTraining.Editor
         static void AddStructuralFrame(Transform site)
         {
             SafetyWorldAssetPainter.AddModel(site, "Two Story Steel Bay Front",
-                "overhead_crane_1k.fbx", new Vector3(0.8f, 0f, 6.9f),
+                "modular_factory_facade_1k.fbx", new Vector3(0.8f, 0f, 6.9f),
                 7.6f, new Vector3(0f, 90f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Two Story Steel Bay Rear",
-                "overhead_crane_1k.fbx", new Vector3(0.8f, 0f, 10.7f),
+                "modular_factory_facade_1k.fbx", new Vector3(0.8f, 0f, 10.7f),
                 7.4f, new Vector3(0f, 90f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Second Level Deck Reference",
                 "modular_factory_facade_1k.fbx", new Vector3(2.6f, 0f, 8.5f),

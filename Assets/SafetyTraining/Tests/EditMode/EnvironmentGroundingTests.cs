@@ -28,7 +28,8 @@ namespace SafetyTraining.Tests.EditMode
                 .Select(item => new
                 {
                     Path = $"{item.site.name}/{item.child.name}",
-                    Gap = item.bounds.Value.min.y - item.site.transform.position.y
+                    Gap = item.bounds.Value.min.y - item.site.transform.position.y -
+                          ExpectedBaseHeight(item.child.name)
                 })
                 .Where(item => Mathf.Abs(item.Gap) > 0.04f)
                 .OrderByDescending(item => Mathf.Abs(item.Gap))
@@ -110,6 +111,177 @@ namespace SafetyTraining.Tests.EditMode
             }
         }
 
+        [Test]
+        public void CustomSafetyProps_MatchHumanRelativeRealWorldHeights()
+        {
+            EditorSceneManager.OpenScene(ScenePath);
+            var expected = new (string Name, float MinHeight, float MaxHeight)[]
+            {
+                ("US_Modular_Formwork_Panel", 2.7f, 3.0f),
+                ("US_Capped_Rebar_Bundle", 0.6f, 0.9f),
+                ("US_Adjustable_Shoring_Rack", 2.7f, 3.1f),
+                ("US_Electric_Warehouse_Forklift", 2.1f, 2.6f),
+                ("US_Selective_Pallet_Rack_Bay", 3.0f, 3.7f),
+                ("US_Loading_Dock_Leveler", 0.45f, 0.65f),
+                ("US_ABC_Fire_Extinguisher", 0.5f, 0.75f),
+                ("US_Recessed_Fire_Hose_Cabinet", 0.9f, 1.2f),
+                ("US_Commercial_Emergency_Exit_Door", 2.4f, 2.9f),
+                ("US_275_Gallon_IBC_Tote", 1.1f, 1.6f),
+                ("US_Emergency_Eyewash_Shower", 2.2f, 2.7f),
+                ("US_Flammable_Liquid_Cabinet", 1.6f, 2.0f),
+                ("US_NEMA_Electrical_Panel", 1.8f, 2.3f),
+                ("US_Lockout_Tagout_Station", 0.55f, 0.85f),
+                ("US_Safety_Disconnect_Switch", 0.65f, 1.0f)
+            };
+            var transforms = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+
+            foreach (var item in expected)
+            {
+                var instances = transforms.Where(transform =>
+                    transform.name == $"RealAsset - {item.Name}").ToArray();
+                Assert.That(instances, Is.Not.Empty, item.Name);
+                foreach (var instance in instances)
+                {
+                    var bounds = CombinedBounds(instance);
+                    Assert.That(bounds.HasValue, Is.True, item.Name);
+                    Assert.That(bounds.Value.size.y,
+                        Is.InRange(item.MinHeight, item.MaxHeight),
+                        $"{item.Name} must remain credible beside a 1.75 m learner/NPC.");
+                }
+            }
+        }
+        [Test]
+        public void DistinctCustomProps_HaveIndependentFootprintsAndAccessClearance()
+        {
+            EditorSceneManager.OpenScene(ScenePath);
+            var siteNames = new[]
+            {
+                "Construction Site", "Warehouse", "Fire Response",
+                "Chemical Processing", "Electrical Maintenance"
+            };
+
+            foreach (var siteName in siteNames)
+            {
+                var site = GameObject.Find(siteName);
+                var props = site.transform.Cast<Transform>()
+                    .Where(child => child.name.StartsWith("RealAsset - US_"))
+                    .Select(child => (child, bounds: CombinedBounds(child)))
+                    .Where(item => item.bounds.HasValue)
+                    .ToArray();
+
+                for (var first = 0; first < props.Length; first++)
+                for (var second = first + 1; second < props.Length; second++)
+                {
+                    var a = props[first].bounds.Value;
+                    var b = props[second].bounds.Value;
+                    var gapX = Mathf.Max(0f, Mathf.Max(a.min.x - b.max.x, b.min.x - a.max.x));
+                    var gapZ = Mathf.Max(0f, Mathf.Max(a.min.z - b.max.z, b.min.z - a.max.z));
+                    var planarGap = Mathf.Sqrt(gapX * gapX + gapZ * gapZ);
+                    Assert.That(planarGap, Is.GreaterThanOrEqualTo(0.35f),
+                        $"{siteName}: {props[first].child.name} and {props[second].child.name} " +
+                        $"need separate footprints and an approach gap; actual {planarGap:F2} m.");
+                }
+            }
+        }
+
+        [Test]
+        public void CustomProps_StayInsideOpaqueHoardingWithoutNpcOverlap()
+        {
+            EditorSceneManager.OpenScene(ScenePath);
+            var props = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
+                .Where(item => item.name.StartsWith("RealAsset - US_")).ToArray();
+
+            foreach (var prop in props)
+            {
+                var site = SiteAncestor(prop);
+                Assert.That(site, Is.Not.Null, prop.name);
+                var bounds = CombinedBounds(prop);
+                Assert.That(bounds.HasValue, Is.True, prop.name);
+                var localMin = site.InverseTransformPoint(bounds.Value.min);
+                var localMax = site.InverseTransformPoint(bounds.Value.max);
+                Assert.That(localMin.x, Is.GreaterThanOrEqualTo(-4.75f), prop.name);
+                Assert.That(localMax.x, Is.LessThanOrEqualTo(4.75f), prop.name);
+                Assert.That(localMin.z, Is.GreaterThanOrEqualTo(-4.12f), prop.name);
+                Assert.That(localMax.z, Is.LessThanOrEqualTo(4.22f), prop.name);
+
+                var coach = site.Find("Rocketbox Safety Coach");
+                var coachBounds = coach == null ? null : CombinedBounds(coach);
+                if (coachBounds.HasValue)
+                    Assert.That(bounds.Value.Intersects(coachBounds.Value), Is.False,
+                        $"{prop.name} must not mask or intersect the NPC.");
+            }
+
+            var construction = GameObject.Find("Construction Site");
+            Assert.That(construction.GetComponentsInChildren<Transform>(true)
+                .Any(item => item.name.Contains("Gantry Lift Frame")), Is.False,
+                "A second overhead crane at the evidence point would create mesh-on-mesh masking.");
+
+            var warehouse = GameObject.Find("Warehouse");
+            Assert.That(warehouse.transform.Find("RealEnvironment - Warehouse Separation Fence"), Is.Null,
+                "The redundant fence would mask the dedicated pallet-rack access face.");
+
+            var chemical = GameObject.Find("Chemical Processing");
+            var flammableCabinet = chemical.transform.Find("RealAsset - US_Flammable_Liquid_Cabinet");
+            Assert.That(Mathf.Abs(Mathf.DeltaAngle(flammableCabinet.localEulerAngles.y, 180f)),
+                Is.LessThan(0.5f), "The flammable cabinet must expose its doors and hazard label.");
+
+            var fire = GameObject.Find("Fire Response");
+            Assert.That(fire.transform.Find("RealEnvironment - Industrial Roller Door"), Is.Null,
+                "The redundant roller door would mask the dedicated emergency exit.");
+            var electrical = GameObject.Find("Electrical Maintenance");
+            Assert.That(electrical.transform.Find("RealEnvironment - Utility Cabinet A"), Is.Null);
+            Assert.That(electrical.transform.Find("RealEnvironment - Utility Cabinet B"), Is.Null);
+        }
+
+        [Test]
+        public void WallMountedSafetyEquipment_UsesErgonomicBaseHeights()
+        {
+            EditorSceneManager.OpenScene(ScenePath);
+            var expected = new (string Name, float BaseHeight)[]
+            {
+                ("US_Recessed_Fire_Hose_Cabinet", 0.75f),
+                ("US_NEMA_Electrical_Panel", 0.35f),
+                ("US_Lockout_Tagout_Station", 1.0f),
+                ("US_Safety_Disconnect_Switch", 0.85f)
+            };
+            foreach (var item in expected)
+            {
+                var prop = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
+                    .Single(transform => transform.name == $"RealAsset - {item.Name}");
+                var site = SiteAncestor(prop);
+                var bounds = CombinedBounds(prop);
+                Assert.That(bounds.Value.min.y - site.position.y,
+                    Is.EqualTo(item.BaseHeight).Within(0.04f), item.Name);
+                if (item.Name is "US_Recessed_Fire_Hose_Cabinet" or
+                    "US_Lockout_Tagout_Station" or "US_Safety_Disconnect_Switch")
+                    Assert.That(Mathf.Abs(Mathf.DeltaAngle(prop.localEulerAngles.y, 180f)),
+                        Is.LessThan(0.5f), $"{item.Name} must expose its detailed front to the learner.");
+            }
+        }
+
+        static float ExpectedBaseHeight(string name)
+        {
+            return name switch
+            {
+                "RealAsset - US_Recessed_Fire_Hose_Cabinet" => 0.75f,
+                "RealAsset - US_NEMA_Electrical_Panel" => 0.35f,
+                "RealAsset - US_Lockout_Tagout_Station" => 1.0f,
+                "RealAsset - US_Safety_Disconnect_Switch" => 0.85f,
+                _ => 0.012f
+            };
+        }
+
+        static Transform SiteAncestor(Transform item)
+        {
+            while (item != null)
+            {
+                if (item.name is "Construction Site" or "Warehouse" or "Fire Response" or
+                    "Chemical Processing" or "Electrical Maintenance")
+                    return item;
+                item = item.parent;
+            }
+            return null;
+        }
         static Bounds? CombinedBounds(Transform root)
         {
             var renderers = root.GetComponentsInChildren<Renderer>(true)

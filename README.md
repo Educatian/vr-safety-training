@@ -88,7 +88,7 @@ Click any Rocketbox coach to open the live chat panel. Students can type a quest
 
 ## Validation
 
-- Unity EditMode suite: 140/140 passed
+- Unity EditMode suite: 144/144 passed
 - OpenXR Standalone Project Validation: 0 outstanding issues
 - OpenXR Meta Quest Android Project Validation: 0 outstanding issues
 - Windows standalone build: succeeded at `Builds/Windows/VR-Safety-Training.exe` (163 MB folder)

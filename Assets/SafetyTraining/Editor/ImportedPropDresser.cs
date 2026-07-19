@@ -13,18 +13,20 @@ namespace SafetyTraining.Editor
         readonly struct PropSpec
         {
             public PropSpec(string asset, Vector3 position, Vector3 scale, Vector3 rotation,
-                bool custom = false, bool site = false)
+                bool custom = false, bool site = false, float targetHeight = 0f)
             {
                 AssetPath = (site ? SiteModels : custom ? CustomModels : Models) + asset;
                 Position = position;
                 Scale = scale;
                 Rotation = Quaternion.Euler(rotation);
+                TargetHeight = targetHeight;
             }
 
             public string AssetPath { get; }
             public Vector3 Position { get; }
             public Vector3 Scale { get; }
             public Quaternion Rotation { get; }
+            public float TargetHeight { get; }
         }
 
         public static void DressConstruction(Transform site)
@@ -49,15 +51,16 @@ namespace SafetyTraining.Editor
             AddGrounded(site, Spec("Drill_01_1k.fbx", new Vector3(-0.7f, 0f, -3.25f), 0.32f,
                 new Vector3(0f, 25f, 90f)));
             AddStaticGrounded(site, CustomSpec("US_Modular_Formwork_Panel.fbx",
-                new Vector3(-5.2f, 0f, 2.6f), 1f, new Vector3(0f, 18f, 0f)));
+                new Vector3(-4.15f, 0f, -2.45f), 2.8f, new Vector3(0f, 90f, 0f)));
             AddStaticGrounded(site, CustomSpec("US_Capped_Rebar_Bundle.fbx",
-                new Vector3(4.2f, 0f, 2.2f), 1f, new Vector3(0f, -12f, 0f)));
+                new Vector3(4.15f, 0f, 2.05f), 0.76f, new Vector3(0f, 90f, 0f)));
             AddStaticGrounded(site, CustomSpec("US_Adjustable_Shoring_Rack.fbx",
-                new Vector3(5.0f, 0f, 4.1f), 0.9f, new Vector3(0f, -12f, 0f)));
+                new Vector3(-1.55f, 0f, 3.2f), 2.9f, Vector3.zero));
         }
 
         public static void DressWarehouse(Transform site)
         {
+            RemoveDirectChild(site, "RealEnvironment - Warehouse Separation Fence");
             ReplaceCargo(site, "Pallet in Vehicle Lane", "plastic_crate_02_1k.fbx");
             ReplaceCargo(site, "Cargo in Staging Bay", "cardboard_box_01_1k.fbx");
             AddGrounded(site, Spec("hand_truck_1k.fbx", new Vector3(-2.5f, 0f, -2.1f), 0.7f,
@@ -67,15 +70,16 @@ namespace SafetyTraining.Editor
             AddGrounded(site, Spec("metal_toolbox_1k.fbx", new Vector3(-2.55f, 0f, -2.35f), 0.65f,
                 new Vector3(0f, -10f, 0f)));
             AddStaticGrounded(site, SiteSpec("US_Electric_Warehouse_Forklift.fbx",
-                new Vector3(4.7f, 0f, 2.4f), 0.9f, new Vector3(0f, -18f, 0f)));
+                new Vector3(3.9f, 0f, 0.8f), 2.45f, new Vector3(0f, 90f, 0f)));
             AddStaticGrounded(site, SiteSpec("US_Selective_Pallet_Rack_Bay.fbx",
-                new Vector3(-5.2f, 0f, 2.5f), 0.95f, new Vector3(0f, 12f, 0f)));
+                new Vector3(-4.15f, 0f, 1.35f), 3.4f, new Vector3(0f, 90f, 0f)));
             AddStaticGrounded(site, SiteSpec("US_Loading_Dock_Leveler.fbx",
-                new Vector3(4.5f, 0f, -3.4f), 0.9f, new Vector3(0f, -8f, 0f)));
+                new Vector3(0f, 0f, 3.0f), 0.55f, Vector3.zero));
         }
 
         public static void DressFireResponse(Transform site)
         {
+            RemoveDirectChild(site, "RealEnvironment - Industrial Roller Door");
             ReplaceStack(site, "Obstruction", "old_military_crate_1k.fbx", 3, 1.4f);
             ReplaceCargo(site, "Pallet at Emergency Exit", "plastic_crate_02_1k.fbx");
             ReplaceExtinguisher(site, "Blocked Extinguisher");
@@ -89,10 +93,10 @@ namespace SafetyTraining.Editor
             }
             AddGrounded(site, Spec("ladder_sectioned_01_1k.fbx", new Vector3(-1.4f, 0f, -2.2f), 0.8f,
                 new Vector3(0f, -18f, 90f)));
-            AddStaticGrounded(site, SiteSpec("US_Recessed_Fire_Hose_Cabinet.fbx",
-                new Vector3(-5.1f, 0f, 2.7f), 0.9f, new Vector3(0f, 8f, 0f)));
+            AddStaticMounted(site, SiteSpec("US_Recessed_Fire_Hose_Cabinet.fbx",
+                new Vector3(-3.7f, 0f, 3.88f), 1.05f, new Vector3(0f, 180f, 0f)), 0.75f);
             AddStaticGrounded(site, SiteSpec("US_Commercial_Emergency_Exit_Door.fbx",
-                new Vector3(4.7f, 0f, 2.5f), 0.9f, new Vector3(0f, -10f, 0f)));
+                new Vector3(2.8f, 0f, 3.88f), 2.7f, Vector3.zero));
         }
 
         public static void DressChemicalProcessing(Transform site)
@@ -103,25 +107,27 @@ namespace SafetyTraining.Editor
             AddGrounded(site, Spec("cement_bag_1k.fbx", new Vector3(-1.2f, 0f, -2.4f), 0.6f,
                 new Vector3(0f, 24f, 0f)));
             AddStaticGrounded(site, SiteSpec("US_275_Gallon_IBC_Tote.fbx",
-                new Vector3(-4.8f, 0f, 2.6f), 0.9f, new Vector3(0f, 10f, 0f)));
+                new Vector3(-3.75f, 0f, -2.85f), 1.55f, Vector3.zero));
             AddStaticGrounded(site, SiteSpec("US_Emergency_Eyewash_Shower.fbx",
-                new Vector3(4.8f, 0f, 2.5f), 0.95f, new Vector3(0f, -14f, 0f)));
+                new Vector3(3.75f, 0f, 2.8f), 2.5f, Vector3.zero));
             AddStaticGrounded(site, SiteSpec("US_Flammable_Liquid_Cabinet.fbx",
-                new Vector3(4.7f, 0f, -3.2f), 0.9f, new Vector3(0f, -10f, 0f)));
+                new Vector3(0f, 0f, 3.05f), 1.9f, new Vector3(0f, 180f, 0f)));
         }
 
         public static void DressElectricalMaintenance(Transform site)
         {
+            RemoveDirectChild(site, "RealEnvironment - Utility Cabinet A");
+            RemoveDirectChild(site, "RealEnvironment - Utility Cabinet B");
             AddGrounded(site, Spec("Drill_01_1k.fbx", new Vector3(2.3f, 0f, -1.3f), 0.35f,
                 new Vector3(0f, 15f, 90f)));
             AddGrounded(site, Spec("ladder_sectioned_01_1k.fbx", new Vector3(-1.7f, 0f, -2.3f), 0.75f,
                 new Vector3(0f, 20f, 90f)));
-            AddStaticGrounded(site, SiteSpec("US_NEMA_Electrical_Panel.fbx",
-                new Vector3(-4.8f, 0f, 2.5f), 0.95f, new Vector3(0f, 12f, 0f)));
-            AddStaticGrounded(site, SiteSpec("US_Lockout_Tagout_Station.fbx",
-                new Vector3(4.7f, 0f, 2.6f), 0.95f, new Vector3(0f, -12f, 0f)));
-            AddStaticGrounded(site, SiteSpec("US_Safety_Disconnect_Switch.fbx",
-                new Vector3(4.6f, 0f, -3.2f), 0.95f, new Vector3(0f, -8f, 0f)));
+            AddStaticMounted(site, SiteSpec("US_NEMA_Electrical_Panel.fbx",
+                new Vector3(-3.65f, 0f, 3.85f), 2.15f, Vector3.zero), 0.35f);
+            AddStaticMounted(site, SiteSpec("US_Lockout_Tagout_Station.fbx",
+                new Vector3(0f, 0f, 3.85f), 0.75f, new Vector3(0f, 180f, 0f)), 1.0f);
+            AddStaticMounted(site, SiteSpec("US_Safety_Disconnect_Switch.fbx",
+                new Vector3(3.65f, 0f, 3.85f), 0.85f, new Vector3(0f, 180f, 0f)), 0.85f);
         }
 
         static void ReplaceStack(Transform site, string name, string asset, int count, float scale)
@@ -192,7 +198,7 @@ namespace SafetyTraining.Editor
             if (root == null)
                 return;
 
-            var model = Add(root, SiteSpec("US_ABC_Fire_Extinguisher.fbx", Vector3.zero, 1f,
+            var model = Add(root, SiteSpec("US_ABC_Fire_Extinguisher.fbx", Vector3.zero, 0.62f,
                 Vector3.zero));
             GroundOnParentFloor(model, root, -0.02f);
             FitRootColliderToVisuals(root);
@@ -308,14 +314,16 @@ namespace SafetyTraining.Editor
             return new PropSpec(asset, position, Vector3.one * uniformScale, rotation);
         }
 
-        static PropSpec CustomSpec(string asset, Vector3 position, float uniformScale, Vector3 rotation)
+        static PropSpec CustomSpec(string asset, Vector3 position, float targetHeight, Vector3 rotation)
         {
-            return new PropSpec(asset, position, Vector3.one * uniformScale, rotation, true);
+            return new PropSpec(asset, position, Vector3.one, rotation, true,
+                targetHeight: targetHeight);
         }
 
-        static PropSpec SiteSpec(string asset, Vector3 position, float uniformScale, Vector3 rotation)
+        static PropSpec SiteSpec(string asset, Vector3 position, float targetHeight, Vector3 rotation)
         {
-            return new PropSpec(asset, position, Vector3.one * uniformScale, rotation, false, true);
+            return new PropSpec(asset, position, Vector3.one, rotation, false, true,
+                targetHeight: targetHeight);
         }
 
         static GameObject Add(Transform parent, PropSpec spec)
@@ -332,6 +340,7 @@ namespace SafetyTraining.Editor
             instance.transform.localPosition = spec.Position;
             instance.transform.localRotation = spec.Rotation;
             instance.transform.localScale = spec.Scale;
+            NormalizeHeight(instance, spec.TargetHeight);
             foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
                 Object.DestroyImmediate(collider);
             return instance;
@@ -347,11 +356,47 @@ namespace SafetyTraining.Editor
         static GameObject AddStaticGrounded(Transform parent, PropSpec spec)
         {
             var instance = AddGrounded(parent, spec);
+            SetStatic(instance);
+            return instance;
+        }
+
+        static GameObject AddStaticMounted(Transform parent, PropSpec spec, float baseHeight)
+        {
+            var instance = Add(parent, spec);
+            GroundOnParentFloor(instance, parent, baseHeight);
+            SetStatic(instance);
+            return instance;
+        }
+
+        static void SetStatic(GameObject instance)
+        {
             if (instance == null)
-                return null;
+                return;
             foreach (var item in instance.GetComponentsInChildren<Transform>(true))
                 item.gameObject.isStatic = true;
-            return instance;
+        }
+
+        static void NormalizeHeight(GameObject instance, float targetHeight)
+        {
+            if (instance == null || targetHeight <= 0f)
+                return;
+            var renderers = instance.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer.enabled).ToArray();
+            if (renderers.Length == 0)
+                return;
+            var bounds = renderers[0].bounds;
+            foreach (var renderer in renderers.Skip(1))
+                bounds.Encapsulate(renderer.bounds);
+            if (bounds.size.y <= 0.001f)
+                return;
+            instance.transform.localScale *= targetHeight / bounds.size.y;
+        }
+
+        static void RemoveDirectChild(Transform site, string name)
+        {
+            var existing = site.Find(name);
+            if (existing != null)
+                Object.DestroyImmediate(existing.gameObject);
         }
     }
 }

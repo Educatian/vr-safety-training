@@ -48,9 +48,8 @@ namespace SafetyTraining.Runtime
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.Construction);
             var constructionOrigin = SiteOrigin("Construction Site");
             yield return CaptureView(viewer, outputDirectory, "02-construction-overview.png",
-                constructionOrigin + new Vector3(0f, 2.2f, -6.8f), constructionOrigin + new Vector3(0f, 1f, 0.2f));
-            yield return CapturePropShowcase(viewer, outputDirectory, "02b-construction-real-props.png",
-                constructionOrigin);
+                constructionOrigin + new Vector3(0f, 2.9f, -3.5f), constructionOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CapturePropShowcase(viewer, outputDirectory, "02b-construction-real-props.png", constructionOrigin, 0f, true);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Construction Site", "construction");
             yield return CaptureLearningBoard(viewer, outputDirectory,
                 "02c-construction-learning-objectives.png", SafetyTraining.Core.TrainingSiteId.Construction);
@@ -62,37 +61,35 @@ namespace SafetyTraining.Runtime
             yield return new WaitForSecondsRealtime(0.8f);
             ShowCaptureHud();
             yield return CaptureView(viewer, outputDirectory, "03-construction-feedback.png",
-                constructionOrigin + new Vector3(0f, 2.7f, -6.2f), constructionOrigin + new Vector3(0f, 0.85f, -3.5f));
+                constructionOrigin + new Vector3(0f, 2.7f, -3.45f), constructionOrigin + new Vector3(0f, 0.85f, -1.2f));
             TrainingCoordinator.Instance.SetHandsOnFeedback(
                 "Hands-on 1/5: PPE secured. Next, place the exclusion barricade.");
             yield return new WaitForSecondsRealtime(0.5f);
             ShowCaptureHud();
             yield return CaptureView(viewer, outputDirectory, "03b-construction-hands-on.png",
-                constructionOrigin + new Vector3(0f, 2.7f, -6.2f), constructionOrigin + new Vector3(0f, 0.85f, -3.5f));
+                constructionOrigin + new Vector3(0f, 2.7f, -3.45f), constructionOrigin + new Vector3(0f, 0.85f, -1.2f));
             yield return CaptureNpc(viewer, outputDirectory, "Construction Site", "04-construction-npc.png");
 
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.Warehouse);
             var warehouseOrigin = SiteOrigin("Warehouse");
             yield return CaptureView(viewer, outputDirectory, "05-warehouse-overview.png",
-                warehouseOrigin + new Vector3(0f, 2.2f, -6.8f), warehouseOrigin + new Vector3(0f, 1f, 0.2f));
-            yield return CapturePropShowcase(viewer, outputDirectory, "05b-warehouse-real-props.png",
-                warehouseOrigin);
+                warehouseOrigin + new Vector3(0f, 2.9f, -3.5f), warehouseOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CapturePropShowcase(viewer, outputDirectory, "05b-warehouse-real-props.png", warehouseOrigin, 0f);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Warehouse", "warehouse");
             yield return CaptureNpc(viewer, outputDirectory, "Warehouse", "06-warehouse-npc.png");
 
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.FireResponse);
             var fireOrigin = SiteOrigin("Fire Response");
             yield return CaptureView(viewer, outputDirectory, "07-fire-response-overview.png",
-                fireOrigin + new Vector3(0f, 2.2f, -6.8f), fireOrigin + new Vector3(0f, 1f, 0.2f));
-            yield return CapturePropShowcase(viewer, outputDirectory, "07b-fire-response-real-props.png",
-                fireOrigin);
+                fireOrigin + new Vector3(0f, 2.9f, -3.5f), fireOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CapturePropShowcase(viewer, outputDirectory, "07b-fire-response-real-props.png", fireOrigin, 0f);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Fire Response", "fire");
             yield return CaptureNpc(viewer, outputDirectory, "Fire Response", "08-fire-response-npc.png");
 
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.ChemicalProcessing);
             var chemicalOrigin = SiteOrigin("Chemical Processing");
             yield return CaptureView(viewer, outputDirectory, "09-chemical-overview.png",
-                chemicalOrigin + new Vector3(0f, 2.2f, -6.8f), chemicalOrigin + new Vector3(0f, 1f, 0.2f));
+                chemicalOrigin + new Vector3(0f, 2.9f, -3.5f), chemicalOrigin + new Vector3(0f, 1f, 0.4f));
             yield return CapturePropShowcase(viewer, outputDirectory, "09b-chemical-real-props.png",
                 chemicalOrigin);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Chemical Processing", "chemical");
@@ -101,9 +98,8 @@ namespace SafetyTraining.Runtime
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.ElectricalMaintenance);
             var electricalOrigin = SiteOrigin("Electrical Maintenance");
             yield return CaptureView(viewer, outputDirectory, "11-electrical-overview.png",
-                electricalOrigin + new Vector3(0f, 2.2f, -6.8f), electricalOrigin + new Vector3(0f, 1f, 0.2f));
-            yield return CapturePropShowcase(viewer, outputDirectory, "11b-electrical-real-props.png",
-                electricalOrigin);
+                electricalOrigin + new Vector3(0f, 2.9f, -3.5f), electricalOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CapturePropShowcase(viewer, outputDirectory, "11b-electrical-real-props.png", electricalOrigin, -3.65f);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Electrical Maintenance", "electrical");
             yield return CaptureNpc(viewer, outputDirectory, "Electrical Maintenance", "12-electrical-npc.png");
 
@@ -239,18 +235,33 @@ namespace SafetyTraining.Runtime
             Camera viewer,
             string directory,
             string fileName,
-            Vector3 siteOrigin)
+            Vector3 siteOrigin,
+            float cameraX = 3.65f,
+            bool hideCraneEvidence = false)
         {
             var hud = FindFirstObjectByType<TrainingHud>();
             if (hud != null)
                 hud.SetVisible(false);
+            var craneEvidence = hideCraneEvidence
+                ? GameObject.Find("Inquiry Evidence - Crane swing radius evidence")
+                : null;
+            var hiddenRenderers = craneEvidence == null
+                ? Array.Empty<Renderer>()
+                : craneEvidence.GetComponentsInChildren<Renderer>(true)
+                    .Where(renderer => renderer.enabled).ToArray();
+            foreach (var renderer in hiddenRenderers)
+                renderer.enabled = false;
+            var previousFieldOfView = viewer.fieldOfView;
+            viewer.fieldOfView = 80f;
             yield return CaptureView(viewer, directory, fileName,
-                siteOrigin + new Vector3(6.8f, 3.8f, -6.2f),
-                siteOrigin + new Vector3(0f, 0.75f, 0f));
+                siteOrigin + new Vector3(cameraX, 3.35f, -4.05f),
+                siteOrigin + new Vector3(0f, 0.9f, 0.35f));
+            viewer.fieldOfView = previousFieldOfView;
+            foreach (var renderer in hiddenRenderers)
+                renderer.enabled = true;
             if (hud != null)
                 hud.SetVisible(true);
         }
-
         static IEnumerator CaptureCustomPropCloseups(
             Camera viewer,
             string directory,
