@@ -8,7 +8,7 @@ namespace SafetyTraining.Editor
     internal static class RealEnvironmentDresser
     {
         const string ModelRoot = "Assets/ThirdParty/PolyHaven/Environment/Models/";
-        const string HdriPath = "Assets/ThirdParty/PolyHaven/Environment/HDRI/construction_yard_1k.hdr";
+        const string HdriPath = "Assets/ThirdParty/PolyHaven/Environment/HDRI/overcast_soil_puresky_1k.hdr";
         const string GeneratedRoot = "Assets/SafetyTraining/GeneratedMaterials/RealEnvironment";
 
         public enum SiteStyle
@@ -40,8 +40,9 @@ namespace SafetyTraining.Editor
 
         public static void ApplyConstructionYardSkybox()
         {
-            var shader = Shader.Find("Skybox/Procedural");
-            if (shader == null)
+            var shader = Shader.Find("Skybox/Cubemap");
+            var hdri = AssetDatabase.LoadAssetAtPath<Cubemap>(HdriPath);
+            if (shader == null || hdri == null)
                 return;
 
             SafetyScenePrimitives.EnsureFolder(GeneratedRoot);
@@ -58,14 +59,20 @@ namespace SafetyTraining.Editor
             }
 
             skybox.name = "Construction Yard Neutral Industrial Daylight";
-            skybox.SetColor("_SkyTint", new Color(0.42f, 0.58f, 0.76f));
-            skybox.SetColor("_GroundColor", new Color(0.24f, 0.27f, 0.29f));
-            skybox.SetFloat("_AtmosphereThickness", 0.92f);
-            skybox.SetFloat("_Exposure", 1.08f);
-            skybox.SetFloat("_SunSize", 0.025f);
-            skybox.SetFloat("_SunSizeConvergence", 5f);
+            skybox.SetTexture("_Tex", hdri);
+            skybox.SetColor("_Tint", new Color(0.93f, 0.96f, 1f));
+            skybox.SetFloat("_Exposure", 0.28f);
+            skybox.SetFloat("_Rotation", 0f);
+            EditorUtility.SetDirty(skybox);
             RenderSettings.skybox = skybox;
-            RenderSettings.reflectionIntensity = 0.84f;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
+            RenderSettings.ambientIntensity = 0.82f;
+            RenderSettings.reflectionIntensity = 0.72f;
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = new Color(0.53f, 0.61f, 0.68f);
+            RenderSettings.fogStartDistance = 42f;
+            RenderSettings.fogEndDistance = 135f;
             DynamicGI.UpdateEnvironment();
         }
 

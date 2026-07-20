@@ -40,6 +40,7 @@ namespace SafetyTraining.Editor
                 AddRouteLoop(site, zone.SiteId);
                 AddAnalyticsZones(site, zone.SiteId);
                 AddModuleDressing(site, zone.SiteId);
+                AddOperationalSubzones(site, zone.SiteId);
                 SafetyInquiryContentFactory.AddInquiryContent(site, zone.SiteId);
                 SafetyWorldAssetPainter.MarkStaticEnvironment(site);
             }
@@ -345,6 +346,70 @@ namespace SafetyTraining.Editor
             SafetyWorldAssetPainter.AddSparkCue(site, new Vector3(-2.9f, 1.45f, 9.1f));
         }
 
+        static void AddOperationalSubzones(Transform site, TrainingSiteId siteId)
+        {
+            switch (siteId)
+            {
+                case TrainingSiteId.Warehouse:
+                    AddSubzone(site, "Receiving Dock", new Vector3(-7.5f, 0f, -6.8f),
+                        "hand_truck_1k.fbx", 1.25f, new Vector3(0f, 24f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "High-Bay Storage Aisle", new Vector3(-7.5f, 0f, 6.3f),
+                        "plastic_crate_02_1k.fbx", 1.55f, new Vector3(0f, -8f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Forklift Battery Service", new Vector3(7.5f, 0f, 6.3f),
+                        "portable_generator_1k.fbx", 1.65f, new Vector3(0f, 145f, 0f), ColorFor(siteId));
+                    break;
+                case TrainingSiteId.FireResponse:
+                    AddSubzone(site, "Hot-Work Origin Bay", new Vector3(-7.5f, 0f, 6.2f),
+                        "portable_generator_1k.fbx", 1.7f, new Vector3(0f, 128f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Protected Egress Corridor", new Vector3(0f, 0f, 10.2f),
+                        "rollershutter_door_1k.fbx", 3.6f, new Vector3(0f, 180f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Incident Command Muster", new Vector3(7.5f, 0f, -6.4f),
+                        "clipboard_1k.fbx", 0.95f, new Vector3(0f, -18f, 0f), ColorFor(siteId));
+                    break;
+                case TrainingSiteId.ChemicalProcessing:
+                    AddSubzone(site, "Unloading and Transfer", new Vector3(-7.6f, 0f, -6.6f),
+                        "Barrel_01_1k.fbx", 1.55f, new Vector3(90f, 0f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Flammable Storage Process", new Vector3(-6.8f, 0f, 7.3f),
+                        "modular_industrial_pipes_01_1k.fbx", 2.7f, new Vector3(0f, 90f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Eyewash and Decon", new Vector3(7.5f, 0f, 6.2f),
+                        "hand_truck_1k.fbx", 1.25f, new Vector3(0f, 180f, 0f), ColorFor(siteId));
+                    break;
+                case TrainingSiteId.ElectricalMaintenance:
+                    AddSubzone(site, "MCC and Panel Room", new Vector3(0f, 0f, 9.6f),
+                        "utility_box_01_1k.fbx", 2.15f, Vector3.zero, ColorFor(siteId));
+                    AddSubzone(site, "LOTO Preparation", new Vector3(7.5f, 0f, -6.2f),
+                        "metal_toolbox_1k.fbx", 1.15f, new Vector3(0f, 16f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Cable Trench Service", new Vector3(-7.5f, 0f, 4.2f),
+                        "Drill_01_1k.fbx", 0.72f, new Vector3(0f, -25f, 0f), ColorFor(siteId));
+                    break;
+            }
+        }
+
+        static void AddSubzone(Transform site, string title, Vector3 position, string asset,
+            float assetSize, Vector3 assetRotation, Color color)
+        {
+            var root = new GameObject($"Operational Subzone - {title}");
+            root.transform.SetParent(site, false);
+            root.transform.localPosition = position;
+
+            foreach (var x in new[] { -2.05f, 2.05f })
+            {
+                var post = SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder,
+                    $"Subzone Post - {title}", root.transform, new Vector3(x, 1.05f, 0f),
+                    new Vector3(0.075f, 1.05f, 0.075f), color);
+                Object.DestroyImmediate(post.GetComponent<Collider>());
+            }
+            var header = SafetyScenePrimitives.Primitive(PrimitiveType.Cube,
+                $"Subzone Header - {title}", root.transform, new Vector3(0f, 2.08f, 0f),
+                new Vector3(4.25f, 0.18f, 0.12f), color);
+            Object.DestroyImmediate(header.GetComponent<Collider>());
+            var label = SafetyScenePrimitives.Label(title.ToUpperInvariant(), root.transform,
+                new Vector3(0f, 2.38f, 0f), 0.085f);
+            label.color = Color.white;
+
+            SafetyWorldAssetPainter.AddModel(site, $"{title} Equipment Anchor", asset,
+                position + new Vector3(0f, 0f, 1.35f), assetSize, assetRotation);
+        }
         static Color ColorFor(TrainingSiteId siteId)
         {
             return siteId switch

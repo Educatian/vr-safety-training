@@ -48,9 +48,9 @@ namespace SafetyTraining.Tests.EditMode
             Assert.That(Object.FindObjectsByType<LearningObjectiveBoard>(FindObjectsSortMode.None),
                 Has.Length.EqualTo(5));
             Assert.That(Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None),
-                Has.Length.EqualTo(3));
+                Has.Length.EqualTo(7));
             Assert.That(Object.FindObjectsByType<EngineeringDecisionOption>(FindObjectsSortMode.None),
-                Has.Length.EqualTo(9));
+                Has.Length.EqualTo(21));
             Assert.That(Object.FindFirstObjectByType<LearningOutcomeTracker>(), Is.Not.Null);
             Assert.That(GameObject.Find("Learning Evidence Shell"), Is.Not.Null);
         }
@@ -59,8 +59,10 @@ namespace SafetyTraining.Tests.EditMode
         public void ConstructionStations_HaveUniqueIdsAndOneCorrectOptionEach()
         {
             EditorSceneManager.OpenScene(ScenePath);
-            var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None);
+            var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .Where(item => item.SiteId == TrainingSiteId.Construction).ToArray();
 
+            Assert.That(stations, Has.Length.EqualTo(3));
             Assert.That(stations.Select(item => item.DecisionId).Distinct().Count(), Is.EqualTo(3));
             foreach (var station in stations)
             {
@@ -74,8 +76,10 @@ namespace SafetyTraining.Tests.EditMode
         public void ConstructionStations_UseEyeHeightWorldSpaceHmiAndReachableControlDeck()
         {
             EditorSceneManager.OpenScene(ScenePath);
-            var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None);
+            var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .Where(item => item.SiteId == TrainingSiteId.Construction).ToArray();
 
+            Assert.That(stations, Has.Length.EqualTo(3));
             foreach (var station in stations)
             {
                 var hmi = station.transform.Find("Engineering HMI");
@@ -188,6 +192,32 @@ namespace SafetyTraining.Tests.EditMode
             }
             Assert.That(ConstructionEngineeringCatalog.All.All(item => item.Standard.Length <= 110), Is.True,
                 "Engineering citations must use concise VR-readable evidence strips.");
+        }
+
+        [Test]
+        public void NonConstructionModules_HaveCalculationBasedEngineeringDecisions()
+        {
+            var sites = new[]
+            {
+                TrainingSiteId.Warehouse,
+                TrainingSiteId.FireResponse,
+                TrainingSiteId.ChemicalProcessing,
+                TrainingSiteId.ElectricalMaintenance
+            };
+
+            foreach (var site in sites)
+            {
+                var decision = CrossSiteEngineeringCatalog.ForSite(site);
+                Assert.That(decision.Calculation, Does.Match(@"\d"));
+                Assert.That(decision.Standard, Does.Contain("OSHA"));
+                Assert.That(decision.Options.Count(option => option.IsCorrect), Is.EqualTo(1), site.ToString());
+            }
+
+            EditorSceneManager.OpenScene(ScenePath);
+            var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .Where(item => item.SiteId != TrainingSiteId.Construction).ToArray();
+            Assert.That(stations.Select(item => item.SiteId).Distinct().Count(), Is.EqualTo(4));
+            Assert.That(stations.All(item => item.ObjectiveId.EndsWith("-02")), Is.True);
         }
     }
 }

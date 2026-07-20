@@ -203,5 +203,35 @@ namespace SafetyTraining.Tests.EditMode
                 Assert.That(rear.size.x, Is.GreaterThanOrEqualTo(30f), site.name);
             }
         }
+
+        [Test]
+        public void NonConstructionSitesExposeThreeDistinctOperationalSubzones()
+        {
+            var sites = Object.FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
+                .Where(item => item.SiteId != TrainingSiteId.Construction).ToArray();
+
+            Assert.That(sites, Has.Length.EqualTo(4));
+            foreach (var site in sites)
+            {
+                var subzones = site.GetComponentsInChildren<Transform>(true)
+                    .Where(item => item.name.StartsWith("Operational Subzone - ")).ToArray();
+                Assert.That(subzones, Has.Length.EqualTo(3), site.SiteId.ToString());
+                Assert.That(subzones.Select(item => item.name).Distinct().Count(), Is.EqualTo(3));
+            }
+        }
+
+        [Test]
+        public void NpcSituationContextIncludesLearnerSubzoneAndInquiryState()
+        {
+            var warehouse = Object.FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
+                .Single(item => item.SiteId == TrainingSiteId.Warehouse);
+            var coach = warehouse.GetComponentInChildren<NpcConversationAgent>(true);
+            var zone = warehouse.GetComponentsInChildren<SpatialAnalyticsZone>(true).First();
+            var context = coach.BuildSituationContext(zone.GetComponent<BoxCollider>().bounds.center);
+
+            Assert.That(context, Does.Contain(zone.DisplayName));
+            Assert.That(context, Does.Contain("evidence").IgnoreCase);
+            Assert.That(context, Does.Contain("Hypothesis").IgnoreCase);
+        }
     }
 }

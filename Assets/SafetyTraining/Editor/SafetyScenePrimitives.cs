@@ -79,9 +79,17 @@ namespace SafetyTraining.Editor
             var path = $"{MaterialFolder}/{ColorUtility.ToHtmlStringRGB(color)}.mat";
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (existing != null)
+            {
+                existing.enableInstancing = true;
+                EditorUtility.SetDirty(existing);
                 return existing;
+            }
 
-            var material = new Material(Shader.Find("Standard")) { color = color };
+            var material = new Material(Shader.Find("Standard"))
+            {
+                color = color,
+                enableInstancing = true
+            };
             AssetDatabase.CreateAsset(material, path);
             return material;
         }

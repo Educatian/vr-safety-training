@@ -29,3 +29,5 @@ Environment replacement set under `Environment/`:
 - Construction Yard 1K HDRI for the outdoor background and reflections
 - Asphalt, damaged concrete, concrete block, concrete panel, and corrugated metal PBR textures
 - Modular factory facade, chain-link fence, roller shutter, industrial pipes, generator, overhead crane, caged work light, and utility cabinet FBX models
+
+- overcast_soil_puresky_1k.hdr — Poly Haven, CC0; pure-sky environment lighting selected to avoid region-specific skyline cues.

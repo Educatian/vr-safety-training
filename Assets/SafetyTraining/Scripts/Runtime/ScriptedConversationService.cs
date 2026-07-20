@@ -10,8 +10,10 @@ namespace SafetyTraining.Runtime
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var text = $"I am the {request.npcRole} for {request.siteName}. " +
-                       $"Current progress is {request.progress}. Focus on this verified guidance: {request.safetyFacts}";
+            var text = $"As the {request.npcRole} for {request.siteName}, I can see this situation: " +
+                       $"{request.progress} Your question was: {request.learnerMessage} " +
+                       $"Use this verified guidance, then tell me what evidence supports your choice: " +
+                       $"{request.safetyFacts}";
             return Task.FromResult(new ConversationReply(text, false));
         }
     }

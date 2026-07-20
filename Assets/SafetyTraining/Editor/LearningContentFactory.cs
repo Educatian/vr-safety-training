@@ -37,7 +37,17 @@ namespace SafetyTraining.Editor
                 new Vector3(11.35f, 0f, 6.6f)
             };
             for (var index = 0; index < ConstructionEngineeringCatalog.All.Count; index++)
-                CreateEngineeringStation(construction, ConstructionEngineeringCatalog.All[index], positions[index]);
+                CreateEngineeringStation(construction, TrainingSiteId.Construction, "CON-02",
+                    ConstructionEngineeringCatalog.All[index], positions[index]);
+
+            CreateEngineeringStation(warehouse, TrainingSiteId.Warehouse, "WAR-02",
+                CrossSiteEngineeringCatalog.ForSite(TrainingSiteId.Warehouse), new Vector3(11.35f, 0f, 0.2f));
+            CreateEngineeringStation(fire, TrainingSiteId.FireResponse, "FIR-02",
+                CrossSiteEngineeringCatalog.ForSite(TrainingSiteId.FireResponse), new Vector3(11.35f, 0f, 0.2f));
+            CreateEngineeringStation(chemical, TrainingSiteId.ChemicalProcessing, "CHE-02",
+                CrossSiteEngineeringCatalog.ForSite(TrainingSiteId.ChemicalProcessing), new Vector3(11.35f, 0f, 0.2f));
+            CreateEngineeringStation(electrical, TrainingSiteId.ElectricalMaintenance, "ELE-02",
+                CrossSiteEngineeringCatalog.ForSite(TrainingSiteId.ElectricalMaintenance), new Vector3(11.35f, 0f, 0.2f));
         }
 
         static void CreateObjectiveBoard(Transform site, TrainingSiteId siteId)
@@ -90,8 +100,8 @@ namespace SafetyTraining.Editor
                     new Vector3(x, 0.52f, 0.08f), new Vector3(0.095f, 0.52f, 0.095f), Steel);
         }
 
-        static void CreateEngineeringStation(Transform site, EngineeringDecisionDefinition decision,
-            Vector3 localPosition)
+        static void CreateEngineeringStation(Transform site, TrainingSiteId siteId, string objectiveId,
+            EngineeringDecisionDefinition decision, Vector3 localPosition)
         {
             var root = new GameObject($"Engineering Decision - {decision.Id}");
             root.transform.SetParent(site, false);
@@ -115,12 +125,14 @@ namespace SafetyTraining.Editor
                 new Vector2(1600f, 700f), 0.0022f, 14);
             UiImage("Header", canvas.transform, new Vector2(0f, 295f), new Vector2(1600f, 110f), Panel);
             UiImage("Header Accent", canvas.transform, new Vector2(-775f, 295f), new Vector2(14f, 110f), Amber);
-            UiText("System Label", canvas.transform, "CIVIL ENGINEERING DECISION STATION", new Vector2(-250f, 318f),
+            UiText("System Label", canvas.transform, siteId == TrainingSiteId.Construction
+                    ? "CIVIL ENGINEERING DECISION STATION"
+                    : "APPLIED SAFETY ENGINEERING DECISION", new Vector2(-250f, 318f),
                 new Vector2(980f, 30f), 21, Amber, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiText("Station Title", canvas.transform, decision.Title, new Vector2(-205f, 278f),
                 new Vector2(1070f, 52f), 37, Primary, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiImage("Objective Chip", canvas.transform, new Vector2(670f, 295f), new Vector2(190f, 62f), new Color(0.08f, 0.35f, 0.42f));
-            UiText("Objective Chip Text", canvas.transform, "CON-02", new Vector2(670f, 295f),
+            UiText("Objective Chip Text", canvas.transform, objectiveId, new Vector2(670f, 295f),
                 new Vector2(190f, 62f), 30, Primary, TextAnchor.MiddleCenter, FontStyle.Bold);
 
             UiImage("Field Card", canvas.transform, new Vector2(-385f, 65f), new Vector2(710f, 320f), Card);
@@ -151,7 +163,7 @@ namespace SafetyTraining.Editor
             var feedback = UiText("Feedback Text", feedbackCanvas.transform, "SELECT A CONTROL DECISION", Vector2.zero,
                 new Vector2(1320f, 72f), 28, Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             var station = root.AddComponent<EngineeringDecisionStation>();
-            station.Configure(decision.Id, decision.Title, feedback);
+            station.Configure(siteId, objectiveId, decision.Id, decision.Title, feedback);
 
             for (var index = 0; index < decision.Options.Count; index++)
             {

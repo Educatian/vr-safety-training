@@ -57,6 +57,7 @@ namespace SafetyTraining.Editor
             material.SetFloat("_Glossiness", smoothness);
             material.SetFloat("_BumpScale", 0.72f);
             material.EnableKeyword("_NORMALMAP");
+            material.enableInstancing = true;
             EditorUtility.SetDirty(material);
             return material;
         }

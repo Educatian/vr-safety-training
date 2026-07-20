@@ -54,7 +54,8 @@ namespace SafetyTraining.Runtime
                 npcRole = npcRole,
                 learnerMessage = learnerMessage,
                 safetyFacts = $"{verifiedSafetyFacts} {OshaScenarioCatalog.GetSiteCoachBrief(siteId)}",
-                progress = BuildProgressContext(),
+                progress = BuildSituationContext(Camera.main != null
+                    ? Camera.main.transform.position : transform.position),
                 transcript = string.Join("\n", transcript)
             };
 
@@ -100,12 +101,27 @@ namespace SafetyTraining.Runtime
                 transcript.RemoveRange(0, transcript.Count - 8);
         }
 
-        string BuildProgressContext()
+        public string BuildSituationContext(Vector3 learnerPosition)
         {
             var coordinator = TrainingCoordinator.Instance;
-            if (coordinator == null)
-                return "not started";
-            return $"{coordinator.GetProgress(siteId)}. {coordinator.GetDebrief(siteId)}";
+            var inquiry = InquirySessionController.Instance;
+            var progress = coordinator != null
+                ? $"{coordinator.GetProgress(siteId)}. {coordinator.GetDebrief(siteId)}"
+                : "not started";
+            var evidence = inquiry != null
+                ? $"Relevant evidence {inquiry.EvidenceCount(siteId)}, comparison samples {inquiry.DistractorCount(siteId)}"
+                : "No inquiry evidence recorded";
+            var hypothesis = inquiry?.Hypothesis(siteId);
+            var zone = SpatialAnalyticsZone.FindContaining(siteId, learnerPosition);
+            var location = zone != null
+                ? $"Learner location: {zone.DisplayName} ({zone.ZoneId})"
+                : "Learner location: outside a named investigation subzone";
+            var nextAction = inquiry != null && inquiry.EvidenceCount(siteId) >=
+                             InquirySessionController.DefaultMinimumEvidenceForReport
+                ? "Ask the learner to compare controls and defend a decision."
+                : "Prompt the learner toward a different subzone and ask for observable evidence.";
+            return $"{progress}. {location}. {evidence}. " +
+                   $"{(string.IsNullOrWhiteSpace(hypothesis) ? "No hypothesis selected." : $"Hypothesis: {hypothesis}.")} {nextAction}";
         }
     }
 }

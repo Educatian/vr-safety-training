@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using SafetyTraining.Core;
 using UnityEngine;
 
 namespace SafetyTraining.Runtime
@@ -116,6 +117,10 @@ namespace SafetyTraining.Runtime
             var warehouseOrigin = SiteOrigin("Warehouse");
             yield return CaptureView(viewer, outputDirectory, "05-warehouse-overview.png",
                 warehouseOrigin + new Vector3(0f, 2.9f, -3.5f), warehouseOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CaptureExpandedSiteMap(viewer, outputDirectory, TrainingSiteId.Warehouse,
+                "05a-warehouse-expanded-map.png");
+            yield return CaptureAppliedEngineering(viewer, outputDirectory, TrainingSiteId.Warehouse,
+                "05c-warehouse-engineering.png");
             yield return CapturePropShowcase(viewer, outputDirectory, "05b-warehouse-real-props.png", warehouseOrigin, 0f);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Warehouse", "warehouse");
             yield return CaptureNpc(viewer, outputDirectory, "Warehouse", "06-warehouse-npc.png");
@@ -124,6 +129,10 @@ namespace SafetyTraining.Runtime
             var fireOrigin = SiteOrigin("Fire Response");
             yield return CaptureView(viewer, outputDirectory, "07-fire-response-overview.png",
                 fireOrigin + new Vector3(0f, 2.9f, -3.5f), fireOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CaptureExpandedSiteMap(viewer, outputDirectory, TrainingSiteId.FireResponse,
+                "07a-fire-expanded-map.png");
+            yield return CaptureAppliedEngineering(viewer, outputDirectory, TrainingSiteId.FireResponse,
+                "07c-fire-engineering.png");
             yield return CapturePropShowcase(viewer, outputDirectory, "07b-fire-response-real-props.png", fireOrigin, 0f);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Fire Response", "fire");
             yield return CaptureNpc(viewer, outputDirectory, "Fire Response", "08-fire-response-npc.png");
@@ -132,6 +141,10 @@ namespace SafetyTraining.Runtime
             var chemicalOrigin = SiteOrigin("Chemical Processing");
             yield return CaptureView(viewer, outputDirectory, "09-chemical-overview.png",
                 chemicalOrigin + new Vector3(0f, 2.9f, -3.5f), chemicalOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CaptureExpandedSiteMap(viewer, outputDirectory, TrainingSiteId.ChemicalProcessing,
+                "09a-chemical-expanded-map.png");
+            yield return CaptureAppliedEngineering(viewer, outputDirectory, TrainingSiteId.ChemicalProcessing,
+                "09c-chemical-engineering.png");
             yield return CapturePropShowcase(viewer, outputDirectory, "09b-chemical-real-props.png",
                 chemicalOrigin);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Chemical Processing", "chemical");
@@ -141,6 +154,10 @@ namespace SafetyTraining.Runtime
             var electricalOrigin = SiteOrigin("Electrical Maintenance");
             yield return CaptureView(viewer, outputDirectory, "11-electrical-overview.png",
                 electricalOrigin + new Vector3(0f, 2.9f, -3.5f), electricalOrigin + new Vector3(0f, 1f, 0.4f));
+            yield return CaptureExpandedSiteMap(viewer, outputDirectory, TrainingSiteId.ElectricalMaintenance,
+                "11a-electrical-expanded-map.png");
+            yield return CaptureAppliedEngineering(viewer, outputDirectory, TrainingSiteId.ElectricalMaintenance,
+                "11c-electrical-engineering.png");
             yield return CapturePropShowcase(viewer, outputDirectory, "11b-electrical-real-props.png", electricalOrigin, -3.65f);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Electrical Maintenance", "electrical");
             yield return CaptureNpc(viewer, outputDirectory, "Electrical Maintenance", "12-electrical-npc.png");
@@ -672,6 +689,7 @@ namespace SafetyTraining.Runtime
             foreach (var renderer in hiddenActionRenderers)
                 renderer.enabled = false;
             var stations = FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .Where(item => item.SiteId == TrainingSiteId.Construction)
                 .OrderBy(item => item.transform.position.z).ToArray();
             for (var index = 0; index < stations.Length; index++)
             {
@@ -709,6 +727,38 @@ namespace SafetyTraining.Runtime
             ShowCaptureHud();
         }
 
+        static IEnumerator CaptureExpandedSiteMap(Camera viewer, string directory,
+            TrainingSiteId siteId, string fileName)
+        {
+            HideCaptureHud();
+            var site = FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
+                .FirstOrDefault(item => item.SiteId == siteId);
+            if (site != null)
+            {
+                var focus = site.transform.position + new Vector3(0f, 0.8f, 1f);
+                var previousFieldOfView = viewer.fieldOfView;
+                viewer.fieldOfView = 72f;
+                yield return CaptureView(viewer, directory, fileName,
+                    site.transform.position + new Vector3(0f, 10.5f, -17.5f), focus);
+                viewer.fieldOfView = previousFieldOfView;
+            }
+            ShowCaptureHud();
+        }
+
+        static IEnumerator CaptureAppliedEngineering(Camera viewer, string directory,
+            TrainingSiteId siteId, string fileName)
+        {
+            HideCaptureHud();
+            var station = FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .FirstOrDefault(item => item.SiteId == siteId);
+            if (station != null && VisualCaptureFraming.TryGetBounds(station.gameObject, out var bounds))
+            {
+                var focus = bounds.center + Vector3.up * 0.05f;
+                yield return CaptureView(viewer, directory, fileName,
+                    focus - station.transform.forward * 3.65f + station.transform.right * 0.55f, focus);
+            }
+            ShowCaptureHud();
+        }
         static IEnumerator CaptureView(
             Camera viewer,
             string directory,

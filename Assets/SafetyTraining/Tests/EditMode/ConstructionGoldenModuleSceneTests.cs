@@ -77,7 +77,8 @@ namespace SafetyTraining.Tests.EditMode
         public void ConstructionEngineeringStations_HaveClearFrontalInteractionCorridors()
         {
             Physics.SyncTransforms();
-            var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None);
+            var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .Where(item => item.SiteId == TrainingSiteId.Construction).ToArray();
             Assert.That(stations, Has.Length.EqualTo(3));
 
             foreach (var station in stations)
