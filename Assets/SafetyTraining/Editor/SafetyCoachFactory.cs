@@ -28,7 +28,8 @@ namespace SafetyTraining.Editor
             ConfigureCollider(coach);
             coach.AddComponent<XRSimpleInteractable>();
             coach.AddComponent<InteractiveHoverFeedback>();
-            coach.AddComponent<NpcRelaxedPose>();
+            coach.AddComponent<NpcRelaxedPose>()
+                .ConfigureLocomotion(false);
             var agent = coach.AddComponent<NpcConversationAgent>();
             agent.Configure(siteId, role, facts);
             var speechBubble = ProfessionalSpeechBubbleBuilder.Create(coach.transform);
@@ -52,7 +53,7 @@ namespace SafetyTraining.Editor
             var coach = (GameObject)PrefabUtility.InstantiatePrefab(coachAsset, parent);
             coach.name = "Rocketbox Safety Coach";
             coach.transform.localPosition = siteId == TrainingSiteId.Construction
-                ? new Vector3(2.35f, 0f, -3.7f)
+                ? new Vector3(-0.6f, 0f, -5.2f)
                 : new Vector3(0f, 0f, -3.7f);
             coach.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             var primaryModel = coach.GetComponentInChildren<SkinnedMeshRenderer>(true);

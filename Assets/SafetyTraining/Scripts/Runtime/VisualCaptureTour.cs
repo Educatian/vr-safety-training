@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
@@ -49,10 +49,12 @@ namespace SafetyTraining.Runtime
             var constructionOrigin = SiteOrigin("Construction Site");
             yield return CaptureView(viewer, outputDirectory, "02-construction-overview.png",
                 constructionOrigin + new Vector3(0f, 2.9f, -3.5f), constructionOrigin + new Vector3(0f, 1f, 0.4f));
-            yield return CapturePropShowcase(viewer, outputDirectory, "02b-construction-real-props.png", constructionOrigin, 0f, true);
+            yield return CaptureMissionStatus(viewer, outputDirectory);
+            yield return CapturePropShowcase(viewer, outputDirectory, "02b-construction-real-props.png", constructionOrigin, 3.65f, true);
             yield return CaptureCustomPropCloseups(viewer, outputDirectory, "Construction Site", "construction");
             yield return CaptureLearningBoard(viewer, outputDirectory,
                 "02c-construction-learning-objectives.png", SafetyTraining.Core.TrainingSiteId.Construction);
+            PrepareGoldenEngineeringCapture();
             yield return CaptureEngineeringStations(viewer, outputDirectory);
             var constructionHazard = FindObjectsByType<InspectionTarget>(FindObjectsSortMode.None)
                 .FirstOrDefault(target => target.TargetId == "fall-edge");
@@ -63,11 +65,51 @@ namespace SafetyTraining.Runtime
             yield return CaptureView(viewer, outputDirectory, "03-construction-feedback.png",
                 constructionOrigin + new Vector3(0f, 2.7f, -3.45f), constructionOrigin + new Vector3(0f, 0.85f, -1.2f));
             TrainingCoordinator.Instance.SetHandsOnFeedback(
-                "Hands-on 1/5: PPE secured. Next, place the exclusion barricade.");
+                "Stage 1/6 complete: PPE secured. Next, collect four distinct field observations.");
             yield return new WaitForSecondsRealtime(0.5f);
+            HideCaptureHud();
+            var materialCart = GameObject.Find("Material Cart");
+            var materialAction = materialCart?.GetComponent<ConstructionActionInteractable>();
+            var cartStart = materialCart != null ? materialCart.transform.localPosition : Vector3.zero;
+            GameObject dragPreview = null;
+            if (materialCart != null && materialAction != null)
+            {
+                materialAction.SetCurrentStep(true);
+                materialCart.transform.localPosition = Vector3.Lerp(cartStart, materialAction.TargetLocalPosition, 0.58f);
+                TrainingCoordinator.Instance.SetHandsOnFeedback(
+                    "DRAG ACTIVE: guide the material cart into the illuminated staging zone, then release.");
+                HideCaptureHud();
+                dragPreview = CreateDragPreview(materialCart.transform, materialAction.TargetLocalPosition);
+            }
+            if (materialCart != null && VisualCaptureFraming.TryGetBounds(materialCart, out var cartBounds))
+            {
+                var targetWorld = materialCart.transform.parent.TransformPoint(materialAction.TargetLocalPosition);
+                var interactionBounds = cartBounds;
+                if (dragPreview != null && VisualCaptureFraming.TryGetBounds(dragPreview, out var previewBounds))
+                    interactionBounds.Encapsulate(previewBounds);
+                interactionBounds.Encapsulate(targetWorld + Vector3.up * 0.35f);
+                var dragFocus = interactionBounds.center;
+                var dragDistance = Mathf.Max(4.6f, interactionBounds.extents.magnitude * 2.15f);
+                var previousFieldOfView = viewer.fieldOfView;
+                viewer.fieldOfView = 68f;
+                yield return CaptureView(viewer, outputDirectory, "03b-construction-hands-on.png",
+                    dragFocus + new Vector3(0.32f, 0.32f, -1f).normalized * dragDistance, dragFocus);
+                viewer.fieldOfView = previousFieldOfView;
+            }
+            else
+            {
+                yield return CaptureView(viewer, outputDirectory, "03b-construction-hands-on.png",
+                    constructionOrigin + new Vector3(0f, 2.7f, -3.45f),
+                    constructionOrigin + new Vector3(0f, 0.85f, -1.2f));
+            }
+            if (dragPreview != null)
+                Destroy(dragPreview);
+            if (materialCart != null && materialAction != null)
+            {
+                materialCart.transform.localPosition = cartStart;
+                materialAction.SetCurrentStep(false);
+            }
             ShowCaptureHud();
-            yield return CaptureView(viewer, outputDirectory, "03b-construction-hands-on.png",
-                constructionOrigin + new Vector3(0f, 2.7f, -3.45f), constructionOrigin + new Vector3(0f, 0.85f, -1.2f));
             yield return CaptureNpc(viewer, outputDirectory, "Construction Site", "04-construction-npc.png");
 
             PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId.Warehouse);
@@ -175,6 +217,11 @@ namespace SafetyTraining.Runtime
             HideCaptureHud();
             var site = GameObject.Find(siteObjectName);
             var coach = site != null ? site.GetComponentInChildren<NpcConversationAgent>() : null;
+            var captureDirection = coach != null && siteObjectName == "Construction Site"
+                ? (coach.transform.forward + coach.transform.right * 1.2f).normalized
+                : Vector3.back;
+            site?.GetComponentInChildren<NpcTalkInteractable>()?.EndConversation();
+            var hiddenSiteLabels = HideUnrelatedLabels(site, coach);
             if (coach != null && VisualCaptureFraming.TryGetBounds(coach.gameObject, out var idleBounds))
             {
                 coach.GetComponent<NpcRelaxedPose>()?.ReturnToIdle();
@@ -183,17 +230,19 @@ namespace SafetyTraining.Runtime
                 var idleFocus = idleBounds.center + Vector3.up * 0.65f;
                 var idleFileStem = Path.GetFileNameWithoutExtension(fileName);
                 yield return CaptureView(viewer, directory, $"{idleFileStem}-rest.png",
-                    idleFocus + Vector3.back * idleDistance,
+                    idleFocus + captureDirection * idleDistance,
                     idleFocus);
                 var pose = coach.GetComponent<NpcRelaxedPose>();
                 pose?.SetMoving(true);
                 yield return new WaitForSecondsRealtime(0.3f);
+                pose?.PreviewMovementPose(0.18f);
                 yield return CaptureView(viewer, directory, $"{idleFileStem}-walking-a.png",
-                    idleFocus + Vector3.back * idleDistance,
+                    idleFocus + captureDirection * idleDistance,
                     idleFocus);
                 yield return new WaitForSecondsRealtime(0.35f);
+                pose?.PreviewMovementPose(0.68f);
                 yield return CaptureView(viewer, directory, $"{idleFileStem}-walking-b.png",
-                    idleFocus + Vector3.back * idleDistance,
+                    idleFocus + captureDirection * idleDistance,
                     idleFocus);
                 pose?.SetMoving(false);
                 yield return new WaitForSecondsRealtime(0.35f);
@@ -213,15 +262,16 @@ namespace SafetyTraining.Runtime
                 coach.GetComponent<NpcRelaxedPose>()?.PlayEncouragement(false);
                 yield return new WaitForSecondsRealtime(1.3f);
                 yield return CaptureView(viewer, directory, fileName,
-                    dialogueFocus + Vector3.back * distance,
+                    dialogueFocus + captureDirection * distance,
                     dialogueFocus);
                 (NpcChatPanel.Instance ?? FindFirstObjectByType<NpcChatPanel>())?.CloseFor(coach);
                 yield return new WaitForSecondsRealtime(2f);
                 coach.GetComponent<NpcRelaxedPose>()?.ReturnToIdle();
                 yield return new WaitForSecondsRealtime(0.4f);
                 yield return CaptureView(viewer, directory, $"{fileStem}-settled.png",
-                    dialogueFocus + Vector3.back * distance,
+                    dialogueFocus + captureDirection * distance,
                     dialogueFocus);
+                RestoreRenderers(hiddenSiteLabels);
                 yield break;
             }
 
@@ -229,6 +279,7 @@ namespace SafetyTraining.Runtime
             yield return CaptureView(viewer, directory, fileName,
                 origin + new Vector3(0f, 2.4f, -1.4f),
                 origin + new Vector3(0f, 1.5f, 2.8f));
+            RestoreRenderers(hiddenSiteLabels);
         }
 
         static IEnumerator CapturePropShowcase(
@@ -239,29 +290,63 @@ namespace SafetyTraining.Runtime
             float cameraX = 3.65f,
             bool hideCraneEvidence = false)
         {
-            var hud = FindFirstObjectByType<TrainingHud>();
-            if (hud != null)
-                hud.SetVisible(false);
+            HideCaptureHud();
             var craneEvidence = hideCraneEvidence
                 ? GameObject.Find("Inquiry Evidence - Crane swing radius evidence")
                 : null;
-            var hiddenRenderers = craneEvidence == null
+            var siteZone = FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
+                .OrderBy(zone => (zone.transform.position - siteOrigin).sqrMagnitude)
+                .FirstOrDefault();
+            Func<Renderer, bool> belongsToCustomProp = renderer =>
+                renderer.GetComponentsInParent<Transform>(true)
+                    .Any(ancestor => ancestor.name.StartsWith("RealAsset - US_", StringComparison.Ordinal));
+            var distractingTargets = siteZone == null
                 ? Array.Empty<Renderer>()
-                : craneEvidence.GetComponentsInChildren<Renderer>(true)
-                    .Where(renderer => renderer.enabled).ToArray();
+                : siteZone.GetComponentsInChildren<InspectionTarget>(true)
+                    .SelectMany(target => target.GetComponentsInChildren<Renderer>(true))
+                    .Where(renderer => renderer.enabled && !belongsToCustomProp(renderer))
+                    .ToArray();
+            var distractingActions = siteZone == null
+                ? Array.Empty<Renderer>()
+                : siteZone.GetComponentsInChildren<ConstructionActionInteractable>(true)
+                    .SelectMany(action => action.GetComponentsInChildren<Renderer>(true))
+                    .Where(renderer => renderer.enabled && !belongsToCustomProp(renderer))
+                    .ToArray();
+            var distractingCoaches = siteZone == null
+                ? Array.Empty<Renderer>()
+                : siteZone.GetComponentsInChildren<NpcConversationAgent>(true)
+                    .SelectMany(coach => coach.GetComponentsInChildren<Renderer>(true))
+                    .Where(renderer => renderer.enabled && !belongsToCustomProp(renderer))
+                    .ToArray();
+            var portableObstructions = siteZone == null
+                ? Array.Empty<Renderer>()
+                : siteZone.GetComponentsInChildren<Renderer>(true)
+                    .Where(renderer => renderer.enabled && !belongsToCustomProp(renderer) &&
+                        renderer.GetComponentsInParent<Transform>(true).Any(ancestor =>
+                            ancestor.name.IndexOf("drum", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            ancestor.name.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0))
+                    .ToArray();
+            var hiddenRenderers = (craneEvidence == null
+                    ? Enumerable.Empty<Renderer>()
+                    : craneEvidence.GetComponentsInChildren<Renderer>(true).Where(renderer => renderer.enabled))
+                .Concat(distractingTargets)
+                .Concat(distractingActions)
+                .Concat(distractingCoaches)
+                .Concat(portableObstructions)
+                .Distinct()
+                .ToArray();
             foreach (var renderer in hiddenRenderers)
                 renderer.enabled = false;
             var previousFieldOfView = viewer.fieldOfView;
-            viewer.fieldOfView = 80f;
+            viewer.fieldOfView = 72f;
             yield return CaptureView(viewer, directory, fileName,
-                siteOrigin + new Vector3(cameraX, 3.35f, -4.05f),
-                siteOrigin + new Vector3(0f, 0.9f, 0.35f));
+                siteOrigin + new Vector3(cameraX, 3.15f, -3.8f),
+                siteOrigin + new Vector3(0f, 1.0f, 0.65f));
             viewer.fieldOfView = previousFieldOfView;
-            foreach (var renderer in hiddenRenderers)
-                renderer.enabled = true;
-            if (hud != null)
-                hud.SetVisible(true);
+            RestoreRenderers(hiddenRenderers);
+            ShowCaptureHud();
         }
+
         static IEnumerator CaptureCustomPropCloseups(
             Camera viewer,
             string directory,
@@ -272,8 +357,21 @@ namespace SafetyTraining.Runtime
             var site = GameObject.Find(siteObjectName);
             if (site == null)
                 yield break;
+            var activeBubbles = site.GetComponentsInChildren<NpcSpeechBubbleView>(true)
+                .Where(view => view.gameObject.activeSelf)
+                .ToArray();
+            foreach (var bubble in activeBubbles)
+                bubble.gameObject.SetActive(false);
+            var activeSiteCanvases = site.GetComponentsInChildren<Canvas>(true)
+                .Where(canvas => canvas.gameObject.activeInHierarchy)
+                .ToArray();
+            foreach (var canvas in activeSiteCanvases)
+                canvas.gameObject.SetActive(false);
             var props = site.GetComponentsInChildren<Transform>(true)
                 .Where(item => item.name.StartsWith("RealAsset - US_", StringComparison.Ordinal))
+                .GroupBy(item => item.name)
+                .Select(group => group.OrderByDescending(item =>
+                    item.parent != null && item.parent.name.Contains("Accessible")).First())
                 .OrderBy(item => item.name)
                 .ToArray();
             foreach (var prop in props)
@@ -281,13 +379,246 @@ namespace SafetyTraining.Runtime
                 if (!VisualCaptureFraming.TryGetBounds(prop.gameObject, out var bounds))
                     continue;
                 var focus = bounds.center + Vector3.up * bounds.extents.y * 0.08f;
-                var distance = Mathf.Max(2.4f, bounds.extents.magnitude * 2.35f);
-                var direction = new Vector3(0.78f, 0.38f, -1f).normalized;
+                var distance = Mathf.Max(1.25f, bounds.extents.magnitude * 2.2f);
                 var assetSlug = prop.name.Replace("RealAsset - ", string.Empty)
                     .Replace(" ", "-").ToLowerInvariant();
+                var feature = prop.GetComponentsInChildren<Renderer>(true)
+                    .Where(renderer =>
+                        renderer.name.IndexOf("impalement cap", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        renderer.name.IndexOf("instruction label", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        renderer.name.IndexOf("pressure gauge", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        renderer.name.IndexOf("LOTO title", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        renderer.name.IndexOf("Emergency equipment sign", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        renderer.name.IndexOf("crash bar", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        renderer.name.IndexOf("arc flash warning", StringComparison.OrdinalIgnoreCase) >= 0)
+                    .OrderBy(renderer =>
+                        renderer.name.IndexOf("instruction label", StringComparison.OrdinalIgnoreCase) >= 0 ? 0 :
+                        renderer.name.IndexOf("pressure gauge", StringComparison.OrdinalIgnoreCase) >= 0 ? 1 : 2)
+                    .ThenBy(renderer => (renderer.bounds.center - site.transform.position).sqrMagnitude)
+                    .FirstOrDefault();
+                var outward = feature != null ? feature.bounds.center - bounds.center : Vector3.zero;
+                outward.y = 0f;
+                var inward = site.transform.position - bounds.center;
+                inward.y = 0f;
+                var direction = outward.sqrMagnitude > 0.0025f
+                    ? (outward.normalized + Vector3.up * 0.12f).normalized
+                    : inward.sqrMagnitude > 0.0025f
+                        ? (inward.normalized + Vector3.up * 0.12f).normalized
+                        : new Vector3(0.78f, 0.38f, -1f).normalized;
+
+                if (assetSlug.Contains("capped_rebar_bundle"))
+                {
+                    var rod = prop.GetComponentsInChildren<MeshFilter>(true)
+                        .FirstOrDefault(filter => filter.sharedMesh != null &&
+                            filter.name.IndexOf("reinforcing bar", StringComparison.OrdinalIgnoreCase) >= 0);
+                    var bundleAxis = bounds.size.x >= bounds.size.z ? Vector3.right : Vector3.forward;
+                    if (rod != null)
+                    {
+                        var rodBounds = rod.sharedMesh.bounds;
+                        var localAxis = rodBounds.size.x >= rodBounds.size.y &&
+                                        rodBounds.size.x >= rodBounds.size.z
+                            ? Vector3.right
+                            : rodBounds.size.y >= rodBounds.size.z ? Vector3.up : Vector3.forward;
+                        var halfLength = Vector3.Scale(rodBounds.extents, localAxis).magnitude;
+                        var endpointA = rod.transform.TransformPoint(rodBounds.center + localAxis * halfLength);
+                        var endpointB = rod.transform.TransformPoint(rodBounds.center - localAxis * halfLength);
+                        bundleAxis = Vector3.ProjectOnPlane(endpointB - endpointA, Vector3.up).normalized;
+                    }
+                    var side = Vector3.Cross(Vector3.up, bundleAxis).normalized;
+                    direction = (side * 0.62f + Vector3.up * 0.78f - bundleAxis * 0.12f).normalized;
+                    focus += Vector3.up * 0.04f;
+                    distance = Mathf.Max(distance, bounds.extents.magnitude * 2.25f);
+                }
+                else if (assetSlug.Contains("abc_fire_extinguisher") && feature != null)
+                {
+                    var englishText = prop.GetComponentsInChildren<Renderer>(true)
+                        .FirstOrDefault(renderer =>
+                            renderer.name.IndexOf("English Label ABC", StringComparison.OrdinalIgnoreCase) >= 0);
+                    var gauge = prop.GetComponentsInChildren<Renderer>(true)
+                        .FirstOrDefault(renderer =>
+                            renderer.name.IndexOf("pressure gauge", StringComparison.OrdinalIgnoreCase) >= 0);
+                    var frontFeature = englishText != null ? englishText : feature;
+                    focus = gauge != null
+                        ? Vector3.Lerp(frontFeature.bounds.center, gauge.bounds.center, 0.42f)
+                        : frontFeature.bounds.center;
+                    var semanticFront = frontFeature.bounds.center - bounds.center;
+                    semanticFront.y = 0f;
+                    direction = semanticFront.sqrMagnitude > 0.0001f
+                        ? (semanticFront.normalized + Vector3.up * 0.04f).normalized
+                        : (-prop.forward + Vector3.up * 0.04f).normalized;
+                    distance = Mathf.Max(1.2f, bounds.extents.magnitude * 2.25f);
+                }
+                else if (assetSlug.Contains("emergency_eyewash_shower"))
+                {
+                    var sign = prop.GetComponentsInChildren<Renderer>(true)
+                        .FirstOrDefault(renderer =>
+                            renderer.name.IndexOf("Emergency equipment sign",
+                                StringComparison.OrdinalIgnoreCase) >= 0);
+                    var label = prop.GetComponentsInChildren<Renderer>(true)
+                        .FirstOrDefault(renderer =>
+                            renderer.name.Equals("EYEWASH", StringComparison.OrdinalIgnoreCase));
+                    var semanticFront = sign != null && label != null
+                        ? label.bounds.center - sign.bounds.center
+                        : -prop.forward;
+                    semanticFront.y = 0f;
+                    if (semanticFront.sqrMagnitude < 0.0001f)
+                        semanticFront = -prop.forward;
+                    var lateral = Vector3.Cross(Vector3.up, semanticFront).normalized;
+                    direction = (semanticFront.normalized + lateral * 0.3f + Vector3.up * 0.12f).normalized;
+                    focus = bounds.center + Vector3.up * bounds.extents.y * 0.05f;
+                    distance = Mathf.Max(1.7f, bounds.extents.magnitude * 2.2f);
+                }
+                var hiddenContext = site.GetComponentsInChildren<Renderer>(true)
+                    .Where(renderer => renderer.enabled &&
+                        renderer.transform != prop && !renderer.transform.IsChildOf(prop))
+                    .ToArray();
+                foreach (var renderer in hiddenContext)
+                    renderer.enabled = false;
                 yield return CaptureView(viewer, directory,
                     $"asset-{siteSlug}-{assetSlug}.png", focus + direction * distance, focus);
+                RestoreRenderers(hiddenContext);
             }
+            foreach (var canvas in activeSiteCanvases)
+                if (canvas != null)
+                    canvas.gameObject.SetActive(true);
+            foreach (var bubble in activeBubbles)
+                bubble.gameObject.SetActive(true);
+            ShowCaptureHud();
+        }
+
+        static GameObject CreateDragPreview(Transform item, Vector3 targetLocalPosition)
+        {
+            var root = new GameObject("Active Hands-On Drag Feedback");
+            root.transform.position = item.position + Vector3.up * 0.92f + Vector3.left * 0.32f;
+            var cyan = new Color(0.08f, 0.78f, 1f, 0.9f);
+            var green = new Color(0.1f, 0.95f, 0.45f, 0.92f);
+            var palm = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            palm.name = "VR Glove Grip";
+            palm.transform.SetParent(root.transform, false);
+            palm.transform.localScale = new Vector3(0.32f, 0.18f, 0.38f);
+            palm.GetComponent<Renderer>().material.color = cyan;
+            Destroy(palm.GetComponent<Collider>());
+            for (var index = 0; index < 4; index++)
+            {
+                var finger = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                finger.name = $"VR Glove Finger {index + 1}";
+                finger.transform.SetParent(root.transform, false);
+                finger.transform.localPosition = new Vector3((index - 1.5f) * 0.07f, -0.03f, 0.22f);
+                finger.transform.localRotation = Quaternion.Euler(72f, 0f, 0f);
+                finger.transform.localScale = new Vector3(0.055f, 0.13f, 0.055f);
+                finger.GetComponent<Renderer>().material.color = cyan;
+                Destroy(finger.GetComponent<Collider>());
+            }
+
+            var beamObject = new GameObject("VR Grab Ray");
+            beamObject.transform.SetParent(root.transform, true);
+            var beam = beamObject.AddComponent<LineRenderer>();
+            beam.positionCount = 2;
+            beam.startWidth = 0.052f;
+            beam.endWidth = 0.028f;
+            beam.material = new Material(Shader.Find("Sprites/Default"));
+            beam.startColor = cyan;
+            beam.endColor = cyan;
+            beam.SetPosition(0, root.transform.position);
+            beam.SetPosition(1, item.position + Vector3.up * 0.38f);
+
+            var targetWorld = item.parent.TransformPoint(targetLocalPosition);
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            target.name = "Illuminated Material Cart Drop Target";
+            target.transform.SetParent(root.transform, true);
+            target.transform.position = targetWorld + Vector3.up * 0.035f;
+            target.transform.localScale = new Vector3(0.72f, 0.035f, 0.72f);
+            target.GetComponent<Renderer>().material.color = green;
+            Destroy(target.GetComponent<Collider>());
+
+            var routeObject = new GameObject("Drag Route To Target");
+            routeObject.transform.SetParent(root.transform, true);
+            var route = routeObject.AddComponent<LineRenderer>();
+            route.positionCount = 2;
+            route.startWidth = 0.075f;
+            route.endWidth = 0.12f;
+            route.material = new Material(Shader.Find("Sprites/Default"));
+            route.startColor = green;
+            route.endColor = green;
+            route.SetPosition(0, item.position + Vector3.up * 0.12f);
+            route.SetPosition(1, targetWorld + Vector3.up * 0.12f);
+
+            var labelObject = new GameObject("Drag Active Label");
+            labelObject.transform.SetParent(root.transform, false);
+            labelObject.transform.localPosition = new Vector3(0f, 0.38f, 0f);
+            var label = labelObject.AddComponent<TextMesh>();
+            label.text = "MATERIAL CART\nGRAB / DRAG ACTIVE";
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.characterSize = 0.075f;
+            label.color = Color.white;
+            labelObject.AddComponent<BillboardLabel>();
+            return root;
+        }
+        static Renderer[] HideUnrelatedLabels(GameObject site, NpcConversationAgent coach)
+        {
+            if (site == null)
+                return Array.Empty<Renderer>();
+            var textRenderers = site.GetComponentsInChildren<TextMesh>(true)
+                .Where(text => coach == null || !text.transform.IsChildOf(coach.transform))
+                .Select(text => text.GetComponent<Renderer>());
+            var billboardRenderers = site.GetComponentsInChildren<BillboardLabel>(true)
+                .Where(label => coach == null || !label.transform.IsChildOf(coach.transform))
+                .SelectMany(label => label.GetComponentsInChildren<Renderer>(true));
+            var renderers = textRenderers.Concat(billboardRenderers)
+                .Where(renderer => renderer != null && renderer.enabled)
+                .Distinct()
+                .ToArray();
+            foreach (var renderer in renderers)
+                renderer.enabled = false;
+            return renderers;
+        }
+
+        static void RestoreRenderers(Renderer[] renderers)
+        {
+            foreach (var renderer in renderers)
+                if (renderer != null)
+                    renderer.enabled = true;
+        }
+
+        static IEnumerator CaptureMissionStatus(Camera viewer, string directory)
+        {
+            HideCaptureHud();
+            var board = GameObject.Find("Construction Mission Status Board");
+            var statusText = FindObjectsByType<TextMesh>(FindObjectsSortMode.None)
+                .FirstOrDefault(text => text.text.StartsWith("MISSION STATUS", StringComparison.Ordinal))
+                ?.GetComponent<Renderer>();
+            var site = board?.GetComponentInParent<SiteExperienceZone>();
+            var activeBubbles = site?.GetComponentsInChildren<NpcSpeechBubbleView>(true)
+                .Where(view => view.gameObject.activeInHierarchy)
+                .ToArray() ?? Array.Empty<NpcSpeechBubbleView>();
+            foreach (var bubble in activeBubbles)
+                bubble.gameObject.SetActive(false);
+            (NpcChatPanel.Instance ?? FindFirstObjectByType<NpcChatPanel>())?.Close();
+            var activeCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None)
+                .Where(canvas => canvas.gameObject.activeInHierarchy)
+                .ToArray();
+            foreach (var canvas in activeCanvases)
+                canvas.gameObject.SetActive(false);
+            var boardRenderer = board?.GetComponent<Renderer>();
+            var hiddenWorld = FindObjectsByType<Renderer>(FindObjectsSortMode.None)
+                .Where(renderer => renderer.enabled && renderer != boardRenderer && renderer != statusText)
+                .ToArray();
+            foreach (var renderer in hiddenWorld)
+                renderer.enabled = false;
+            if (board != null && VisualCaptureFraming.TryGetBounds(board, out var bounds))
+            {
+                var focus = bounds.center;
+                yield return CaptureView(viewer, directory, "02a-construction-mission-status.png",
+                    focus + Vector3.back * 3.5f + Vector3.up * 0.05f, focus);
+            }
+            RestoreRenderers(hiddenWorld);
+            foreach (var canvas in activeCanvases)
+                if (canvas != null)
+                    canvas.gameObject.SetActive(true);
+            foreach (var bubble in activeBubbles)
+                if (bubble != null)
+                    bubble.gameObject.SetActive(true);
             ShowCaptureHud();
         }
 
@@ -297,17 +628,49 @@ namespace SafetyTraining.Runtime
             HideCaptureHud();
             var board = FindObjectsByType<LearningObjectiveBoard>(FindObjectsSortMode.None)
                 .FirstOrDefault(item => item.SiteId == siteId);
+            var boardLabels = board != null
+                ? board.GetComponentsInChildren<TextMesh>(true).Select(text => text.GetComponent<Renderer>()).ToHashSet()
+                : new System.Collections.Generic.HashSet<Renderer>();
+            var hiddenLabels = FindObjectsByType<TextMesh>(FindObjectsSortMode.None)
+                .Select(text => text.GetComponent<Renderer>())
+                .Where(renderer => renderer != null && renderer.enabled && !boardLabels.Contains(renderer))
+                .ToArray();
+            foreach (var renderer in hiddenLabels)
+                renderer.enabled = false;
             if (board != null && VisualCaptureFraming.TryGetBounds(board.gameObject, out var bounds))
             {
                 var focus = bounds.center;
                 yield return CaptureView(viewer, directory, fileName,
                     focus - board.transform.forward * 3.8f + Vector3.up * 0.1f, focus);
             }
+            RestoreRenderers(hiddenLabels);
             ShowCaptureHud();
+        }
+
+        static void PrepareGoldenEngineeringCapture()
+        {
+            var golden = ConstructionGoldenModuleController.Instance;
+            if (golden == null)
+                return;
+            golden.Begin();
+            golden.NotifyPracticalStep(0, "PPE check");
+            foreach (var id in new[] { "fall-edge-gap", "crane-swing-radius", "material-staging", "formwork-access" })
+                golden.TryCollectEvidence(id, true);
         }
 
         static IEnumerator CaptureEngineeringStations(Camera viewer, string directory)
         {
+            var captureOccluders = new[] { "Inspection Clipboard", "Material Cart", "Barricade Gate", "Guardrail Kit" }
+                .Select(GameObject.Find)
+                .Where(item => item != null);
+            var hiddenActionRenderers = FindObjectsByType<ConstructionActionInteractable>(FindObjectsSortMode.None)
+                .SelectMany(action => action.GetComponentsInChildren<Renderer>(true))
+                .Concat(captureOccluders.SelectMany(item => item.GetComponentsInChildren<Renderer>(true)))
+                .Where(renderer => renderer.enabled)
+                .Distinct()
+                .ToArray();
+            foreach (var renderer in hiddenActionRenderers)
+                renderer.enabled = false;
             var stations = FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
                 .OrderBy(item => item.transform.position.z).ToArray();
             for (var index = 0; index < stations.Length; index++)
@@ -317,9 +680,12 @@ namespace SafetyTraining.Runtime
                 if (VisualCaptureFraming.TryGetBounds(station.gameObject, out var bounds))
                 {
                     var focus = bounds.center + Vector3.up * 0.05f;
+                    var isFormwork = station.DecisionId == "formwork-capacity";
+                    var distance = isFormwork ? 2.7f : 4.0f;
+                    var sideOffset = isFormwork ? 0.45f : 0.9f;
                     yield return CaptureView(viewer, directory,
                         $"02{(char)('d' + index)}-construction-{station.DecisionId}.png",
-                        focus - station.transform.forward * 4.0f, focus);
+                        focus - station.transform.forward * distance + station.transform.right * sideOffset, focus);
                 }
             }
 
@@ -332,13 +698,14 @@ namespace SafetyTraining.Runtime
                 HideCaptureHud();
                 var focus = formworkBounds.center;
                 yield return CaptureView(viewer, directory, "02g-formwork-diagnostic-feedback.png",
-                    focus - formwork.transform.forward * 4.0f, focus);
+                    focus - formwork.transform.forward * 2.7f + formwork.transform.right * 0.45f, focus);
                 options.FirstOrDefault(item => item.IsCorrect)?.Select();
                 yield return new WaitForSecondsRealtime(0.35f);
                 ShowCaptureHud();
                 yield return CaptureView(viewer, directory, "02h-formwork-verified-hud.png",
-                    focus - formwork.transform.forward * 4.0f, focus);
+                    focus - formwork.transform.forward * 2.7f + formwork.transform.right * 0.45f, focus);
             }
+            RestoreRenderers(hiddenActionRenderers);
             ShowCaptureHud();
         }
 

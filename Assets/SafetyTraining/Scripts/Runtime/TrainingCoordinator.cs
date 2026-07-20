@@ -214,6 +214,8 @@ namespace SafetyTraining.Runtime
             var openingObjective = LearningObjectiveCatalog.ObjectiveAt(siteId, 0);
             LastFeedback = $"{openingObjective.Id} | {openingObjective.Title}\n{inquiryPrompt}";
             HudFeedback = LastFeedback;
+            if (siteId == TrainingSiteId.Construction)
+                ConstructionGoldenModuleController.Instance?.Begin();
             practicals?.Begin(siteId);
             InquirySessionController.Instance?.StartInquiry(siteId, inquiryPrompt);
             TrainingHud.Instance?.SetVisible(true);

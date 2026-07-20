@@ -112,6 +112,53 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
+        public void CappedRebarBundle_HasSymmetricCapsAtBothEnds()
+        {
+            EditorSceneManager.OpenScene(ScenePath);
+            var bundle = GameObject.Find("Construction Site").transform
+                .Find("RealAsset - US_Capped_Rebar_Bundle");
+            Assert.That(bundle, Is.Not.Null);
+
+            var capCenters = bundle.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer.name.ToLowerInvariant().Contains("impalement cap"))
+                .Select(renderer => bundle.InverseTransformPoint(renderer.bounds.center).x)
+                .ToArray();
+            Assert.That(capCenters.Length, Is.GreaterThanOrEqualTo(24));
+            var negative = capCenters.Where(value => value < -0.25f).OrderBy(value => Mathf.Abs(value)).ToArray();
+            var positive = capCenters.Where(value => value > 0.25f).OrderBy(value => Mathf.Abs(value)).ToArray();
+            Assert.That(negative.Length, Is.EqualTo(positive.Length),
+                "Every near-end OSHA cap needs a matching far-end cap.");
+            for (var index = 0; index < negative.Length; index++)
+                Assert.That(Mathf.Abs(negative[index]), Is.EqualTo(Mathf.Abs(positive[index])).Within(0.08f),
+                    $"Cap pair {index} must terminate the same rebar at opposite ends.");
+
+            var capWorldCenters = bundle.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer.name.ToLowerInvariant().Contains("impalement cap"))
+                .Select(renderer => renderer.bounds.center)
+                .ToArray();
+            var rods = bundle.GetComponentsInChildren<MeshFilter>(true)
+                .Where(filter => filter.sharedMesh != null &&
+                    filter.name.ToLowerInvariant().Contains("reinforcing bar"))
+                .ToArray();
+            Assert.That(rods, Has.Length.EqualTo(12));
+            foreach (var rod in rods)
+            {
+                var meshBounds = rod.sharedMesh.bounds;
+                var localAxis = meshBounds.size.x >= meshBounds.size.y &&
+                                meshBounds.size.x >= meshBounds.size.z
+                    ? Vector3.right
+                    : meshBounds.size.y >= meshBounds.size.z ? Vector3.up : Vector3.forward;
+                var halfLength = Vector3.Scale(meshBounds.extents, localAxis).magnitude;
+                var endpointA = rod.transform.TransformPoint(meshBounds.center + localAxis * halfLength);
+                var endpointB = rod.transform.TransformPoint(meshBounds.center - localAxis * halfLength);
+                Assert.That(capWorldCenters.Min(center => Vector3.Distance(center, endpointA)),
+                    Is.LessThan(0.16f), $"{rod.name} endpoint A needs an attached cap.");
+                Assert.That(capWorldCenters.Min(center => Vector3.Distance(center, endpointB)),
+                    Is.LessThan(0.16f), $"{rod.name} endpoint B needs an attached cap.");
+            }
+        }
+
+        [Test]
         public void CustomSafetyProps_MatchHumanRelativeRealWorldHeights()
         {
             EditorSceneManager.OpenScene(ScenePath);
@@ -231,6 +278,20 @@ namespace SafetyTraining.Tests.EditMode
             var electrical = GameObject.Find("Electrical Maintenance");
             Assert.That(electrical.transform.Find("RealEnvironment - Utility Cabinet A"), Is.Null);
             Assert.That(electrical.transform.Find("RealEnvironment - Utility Cabinet B"), Is.Null);
+        }
+
+        [Test]
+        public void FireExtinguisher_HasReadableEnglishLabelAndPressureGaugeFace()
+        {
+            EditorSceneManager.OpenScene(ScenePath);
+            var extinguisher = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
+                .FirstOrDefault(item => item.name == "RealAsset - US_ABC_Fire_Extinguisher");
+            Assert.That(extinguisher, Is.Not.Null);
+            var renderers = extinguisher.GetComponentsInChildren<Renderer>(true);
+            Assert.That(renderers.Any(renderer =>
+                renderer.name.ToLowerInvariant().Contains("english label abc")), Is.True);
+            Assert.That(renderers.Any(renderer => renderer.name == "Pressure Gauge Face"), Is.True);
+            Assert.That(renderers.Any(renderer => renderer.name == "Pressure Gauge Needle"), Is.True);
         }
 
         [Test]

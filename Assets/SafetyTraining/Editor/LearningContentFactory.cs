@@ -45,7 +45,7 @@ namespace SafetyTraining.Editor
             var root = new GameObject($"Learning Objectives - {siteId}");
             root.transform.SetParent(site, false);
             root.transform.localPosition = new Vector3(-11.45f, 0f, -8.5f);
-            root.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+            root.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
 
             Primitive(PrimitiveType.Cube, "Objective Kiosk Frame", root.transform,
                 new Vector3(0f, 1.62f, 0f), new Vector3(3.58f, 2.12f, 0.16f), Steel);
@@ -96,7 +96,7 @@ namespace SafetyTraining.Editor
             var root = new GameObject($"Engineering Decision - {decision.Id}");
             root.transform.SetParent(site, false);
             root.transform.localPosition = localPosition;
-            root.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+            root.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
 
             Primitive(PrimitiveType.Cube, "HMI Backplate", root.transform,
                 new Vector3(0f, 1.7f, 0.04f), new Vector3(3.78f, 1.72f, 0.18f), Steel);

@@ -42,6 +42,11 @@ namespace SafetyTraining.Runtime
 
         public async void Ask(string learnerMessage)
         {
+            var golden = siteId == TrainingSiteId.Construction
+                ? ConstructionGoldenModuleController.Instance
+                : null;
+            if (golden != null && golden.CanDebriefCoach)
+                golden.TryCoachExplanation(learnerMessage);
             TrainingCoordinator.Instance?.RecordCoachTurn(siteId);
             var request = new ConversationRequest
             {

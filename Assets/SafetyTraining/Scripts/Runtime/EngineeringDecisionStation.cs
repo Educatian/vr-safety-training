@@ -25,8 +25,11 @@ namespace SafetyTraining.Runtime
         public void Submit(EngineeringDecisionOption option)
         {
             if (option == null || solved) return;
-            attemptedOptions.Add(option.OptionId);
             var accepted = option.IsCorrect;
+            var golden = ConstructionGoldenModuleController.Instance;
+            if (golden != null && !golden.TryEngineeringDecision(decisionId, accepted))
+                return;
+            attemptedOptions.Add(option.OptionId);
             if (accepted) solved = true;
             LearningOutcomeTracker.Instance?.Record(TrainingSiteId.Construction, "CON-02",
                 $"decision:{decisionId}", accepted, $"{title}: {option.Label}. {option.Feedback}", 50);

@@ -52,12 +52,54 @@ namespace SafetyTraining.Editor
                 new Vector3(0f, 25f, 90f)));
             AddStaticGrounded(site, CustomSpec("US_Modular_Formwork_Panel.fbx",
                 new Vector3(-4.15f, 0f, -2.45f), 2.8f, new Vector3(0f, 90f, 0f)));
-            AddStaticGrounded(site, CustomSpec("US_Capped_Rebar_Bundle.fbx",
-                new Vector3(4.15f, 0f, 2.05f), 0.76f, new Vector3(0f, 90f, 0f)));
+            var cappedRebar = AddStaticGrounded(site, CustomSpec("US_Capped_Rebar_Bundle.fbx",
+                new Vector3(3.88f, 0f, 2.05f), 0.76f, new Vector3(0f, 90f, 0f)));
+            AddRebarEndCaps(cappedRebar);
+            SeatRebarOnDunnage(cappedRebar);
+            GroundOnParentFloor(cappedRebar, site, 0.012f);
             AddStaticGrounded(site, CustomSpec("US_Adjustable_Shoring_Rack.fbx",
                 new Vector3(-1.55f, 0f, 3.2f), 2.9f, Vector3.zero));
         }
 
+        static void AddRebarEndCaps(GameObject bundle)
+        {
+            if (bundle == null)
+                return;
+            var originalCaps = bundle.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer.name.IndexOf("Orange impalement cap",
+                    System.StringComparison.OrdinalIgnoreCase) >= 0)
+                .Select(renderer => renderer.gameObject)
+                .Distinct()
+                .ToArray();
+            foreach (var original in originalCaps)
+            {
+                var opposite = (GameObject)Object.Instantiate(original, original.transform.parent);
+                opposite.name = "Orange OSHA Impalement Cap - Opposite End";
+                var bundleLocalPosition = bundle.transform.InverseTransformPoint(original.transform.position);
+                bundleLocalPosition.x = -bundleLocalPosition.x;
+                opposite.transform.position = bundle.transform.TransformPoint(bundleLocalPosition);
+                opposite.transform.rotation = original.transform.rotation;
+                opposite.transform.localScale = original.transform.localScale;
+                foreach (var collider in opposite.GetComponentsInChildren<Collider>(true))
+                    Object.DestroyImmediate(collider);
+            }
+        }
+
+        static void SeatRebarOnDunnage(GameObject bundle)
+        {
+            if (bundle == null)
+                return;
+            var renderers = bundle.GetComponentsInChildren<Renderer>(true);
+            var rods = renderers.Where(renderer => renderer.name.IndexOf("reinforcing bar",
+                System.StringComparison.OrdinalIgnoreCase) >= 0).ToArray();
+            var supports = renderers.Where(renderer => renderer.name.IndexOf("Timber dunnage",
+                System.StringComparison.OrdinalIgnoreCase) >= 0).ToArray();
+            if (rods.Length == 0 || supports.Length == 0)
+                return;
+            var rodBottom = rods.Min(renderer => renderer.bounds.min.y);
+            foreach (var support in supports)
+                support.transform.position += Vector3.up * (rodBottom - support.bounds.max.y + 0.006f);
+        }
         public static void DressWarehouse(Transform site)
         {
             RemoveDirectChild(site, "RealEnvironment - Warehouse Separation Fence");
@@ -96,7 +138,7 @@ namespace SafetyTraining.Editor
             AddStaticMounted(site, SiteSpec("US_Recessed_Fire_Hose_Cabinet.fbx",
                 new Vector3(-3.7f, 0f, 3.88f), 1.05f, new Vector3(0f, 180f, 0f)), 0.75f);
             AddStaticGrounded(site, SiteSpec("US_Commercial_Emergency_Exit_Door.fbx",
-                new Vector3(2.8f, 0f, 3.88f), 2.7f, Vector3.zero));
+                new Vector3(2.8f, 0f, 3.88f), 2.7f, new Vector3(0f, 180f, 0f)));
         }
 
         public static void DressChemicalProcessing(Transform site)
@@ -108,8 +150,9 @@ namespace SafetyTraining.Editor
                 new Vector3(0f, 24f, 0f)));
             AddStaticGrounded(site, SiteSpec("US_275_Gallon_IBC_Tote.fbx",
                 new Vector3(-3.75f, 0f, -2.85f), 1.55f, Vector3.zero));
-            AddStaticGrounded(site, SiteSpec("US_Emergency_Eyewash_Shower.fbx",
+            var eyewash = AddStaticGrounded(site, SiteSpec("US_Emergency_Eyewash_Shower.fbx",
                 new Vector3(3.75f, 0f, 2.8f), 2.5f, Vector3.zero));
+            EnhanceEyewashConnections(eyewash);
             AddStaticGrounded(site, SiteSpec("US_Flammable_Liquid_Cabinet.fbx",
                 new Vector3(0f, 0f, 3.05f), 1.9f, new Vector3(0f, 180f, 0f)));
         }
@@ -123,9 +166,10 @@ namespace SafetyTraining.Editor
             AddGrounded(site, Spec("ladder_sectioned_01_1k.fbx", new Vector3(-1.7f, 0f, -2.3f), 0.75f,
                 new Vector3(0f, 20f, 90f)));
             AddStaticMounted(site, SiteSpec("US_NEMA_Electrical_Panel.fbx",
-                new Vector3(-3.65f, 0f, 3.85f), 2.15f, Vector3.zero), 0.35f);
-            AddStaticMounted(site, SiteSpec("US_Lockout_Tagout_Station.fbx",
+                new Vector3(-3.65f, 0f, 3.85f), 2.15f, new Vector3(0f, 180f, 0f)), 0.35f);
+            var loto = AddStaticMounted(site, SiteSpec("US_Lockout_Tagout_Station.fbx",
                 new Vector3(0f, 0f, 3.85f), 0.75f, new Vector3(0f, 180f, 0f)), 1.0f);
+            EnhanceLotoConnections(loto);
             AddStaticMounted(site, SiteSpec("US_Safety_Disconnect_Switch.fbx",
                 new Vector3(3.65f, 0f, 3.85f), 0.85f, new Vector3(0f, 180f, 0f)), 0.85f);
         }
@@ -200,11 +244,135 @@ namespace SafetyTraining.Editor
 
             var model = Add(root, SiteSpec("US_ABC_Fire_Extinguisher.fbx", Vector3.zero, 0.62f,
                 Vector3.zero));
+            EnhanceExtinguisherGauge(model);
             GroundOnParentFloor(model, root, -0.02f);
             FitRootColliderToVisuals(root);
             CreateExtinguisherFloorStand(root);
         }
 
+        static void EnhanceExtinguisherGauge(GameObject model)
+        {
+            if (model == null)
+                return;
+            var renderers = model.GetComponentsInChildren<Renderer>(true);
+            var label = renderers.FirstOrDefault(renderer =>
+                renderer.name.IndexOf("English Label ABC", System.StringComparison.OrdinalIgnoreCase) >= 0);
+            var gauge = renderers.FirstOrDefault(renderer =>
+                renderer.name.IndexOf("pressure gauge", System.StringComparison.OrdinalIgnoreCase) >= 0);
+            if (label == null || gauge == null)
+                return;
+
+            var bounds = renderers[0].bounds;
+            foreach (var renderer in renderers.Skip(1))
+                bounds.Encapsulate(renderer.bounds);
+            var front = label.bounds.center - bounds.center;
+            front.y = 0f;
+            if (front.sqrMagnitude < 0.0001f)
+                front = -model.transform.forward;
+            front.Normalize();
+
+            gauge.transform.position += front * 0.095f;
+            gauge.transform.localScale *= 1.35f;
+            var gaugeCenter = gauge.bounds.center;
+            var darkMaterial = renderers.FirstOrDefault(renderer =>
+                renderer.name.IndexOf("extinguisher cylinder", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                ?.sharedMaterial ?? label.sharedMaterial;
+
+            var bezel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            bezel.name = "Pressure Gauge Black Bezel";
+            bezel.transform.position = gaugeCenter + front * 0.007f;
+            bezel.transform.rotation = Quaternion.FromToRotation(Vector3.up, front);
+            bezel.transform.localScale = new Vector3(0.092f, 0.009f, 0.092f);
+            bezel.transform.SetParent(model.transform, true);
+            bezel.GetComponent<Renderer>().sharedMaterial = darkMaterial;
+            Object.DestroyImmediate(bezel.GetComponent<Collider>());
+
+            var face = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            face.name = "Pressure Gauge Face";
+            face.transform.position = gaugeCenter + front * 0.018f;
+            face.transform.rotation = Quaternion.FromToRotation(Vector3.up, front);
+            face.transform.localScale = new Vector3(0.074f, 0.006f, 0.074f);
+            face.transform.SetParent(model.transform, true);
+            face.GetComponent<Renderer>().sharedMaterial = label.sharedMaterial;
+            Object.DestroyImmediate(face.GetComponent<Collider>());
+
+            var pointer = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pointer.name = "Pressure Gauge Needle";
+            pointer.transform.position = gaugeCenter + front * 0.027f + Vector3.up * 0.014f;
+            pointer.transform.rotation = Quaternion.LookRotation(front, Vector3.up) *
+                                         Quaternion.Euler(0f, 0f, -28f);
+            pointer.transform.localScale = new Vector3(0.009f, 0.052f, 0.006f);
+            pointer.transform.SetParent(model.transform, true);
+            pointer.GetComponent<Renderer>().sharedMaterial = darkMaterial;
+            Object.DestroyImmediate(pointer.GetComponent<Collider>());
+        }
+
+        static void EnhanceEyewashConnections(GameObject model)
+        {
+            if (model == null)
+                return;
+            var renderers = model.GetComponentsInChildren<Renderer>(true);
+            var arm = renderers.FirstOrDefault(renderer => renderer.name.IndexOf("Shower arm",
+                System.StringComparison.OrdinalIgnoreCase) >= 0);
+            var head = renderers.FirstOrDefault(renderer => renderer.name.IndexOf("shower head",
+                System.StringComparison.OrdinalIgnoreCase) >= 0);
+            var supply = renderers.FirstOrDefault(renderer => renderer.name.IndexOf("Eyewash supply arm",
+                System.StringComparison.OrdinalIgnoreCase) >= 0);
+            var bowl = renderers.FirstOrDefault(renderer => renderer.name.IndexOf("Eyewash bowl",
+                System.StringComparison.OrdinalIgnoreCase) >= 0);
+            if (arm != null && head != null)
+                CreateConnector(model.transform, "Shower Head Riser Connection",
+                    arm.bounds.ClosestPoint(head.bounds.center), head.bounds.ClosestPoint(arm.bounds.center),
+                    0.028f, arm.sharedMaterial);
+            if (supply != null && bowl != null)
+                CreateConnector(model.transform, "Eyewash Bowl Supply Connection",
+                    supply.bounds.ClosestPoint(bowl.bounds.center), bowl.bounds.ClosestPoint(supply.bounds.center),
+                    0.024f, supply.sharedMaterial);
+        }
+
+        static void EnhanceLotoConnections(GameObject model)
+        {
+            if (model == null)
+                return;
+            var renderers = model.GetComponentsInChildren<Renderer>(true);
+            var locks = renderers.Where(renderer => renderer.name.IndexOf("padlock body",
+                System.StringComparison.OrdinalIgnoreCase) >= 0).OrderBy(renderer => renderer.bounds.center.x).ToArray();
+            var shackles = renderers.Where(renderer => renderer.name.IndexOf("padlock shackle",
+                System.StringComparison.OrdinalIgnoreCase) >= 0).OrderBy(renderer => renderer.bounds.center.x).ToArray();
+            var tags = renderers.Where(renderer => renderer.name.IndexOf("Danger tag",
+                System.StringComparison.OrdinalIgnoreCase) >= 0 && renderer.name.IndexOf("header",
+                System.StringComparison.OrdinalIgnoreCase) < 0).OrderBy(renderer => renderer.bounds.center.x).ToArray();
+            for (var index = 0; index < Mathf.Min(locks.Length, shackles.Length); index++)
+            {
+                var lockTop = locks[index].bounds.center + Vector3.up * locks[index].bounds.extents.y;
+                var shackleBottom = shackles[index].bounds.center - Vector3.up * shackles[index].bounds.extents.y;
+                CreateConnector(model.transform, $"Padlock Shackle Connection {index + 1}", lockTop,
+                    shackleBottom, 0.018f, shackles[index].sharedMaterial);
+                if (index < tags.Length)
+                {
+                    var lockBottom = locks[index].bounds.center - Vector3.up * locks[index].bounds.extents.y;
+                    var tagTop = tags[index].bounds.center + Vector3.up * tags[index].bounds.extents.y;
+                    CreateConnector(model.transform, $"Danger Tag Tether {index + 1}", lockBottom,
+                        tagTop, 0.008f, shackles[index].sharedMaterial);
+                }
+            }
+        }
+
+        static void CreateConnector(Transform parent, string name, Vector3 start, Vector3 end,
+            float radius, Material material)
+        {
+            var delta = end - start;
+            if (delta.sqrMagnitude < 0.000001f)
+                return;
+            var connector = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            connector.name = name;
+            connector.transform.position = (start + end) * 0.5f;
+            connector.transform.rotation = Quaternion.FromToRotation(Vector3.up, delta.normalized);
+            connector.transform.localScale = new Vector3(radius, delta.magnitude * 0.5f, radius);
+            connector.transform.SetParent(parent, true);
+            connector.GetComponent<Renderer>().sharedMaterial = material;
+            Object.DestroyImmediate(connector.GetComponent<Collider>());
+        }
         static void CreateExtinguisherFloorStand(Transform parent)
         {
             var red = new Color(0.38f, 0.025f, 0.018f);

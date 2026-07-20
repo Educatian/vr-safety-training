@@ -20,6 +20,8 @@ namespace SafetyTraining.Runtime
         Quaternion baseRotation;
         bool moving;
         bool hasLocomotionController;
+        [SerializeField] bool useAuthoredWalk = true;
+        float previewMovementPhase = -1f;
         Transform leftUpperLeg;
         Transform rightUpperLeg;
         Quaternion leftLegBase;
@@ -74,9 +76,8 @@ namespace SafetyTraining.Runtime
 
             if (genericRig)
                 ApplyGenericIdle(Time.time);
-
             if (!hasLocomotionController)
-                ApplyWalkCycle(Time.time);
+                ApplyWalkCycle(Time.time, previewMovementPhase >= 0f);
 
             var activeConversation = GetComponent<NpcTalkInteractable>()?.ConversationActive == true;
             var normalized = gesture == Gesture.None
@@ -103,16 +104,57 @@ namespace SafetyTraining.Runtime
             ApplyHeadMotion(Time.time, activeConversation);
         }
 
+        public bool UsesAuthoredWalk => useAuthoredWalk;
+
+        public void ConfigureLocomotion(bool authoredWalk)
+        {
+            useAuthoredWalk = authoredWalk;
+        }
+
         public void SetMoving(bool value, float pace = 1f)
         {
             moving = value;
+            if (!value)
+            {
+                previewMovementPhase = -1f;
+                if (animator != null && !animator.enabled)
+                    animator.enabled = true;
+            }
             if (hasLocomotionController)
             {
-                animator.SetBool("Moving", value);
-                animator.speed = value ? Mathf.Clamp(pace, 0.85f, 1.35f) : 1f;
+                animator.SetBool("Moving", useAuthoredWalk && value);
+                animator.speed = useAuthoredWalk && value ? Mathf.Clamp(pace, 0.85f, 1.35f) : 1f;
+                if (!useAuthoredWalk && !value)
+                    animator.Play("Natural Idle", 0, 0f);
             }
         }
 
+        public void PreviewMovementPose(float normalizedTime)
+        {
+            if (animator == null)
+                return;
+
+            moving = true;
+            previewMovementPhase = Mathf.Repeat(normalizedTime, 1f);
+            if (useAuthoredWalk && hasLocomotionController)
+            {
+                animator.SetBool("Moving", true);
+                animator.Play("Natural Walk", 0, previewMovementPhase);
+                animator.Update(0f);
+                animator.speed = 0f;
+                return;
+            }
+
+            if (hasLocomotionController)
+            {
+                animator.SetBool("Moving", false);
+                animator.Play("Natural Idle", 0, 0f);
+                animator.Update(0f);
+                animator.speed = 0f;
+                animator.enabled = false;
+            }
+            ApplyWalkCycle(Time.time, true);
+        }
         public bool IsEncouraging => gesture is Gesture.Encourage or Gesture.Celebrate;
 
         public void PlayEncouragement(bool siteComplete)
@@ -127,15 +169,31 @@ namespace SafetyTraining.Runtime
             gesture = Gesture.None;
         }
 
-        void ApplyWalkCycle(float time)
+
+        void ApplyWalkCycle(float time, bool snap = false)
         {
             if (leftUpperLeg == null || rightUpperLeg == null)
                 return;
-            var stride = moving ? Mathf.Sin(time * 7f) * 18f : 0f;
-            leftUpperLeg.localRotation = Quaternion.Slerp(leftUpperLeg.localRotation,
-                leftLegBase * Quaternion.Euler(stride, 0f, 0f), 0.22f);
-            rightUpperLeg.localRotation = Quaternion.Slerp(rightUpperLeg.localRotation,
-                rightLegBase * Quaternion.Euler(-stride, 0f, 0f), 0.22f);
+            var cycle = previewMovementPhase >= 0f
+                ? previewMovementPhase * Mathf.PI * 2f
+                : time * 7f;
+            var stride = moving ? Mathf.Sin(cycle) * 16f : 0f;
+            var leftTarget = leftLegBase * Quaternion.Euler(stride, 0f, 0f);
+            var rightTarget = rightLegBase * Quaternion.Euler(-stride, 0f, 0f);
+            leftUpperLeg.localRotation = snap
+                ? leftTarget
+                : Quaternion.Slerp(leftUpperLeg.localRotation, leftTarget, 0.22f);
+            rightUpperLeg.localRotation = snap
+                ? rightTarget
+                : Quaternion.Slerp(rightUpperLeg.localRotation, rightTarget, 0.22f);
+            if (snap && moving)
+            {
+                var swing = Mathf.Sin(cycle);
+                SetArm(leftUpperArm, leftLowerArm,
+                    new Vector3(-0.24f, -0.72f, 0.12f + swing * 0.48f), 1f);
+                SetArm(rightUpperArm, rightLowerArm,
+                    new Vector3(0.24f, -0.72f, 0.12f - swing * 0.48f), 1f);
+            }
         }
 
         void ApplyRelaxed(float time)
@@ -170,7 +228,7 @@ namespace SafetyTraining.Runtime
                 Vector3.Lerp(new Vector3(0.18f, -0.96f, 0.08f), new Vector3(0.55f, 0.72f, 0.32f), lift));
         }
 
-        void SetArm(Transform upperArm, Transform lowerArm, Vector3 direction)
+        void SetArm(Transform upperArm, Transform lowerArm, Vector3 direction, float blend = 0.18f)
         {
             if (upperArm == null || lowerArm == null)
                 return;
@@ -180,7 +238,7 @@ namespace SafetyTraining.Runtime
                 return;
             var targetDirection = transform.TransformDirection(direction).normalized;
             var delta = Quaternion.FromToRotation(upperDirection.normalized, targetDirection);
-            upperArm.rotation = Quaternion.Slerp(upperArm.rotation, delta * upperArm.rotation, 0.18f);
+            upperArm.rotation = Quaternion.Slerp(upperArm.rotation, delta * upperArm.rotation, blend);
         }
 
         void ApplyHeadMotion(float time, bool talking)

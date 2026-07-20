@@ -68,6 +68,15 @@ namespace SafetyTraining.Runtime
         {
             if (submitted)
                 return;
+            var golden = siteId == TrainingSiteId.Construction
+                ? ConstructionGoldenModuleController.Instance
+                : null;
+            if (golden != null && !golden.CanSubmitFinalReport)
+            {
+                golden.PresentGateMessage(
+                    "Final report locked: complete engineering controls and the evidence-based coach debrief first.");
+                return;
+            }
             var controller = InquirySessionController.Instance;
             if (controller != null && !controller.CanSubmitReport(siteId, minimumEvidenceRequired))
             {
@@ -77,6 +86,7 @@ namespace SafetyTraining.Runtime
             submitted = true;
             controller?.SelectHypothesis(siteId, hypothesis);
             controller?.SubmitFinalExplanation(siteId, finalExplanation);
+            golden?.TrySubmitFinalReport();
             TrainingCoordinator.Instance?.SetContextFeedback(
                 $"Inquiry report submitted\nHypothesis: {hypothesis}");
         }

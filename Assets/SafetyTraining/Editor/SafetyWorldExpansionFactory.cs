@@ -88,11 +88,13 @@ namespace SafetyTraining.Editor
             SafetyWorldAssetPainter.AddModel(site, "North Chainlink Perimeter", "modular_chainlink_fence_1k.fbx",
                 new Vector3(-7.5f, 0f, 12.4f), 8.5f, new Vector3(0f, 90f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "North Chainlink Perimeter B", "modular_chainlink_fence_1k.fbx",
-                new Vector3(7.5f, 0f, 12.4f), 8.5f, new Vector3(0f, 90f, 0f));
+                site.name == "Construction Site" ? new Vector3(40f, 0f, 40f) : new Vector3(7.5f, 0f, 12.4f),
+                8.5f, new Vector3(0f, 90f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Left Chainlink Perimeter", "modular_chainlink_fence_1k.fbx",
                 new Vector3(-14.2f, 0f, 1f), 10f, Vector3.zero);
             SafetyWorldAssetPainter.AddModel(site, "Right Chainlink Perimeter", "modular_chainlink_fence_1k.fbx",
-                new Vector3(14.2f, 0f, 1f), 10f, Vector3.zero);
+                site.name == "Construction Site" ? new Vector3(40f, 0f, -40f) : new Vector3(14.2f, 0f, 1f),
+                10f, Vector3.zero);
         }
 
         static void SetCollider(Transform site, string name, Vector3 center, Vector3 size)
@@ -272,7 +274,7 @@ namespace SafetyTraining.Editor
             SafetyWorldAssetPainter.AddModel(site, "Facade Skeleton Wing A", "modular_factory_facade_1k.fbx",
                 new Vector3(-7f, 0f, 6.5f), 6.2f, Vector3.zero);
             SafetyWorldAssetPainter.AddModel(site, "Generator Dust Source", "portable_generator_1k.fbx",
-                new Vector3(8.2f, 0f, -5.5f), 2.2f, new Vector3(0f, 135f, 0f));
+                new Vector3(-11.2f, 0f, -4.2f), 2.2f, new Vector3(0f, 135f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Material Evidence Stack", "cement_bag_1k.fbx",
                 new Vector3(-6.8f, 0f, -5f), 1.8f, new Vector3(0f, -10f, 0f));
             SafetyWorldAssetPainter.AddAmbientDust(site, "Construction Dust Plume",
@@ -315,7 +317,7 @@ namespace SafetyTraining.Editor
         static void AddChemical(Transform site)
         {
             SafetyWorldAssetPainter.AddModel(site, "Pipe Rack Rear", "modular_industrial_pipes_01_1k.fbx",
-                new Vector3(0f, 0f, 10.8f), 8f, new Vector3(0f, 90f, 0f));
+                new Vector3(-3.6f, 0f, 3.35f), 3.2f, new Vector3(0f, 90f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Transfer Drum Cluster", "Barrel_01_1k.fbx",
                 new Vector3(-6.8f, 0f, -4.5f), 1.8f, new Vector3(90f, 0f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Waste Staging Cart", "hand_truck_1k.fbx",

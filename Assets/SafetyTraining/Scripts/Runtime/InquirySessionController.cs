@@ -91,6 +91,11 @@ namespace SafetyTraining.Runtime
 
         public void CollectEvidence(EvidenceObject evidence)
         {
+            var golden = ConstructionGoldenModuleController.Instance;
+            if (evidence.SiteId == TrainingSiteId.Construction && golden != null &&
+                !golden.TryCollectEvidence(evidence.EvidenceId, !evidence.IsDistractor))
+                return;
+
             if (!collectedEvidence.TryGetValue(evidence.SiteId, out var items))
             {
                 items = new HashSet<string>();

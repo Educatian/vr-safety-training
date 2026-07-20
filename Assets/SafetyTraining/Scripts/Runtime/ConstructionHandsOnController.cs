@@ -23,6 +23,7 @@ namespace SafetyTraining.Runtime
 
         public void Begin()
         {
+            ConstructionGoldenModuleController.Instance?.Begin();
             active = true;
             RefreshCurrentStep();
             Publish("Construction practical: pick up the marked PPE kit to begin.");
@@ -30,7 +31,9 @@ namespace SafetyTraining.Runtime
 
         public bool CanManipulate(ConstructionActionInteractable action)
         {
-            return active && !complete && action.StepIndex == nextStep;
+            var golden = ConstructionGoldenModuleController.Instance;
+            var stageAllowsStep = golden == null || golden.CanPerformPracticalStep(action.StepIndex);
+            return active && !complete && action.StepIndex == nextStep && stageAllowsStep;
         }
 
         public void TryPerform(ConstructionActionInteractable action, float releaseDistance,
@@ -38,6 +41,13 @@ namespace SafetyTraining.Runtime
         {
             if (!active || complete)
                 return;
+            var golden = ConstructionGoldenModuleController.Instance;
+            if (golden != null && !golden.CanPerformPracticalStep(action.StepIndex))
+            {
+                golden.PresentGateMessage(
+                    "Physical controls are locked until PPE, field evidence, and engineering decisions are verified.");
+                return;
+            }
             if (action.StepIndex != nextStep)
             {
                 var expected = actions.ElementAtOrDefault(nextStep);
@@ -61,6 +71,7 @@ namespace SafetyTraining.Runtime
             }
 
             action.MarkComplete();
+            ConstructionGoldenModuleController.Instance?.NotifyPracticalStep(action.StepIndex, action.ActionName);
             nextStep++;
             RefreshCurrentStep();
             TrainingCoordinator.Instance?.RecordPlacementAttempt(
@@ -93,10 +104,19 @@ namespace SafetyTraining.Runtime
             TrainingCoordinator.Instance?.SetHandsOnFeedback(message);
         }
 
+        public void RefreshAvailability()
+        {
+            RefreshCurrentStep();
+        }
+
         void RefreshCurrentStep()
         {
+            var golden = ConstructionGoldenModuleController.Instance;
             foreach (var action in actions)
-                action.SetCurrentStep(active && !complete && action.StepIndex == nextStep);
+            {
+                var stageAllowsStep = golden == null || golden.CanPerformPracticalStep(action.StepIndex);
+                action.SetCurrentStep(active && !complete && action.StepIndex == nextStep && stageAllowsStep);
+            }
         }
     }
 }

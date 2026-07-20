@@ -8,7 +8,8 @@ namespace SafetyTraining.Runtime
         public static bool TryGetBounds(GameObject target, out Bounds bounds)
         {
             var renderers = target.GetComponentsInChildren<Renderer>(true)
-                .Where(renderer => renderer.GetComponent<TextMesh>() == null &&
+                .Where(renderer => renderer.enabled && renderer.gameObject.activeInHierarchy &&
+                                   renderer.GetComponent<TextMesh>() == null &&
                                    renderer.GetComponent<BillboardLabel>() == null)
                 .ToArray();
             if (renderers.Length == 0)

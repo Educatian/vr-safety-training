@@ -52,7 +52,7 @@ namespace SafetyTraining.Editor
             SafetyWorldAssetPainter.AddModel(anchor.transform, spec.Title, spec.Asset,
                 Vector3.zero, 1.35f, Vector3.zero);
             var label = SafetyScenePrimitives.Label(LabelFor(spec.Title), anchor.transform,
-                new Vector3(0f, 1.25f, 0f), 0.105f);
+                new Vector3(0f, 1.1f, 0f), 0.07f);
             label.color = spec.IsDistractor
                 ? new Color(0.78f, 0.8f, 0.84f)
                 : new Color(0.55f, 0.94f, 1f);
@@ -65,9 +65,15 @@ namespace SafetyTraining.Editor
                 new Vector3(1.8f, 1.1f, 0.16f), new Color(0.06f, 0.1f, 0.14f));
             station.AddComponent<XRSimpleInteractable>();
             station.AddComponent<InteractiveHoverFeedback>();
+            var requiredEvidence = siteId == TrainingSiteId.Construction
+                ? ConstructionGoldenModuleProgress.RequiredRelevantEvidence
+                : InquirySessionController.DefaultMinimumEvidenceForReport;
             station.AddComponent<InquiryDecisionStation>().Configure(siteId,
-                HypothesisFor(siteId), ExplanationFor(siteId));
-            var label = SafetyScenePrimitives.Label("SUBMIT REPORT (3+ EVIDENCE)", site,
+                HypothesisFor(siteId), ExplanationFor(siteId), requiredEvidence);
+            var labelText = siteId == TrainingSiteId.Construction
+                ? "FINAL REPORT (MISSION GATED)"
+                : "SUBMIT REPORT (3+ EVIDENCE)";
+            var label = SafetyScenePrimitives.Label(labelText, site,
                 new Vector3(5.2f, 1.45f, -6.72f), 0.105f);
             label.color = new Color(0.7f, 0.92f, 1f);
         }
@@ -135,13 +141,13 @@ namespace SafetyTraining.Editor
                     "cement_bag_1k.fbx", new Vector3(-6.4f, 0.2f, -4.8f)),
                 Spec("generator-clearance", "Generator clearance clue", "Equipment",
                     "Generator access needs clearance and visible work boundary.",
-                    "portable_generator_1k.fbx", new Vector3(8.2f, 0.2f, -5.4f)),
+                    "portable_generator_1k.fbx", new Vector3(-8.8f, 0.2f, -3.2f)),
                 Spec("formwork-access", "Formwork access evidence", "Access",
                     "Stored formwork panels should not block ladder or scaffold access.",
                     "modular_factory_facade_1k.fbx", new Vector3(-9.6f, 0.2f, 6.8f)),
                 Spec("permit-board", "Permit board clue", "Pre-task planning",
                     "The crew should verify permit, lift plan, and PPE controls before entry.",
-                    "clipboard_1k.fbx", new Vector3(8.2f, 0.2f, -7.2f)),
+                    "clipboard_1k.fbx", new Vector3(6.4f, 0.2f, -9.0f)),
                 Spec("clean-reference", "Controlled reference sample", "Distractor",
                     "This controlled sample helps compare safe staging against hazards.",
                     "clipboard_1k.fbx", new Vector3(5.3f, 0.2f, 3.6f), true)

@@ -40,17 +40,8 @@ namespace SafetyTraining.Editor
 
         public static void ApplyConstructionYardSkybox()
         {
-            if (AssetImporter.GetAtPath(HdriPath) is TextureImporter importer &&
-                importer.textureShape != TextureImporterShape.TextureCube)
-            {
-                importer.textureShape = TextureImporterShape.TextureCube;
-                importer.generateCubemap = TextureImporterGenerateCubemap.Cylindrical;
-                importer.SaveAndReimport();
-            }
-
-            var cubemap = AssetDatabase.LoadAssetAtPath<Cubemap>(HdriPath);
-            var shader = Shader.Find("Skybox/Cubemap");
-            if (cubemap == null || shader == null)
+            var shader = Shader.Find("Skybox/Procedural");
+            if (shader == null)
                 return;
 
             SafetyScenePrimitives.EnsureFolder(GeneratedRoot);
@@ -61,12 +52,20 @@ namespace SafetyTraining.Editor
                 skybox = new Material(shader);
                 AssetDatabase.CreateAsset(skybox, path);
             }
-            skybox.name = "Real Construction Yard HDRI";
-            skybox.SetTexture("_Tex", cubemap);
-            skybox.SetFloat("_Exposure", 0.82f);
-            skybox.SetFloat("_Rotation", 96f);
+            else
+            {
+                skybox.shader = shader;
+            }
+
+            skybox.name = "Construction Yard Neutral Industrial Daylight";
+            skybox.SetColor("_SkyTint", new Color(0.42f, 0.58f, 0.76f));
+            skybox.SetColor("_GroundColor", new Color(0.24f, 0.27f, 0.29f));
+            skybox.SetFloat("_AtmosphereThickness", 0.92f);
+            skybox.SetFloat("_Exposure", 1.08f);
+            skybox.SetFloat("_SunSize", 0.025f);
+            skybox.SetFloat("_SunSizeConvergence", 5f);
             RenderSettings.skybox = skybox;
-            RenderSettings.reflectionIntensity = 0.92f;
+            RenderSettings.reflectionIntensity = 0.84f;
             DynamicGI.UpdateEnvironment();
         }
 
@@ -119,7 +118,7 @@ namespace SafetyTraining.Editor
             {
                 case SiteStyle.Construction:
                     Place(site, new Placement("portable_generator_1k.fbx", "Portable Generator",
-                        new Vector3(3.25f, 0f, -1.8f), 1.7f, new Vector3(0f, 150f, 0f)));
+                        new Vector3(-8.5f, 0f, -2.8f), 1.7f, new Vector3(0f, 150f, 0f)));
                     break;
                 case SiteStyle.Warehouse:
                     AddRollerDoor(site);
@@ -130,8 +129,6 @@ namespace SafetyTraining.Editor
                     AddRollerDoor(site);
                     break;
                 case SiteStyle.ChemicalProcessing:
-                    Place(site, new Placement("modular_industrial_pipes_01_1k.fbx", "Process Pipe Rack",
-                        new Vector3(-3.2f, 0f, 2.8f), 4.5f, new Vector3(0f, 90f, 0f)));
                     break;
                 case SiteStyle.ElectricalMaintenance:
                     Place(site, new Placement("utility_box_01_1k.fbx", "Utility Cabinet A",

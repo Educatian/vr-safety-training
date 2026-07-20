@@ -7,11 +7,12 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Real Construction Yard HDRI
-  m_Shader: {fileID: 103, guid: 0000000000000000f000000000000000, type: 0}
+  m_Name: Construction Yard Neutral Industrial Daylight
+  m_Shader: {fileID: 106, guid: 0000000000000000f000000000000000, type: 0}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _SUNDISK_HIGH_QUALITY
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -29,9 +30,15 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Exposure: 0.82
-    - _Rotation: 96
+    - _AtmosphereThickness: 0.92
+    - _Exposure: 1.08
+    - _Rotation: 276
+    - _SunDisk: 2
+    - _SunSize: 0.025
+    - _SunSizeConvergence: 5
     m_Colors:
+    - _GroundColor: {r: 0.24, g: 0.27, b: 0.29, a: 1}
+    - _SkyTint: {r: 0.42, g: 0.58, b: 0.76, a: 1}
     - _Tint: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

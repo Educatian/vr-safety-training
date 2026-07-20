@@ -25,45 +25,25 @@ namespace SafetyTraining.Editor
         static void CreateChemicalPpe(Transform coach, Transform head)
         {
             var goggles = Anchor("Chemical Splash Goggles", head,
-                head.position + coach.up * 0.055f + coach.forward * 0.115f, coach.rotation);
-            var lensMaterial = TransparentMaterial("ChemicalGoggleLens", new Color(0.48f, 0.9f, 0.95f, 0.4f));
-            AddPrimitive(goggles, PrimitiveType.Sphere, "Left Goggle Lens", new Vector3(-0.075f, 0f, 0f),
-                Vector3.zero, new Vector3(0.1f, 0.075f, 0.025f), lensMaterial);
-            AddPrimitive(goggles, PrimitiveType.Sphere, "Right Goggle Lens", new Vector3(0.075f, 0f, 0f),
-                Vector3.zero, new Vector3(0.1f, 0.075f, 0.025f), lensMaterial);
-            AddPrimitive(goggles, PrimitiveType.Cube, "Goggle Bridge", Vector3.zero, Vector3.zero,
-                new Vector3(0.06f, 0.018f, 0.025f), OpaqueMaterial(ChemicalFrame, 0.25f, 0.42f));
-            AddPrimitive(goggles, PrimitiveType.Cube, "Goggle Strap", new Vector3(0f, 0.005f, -0.095f),
-                Vector3.zero, new Vector3(0.28f, 0.025f, 0.018f), OpaqueMaterial(ChemicalFrame, 0.12f, 0.3f));
-
+                head.position + coach.up * 0.035f + coach.forward * 0.105f, coach.rotation);
+            AddPrimitive(goggles, PrimitiveType.Sphere, "Integrated Splash Lens", Vector3.zero,
+                Vector3.zero, new Vector3(0.17f, 0.068f, 0.024f),
+                TransparentMaterial("ChemicalGoggleLens", new Color(0.48f, 0.9f, 0.95f, 0.38f)));
             var respirator = Anchor("Half Mask Respirator", head,
-                head.position - coach.up * 0.065f + coach.forward * 0.125f, coach.rotation);
-            var shellMaterial = OpaqueMaterial(RespiratorColor, 0.08f, 0.32f);
-            AddPrimitive(respirator, PrimitiveType.Sphere, "Respirator Face Seal", Vector3.zero, Vector3.zero,
-                new Vector3(0.16f, 0.1f, 0.065f), shellMaterial);
-            AddPrimitive(respirator, PrimitiveType.Cylinder, "Left Filter Cartridge", new Vector3(-0.13f, -0.01f, 0.01f),
-                new Vector3(90f, 0f, 0f), new Vector3(0.055f, 0.035f, 0.055f), shellMaterial);
-            AddPrimitive(respirator, PrimitiveType.Cylinder, "Right Filter Cartridge", new Vector3(0.13f, -0.01f, 0.01f),
-                new Vector3(90f, 0f, 0f), new Vector3(0.055f, 0.035f, 0.055f), shellMaterial);
-            AddPrimitive(respirator, PrimitiveType.Cylinder, "Respirator Exhaust Valve", new Vector3(0f, -0.01f, 0.068f),
-                new Vector3(90f, 0f, 0f), new Vector3(0.035f, 0.018f, 0.035f),
-                OpaqueMaterial(new Color(0.65f, 0.7f, 0.68f), 0.55f, 0.5f));
+                head.position - coach.up * 0.07f + coach.forward * 0.11f, coach.rotation);
+            AddPrimitive(respirator, PrimitiveType.Sphere, "Integrated Respirator Shell", Vector3.zero,
+                Vector3.zero, new Vector3(0.13f, 0.078f, 0.052f),
+                OpaqueMaterial(RespiratorColor, 0.08f, 0.32f));
         }
 
         static void CreateElectricalPpe(Transform coach, Animator animator, Transform head)
         {
             var shield = Anchor("Arc Flash Face Shield", head,
-                head.position + coach.up * 0.005f + coach.forward * 0.155f, coach.rotation);
+                head.position - coach.up * 0.045f + coach.forward * 0.095f, coach.rotation);
             var panel = new GameObject("Amber Visor Panel");
             panel.transform.SetParent(shield, false);
             panel.AddComponent<MeshFilter>().sharedMesh = FaceShieldMesh();
             panel.AddComponent<MeshRenderer>().sharedMaterial = TransparentMaterial("ArcFlashAmber", new Color(1f, 0.5f, 0.08f, 0.42f));
-            AddPrimitive(shield, PrimitiveType.Cube, "Face Shield Brow Guard", new Vector3(0f, 0.185f, -0.025f),
-                Vector3.zero, new Vector3(0.32f, 0.045f, 0.055f), OpaqueMaterial(ElectricalShell, 0.5f, 0.32f));
-            AddPrimitive(shield, PrimitiveType.Cube, "Face Shield Left Arm", new Vector3(-0.18f, 0.02f, -0.02f),
-                new Vector3(0f, 0f, -14f), new Vector3(0.035f, 0.31f, 0.035f), OpaqueMaterial(ElectricalShell, 0.5f, 0.32f));
-            AddPrimitive(shield, PrimitiveType.Cube, "Face Shield Right Arm", new Vector3(0.18f, 0.02f, -0.02f),
-                new Vector3(0f, 0f, 14f), new Vector3(0.035f, 0.31f, 0.035f), OpaqueMaterial(ElectricalShell, 0.5f, 0.32f));
 
             CreateGlove("Voltage Rated Gloves", HandBone(coach, animator, HumanBodyBones.LeftHand));
             CreateGlove("Voltage Rated Glove - Right", HandBone(coach, animator, HumanBodyBones.RightHand));

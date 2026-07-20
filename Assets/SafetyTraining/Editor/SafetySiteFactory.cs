@@ -51,6 +51,8 @@ namespace SafetyTraining.Editor
 
         static void CreateConstructionHandsOn(Transform root)
         {
+            var golden = root.gameObject.AddComponent<ConstructionGoldenModuleController>();
+            CreateConstructionMissionStatus(root, golden);
             var practical = root.gameObject.AddComponent<ConstructionHandsOnController>();
             var ppe = HandsOnProp(root, "PPE Kit - Helmet and Vest", new Vector3(-1.1f, 0.65f, 1.5f),
                 new Vector3(0.9f, 0.55f, 0.7f), new Color(0.95f, 0.72f, 0.08f));
@@ -64,7 +66,7 @@ namespace SafetyTraining.Editor
                 new Vector3(1.6f, 0.18f, 0.18f), SafetyYellow);
             AddBarricadeDetail(barricade.transform);
             SafetyScenePrimitives.Label("BARRICADE", barricade.transform, new Vector3(0f, 0.22f, -0.18f), 0.06f);
-            ConfigureAction(barricade, practical, 1, "Set exclusion barricade",
+            ConfigureAction(barricade, practical, 3, "Set exclusion barricade",
                 "Place the barrier around the open-edge work zone.",
                 new Vector3(-0.1f, 0.65f, -2.05f), Vector3.zero, 1.1f);
 
@@ -85,11 +87,11 @@ namespace SafetyTraining.Editor
             SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, "Cart Wheel B", cart.transform,
                 new Vector3(0.55f, -0.55f, -0.35f), new Vector3(0.24f, 0.12f, 0.24f), Steel);
             SafetyScenePrimitives.Label("MOVE", cart.transform, new Vector3(0f, 0.55f, -0.38f), 0.07f);
-            ConfigureAction(cart, practical, 3, "Move material cart",
+            ConfigureAction(cart, practical, 1, "Move material cart",
                 "Grab the cart and return it to the marked staging zone.",
                 new Vector3(2.45f, 0.55f, -2.25f), new Vector3(0f, 180f, 0f), 1.1f);
 
-            var clipboard = HandsOnProp(root, "Inspection Clipboard", new Vector3(0.4f, 0.7f, 3.05f),
+            var clipboard = HandsOnProp(root, "Inspection Clipboard", new Vector3(5.8f, 0.7f, -4.3f),
                 new Vector3(0.55f, 0.08f, 0.78f), new Color(0.82f, 0.82f, 0.76f));
             SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Clipboard Clip", clipboard.transform,
                 new Vector3(0f, 0.09f, 0.28f), new Vector3(0.25f, 0.04f, 0.12f), Steel);
@@ -97,6 +99,21 @@ namespace SafetyTraining.Editor
             ConfigureAction(clipboard, practical, 4, "Complete final walkdown",
                 "Pick up the clipboard and deliver the completed check at the site control point.",
                 new Vector3(0f, 0.7f, -0.25f), Vector3.zero, 0.85f);
+        }
+
+        static void CreateConstructionMissionStatus(Transform root, ConstructionGoldenModuleController golden)
+        {
+            SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Construction Mission Status Board",
+                root, new Vector3(2.35f, 1.65f, -7.75f), new Vector3(4.2f, 1.7f, 0.12f),
+                new Color(0.035f, 0.065f, 0.085f));
+            var status = SafetyScenePrimitives.Label(
+                "MISSION STATUS  READY\nEvidence 0/4   Engineering 0/3\nControls 0/4   Debrief PENDING",
+                root, new Vector3(2.35f, 1.65f, -7.66f), 0.065f);
+            status.color = new Color(0.72f, 0.94f, 1f);
+            status.anchor = TextAnchor.MiddleCenter;
+            status.alignment = TextAlignment.Center;
+            status.lineSpacing = 1.25f;
+            golden.Configure(status);
         }
 
         static GameObject HandsOnProp(Transform parent, string name, Vector3 position, Vector3 scale, Color color)
@@ -295,7 +312,7 @@ namespace SafetyTraining.Editor
                 "Unprotected cable crossing", "A temporary cable crosses the walking route without a ramp or overhead support.",
                 "Reroute the cable or install a rated cable protector before access resumes.");
 
-            var lockedPanel = ElectricalPanel(root, "Locked Isolated Panel", new Vector3(2.5f, 0f, -2.6f), true);
+            var lockedPanel = ElectricalPanel(root, "Locked Isolated Panel", new Vector3(3.55f, 0f, 0.25f), true);
             SafetyScenePrimitives.Target(lockedPanel, TrainingSiteId.ElectricalMaintenance, "locked-panel", false,
                 "Locked and tagged panel", "The panel is closed with a visible lockout tag inside the staging boundary.",
                 "Preserve the isolation and verify the tag remains legible.");

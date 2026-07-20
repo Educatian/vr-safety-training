@@ -555,6 +555,54 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
+        public void Scene_UnvalidatedRigsUseSafeProceduralWalk()
+        {
+            var poses = Object.FindObjectsByType<NpcRelaxedPose>(FindObjectsSortMode.None);
+
+            Assert.That(poses, Has.Length.EqualTo(5));
+            foreach (var pose in poses)
+            {
+                var site = pose.GetComponentInParent<SiteExperienceZone>();
+                Assert.That(site, Is.Not.Null, pose.name);
+                Assert.That(pose.UsesAuthoredWalk, Is.False,
+                    $"{site.SiteId} must stay on the deformation-safe procedural gait until its model-specific clip is validated.");
+            }
+        }
+
+        [Test]
+        public void SafeProceduralGaitProvidesDistinctNaturalPhases()
+        {
+            var legField = typeof(NpcRelaxedPose)
+                .GetField("leftUpperLeg", BindingFlags.Instance | BindingFlags.NonPublic);
+            var armField = typeof(NpcRelaxedPose)
+                .GetField("leftUpperArm", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(legField, Is.Not.Null);
+            Assert.That(armField, Is.Not.Null);
+
+            foreach (var pose in Object.FindObjectsByType<NpcRelaxedPose>(FindObjectsSortMode.None))
+            {
+                typeof(NpcRelaxedPose).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .Invoke(pose, null);
+                pose.SetMoving(true);
+                pose.PreviewMovementPose(0.18f);
+                var leg = (Transform)legField.GetValue(pose);
+                var arm = (Transform)armField.GetValue(pose);
+                var firstPhase = leg.localRotation;
+                var firstArmPhase = arm.rotation;
+                pose.PreviewMovementPose(0.68f);
+                var secondPhase = leg.localRotation;
+                var secondArmPhase = arm.rotation;
+                var phaseSeparation = Quaternion.Angle(firstPhase, secondPhase);
+                var armSeparation = Quaternion.Angle(firstArmPhase, secondArmPhase);
+                Assert.That(phaseSeparation, Is.InRange(24f, 38f),
+                    $"{pose.name} needs visible but non-exaggerated alternating steps; actual {phaseSeparation:F1} degrees.");
+                Assert.That(armSeparation, Is.GreaterThan(24f),
+                    $"{pose.name} needs a visible counter-swing; actual {armSeparation:F1} degrees.");
+                pose.SetMoving(false);
+            }
+        }
+
+        [Test]
         public void NpcCompanionsUseHumanScaleWalkAndCatchUpSpeeds()
         {
             var walkSpeedField = typeof(NpcSiteCompanion)

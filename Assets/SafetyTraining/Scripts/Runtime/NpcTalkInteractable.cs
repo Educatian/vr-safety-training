@@ -71,7 +71,7 @@ namespace SafetyTraining.Runtime
             if (displayedReply != agent.LastReply)
             {
                 displayedReply = agent.LastReply;
-                replyPages = Paginate(displayedReply, 34, 3);
+                replyPages = Paginate(displayedReply, 30, 3);
                 pageIndex = 0;
                 ShowPage();
             }

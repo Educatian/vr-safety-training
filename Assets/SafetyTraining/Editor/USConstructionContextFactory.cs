@@ -61,8 +61,8 @@ namespace SafetyTraining.Editor
                 "modular_factory_facade_1k.fbx", new Vector3(2.6f, 0f, 8.5f),
                 5.3f, new Vector3(0f, 180f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Perimeter Access Gate",
-                "modular_chainlink_fence_1k.fbx", new Vector3(9.9f, 0f, 1.4f),
-                4.8f, new Vector3(0f, 90f, 0f));
+                "modular_chainlink_fence_1k.fbx", new Vector3(0f, 0f, -12.35f),
+                3.2f, Vector3.zero);
         }
 
         static void AddInspectionLaydown(Transform site)
@@ -93,11 +93,11 @@ namespace SafetyTraining.Editor
         static void AddPermitBoard(Transform site)
         {
             var board = SafetyScenePrimitives.Primitive(PrimitiveType.Cube,
-                "US Site Permit Board", site, new Vector3(8.6f, 1.1f, -7.6f),
+                "US Site Permit Board", site, new Vector3(5.8f, 1.1f, -9.9f),
                 new Vector3(1.9f, 1.3f, 0.12f), new Color(0.08f, 0.1f, 0.12f));
             Object.DestroyImmediate(board.GetComponent<Collider>());
             var label = SafetyScenePrimitives.Label("OSHA NOTICE\nPPE REQUIRED\nFALL PROTECTION",
-                site, new Vector3(8.6f, 1.25f, -7.5f), 0.085f);
+                site, new Vector3(5.8f, 1.25f, -9.8f), 0.085f);
             label.color = new Color(1f, 0.92f, 0.55f);
         }
 
@@ -113,7 +113,7 @@ namespace SafetyTraining.Editor
                 "old_military_crate_1k.fbx", new Vector3(2.9f, 0f, 6.2f),
                 1.45f, new Vector3(0f, -16f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Permit Review Clipboard",
-                "clipboard_1k.fbx", new Vector3(8.1f, 0.24f, -7.35f),
+                "clipboard_1k.fbx", new Vector3(6.4f, 0.24f, -9.25f),
                 1f, new Vector3(0f, -20f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Pedestrian Exclusion Barrier",
                 "concrete_road_barrier_1k.fbx", new Vector3(4.2f, 0f, 2.8f),

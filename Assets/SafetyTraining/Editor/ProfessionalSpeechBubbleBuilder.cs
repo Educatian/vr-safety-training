@@ -12,7 +12,7 @@ namespace SafetyTraining.Editor
         const string FontPath = "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
         const string MaterialPath = "Assets/SafetyTraining/GeneratedMaterials/Safety HUD UI.mat";
 
-        static readonly Color Panel = new(0.035f, 0.065f, 0.095f, 0.96f);
+        static readonly Color Panel = new(0.035f, 0.065f, 0.095f, 0.82f);
         static readonly Color Primary = new(0.96f, 0.98f, 1f, 1f);
         static readonly Color Muted = new(0.64f, 0.72f, 0.78f, 1f);
         static readonly Color Accent = new(0.216f, 0.839f, 0.753f, 1f);
@@ -70,9 +70,9 @@ namespace SafetyTraining.Editor
 
             var reply = Text("Coach Reply", panel.transform,
                 "Ask me about the condition, risk, or safest control.", font, 42, Primary,
-                new Vector2(38f, -72f), new Vector2(434f, 132f), TextAlignmentOptions.TopLeft, new Vector2(0f, 1f));
+                new Vector2(38f, -72f), new Vector2(434f, 144f), TextAlignmentOptions.TopLeft, new Vector2(0f, 1f));
             reply.enableAutoSizing = true;
-            reply.fontSizeMin = 36f;
+            reply.fontSizeMin = 34f;
             reply.fontSizeMax = 42f;
             reply.lineSpacing = 1f;
             reply.outlineColor = new Color32(0, 0, 0, 235);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using UnityEngine;
 
@@ -41,6 +41,11 @@ namespace SafetyTraining.Runtime
             var image = new Texture2D(CaptureWidth, CaptureHeight, TextureFormat.RGB24, false);
             var captureObject = new GameObject("Visual QA Capture Camera");
             var capture = captureObject.AddComponent<Camera>();
+            var canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            var previousModes = new RenderMode[canvases.Length];
+            var previousCameras = new Camera[canvases.Length];
+            var previousPlaneDistances = new float[canvases.Length];
+            var renderWithCapture = new bool[canvases.Length];
             try
             {
                 capture.enabled = false;
@@ -58,7 +63,22 @@ namespace SafetyTraining.Runtime
                 capture.transform.SetPositionAndRotation(viewer.transform.position, viewer.transform.rotation);
                 capture.rect = new Rect(0f, 0f, 1f, 1f);
                 capture.pixelRect = new Rect(0f, 0f, CaptureWidth, CaptureHeight);
+                for (var index = 0; index < canvases.Length; index++)
+                {
+                    var canvas = canvases[index];
+                    if (canvas == null || !canvas.enabled || !canvas.gameObject.activeInHierarchy ||
+                        canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                        continue;
+                    previousModes[index] = canvas.renderMode;
+                    previousCameras[index] = canvas.worldCamera;
+                    previousPlaneDistances[index] = canvas.planeDistance;
+                    renderWithCapture[index] = true;
+                    canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    canvas.worldCamera = capture;
+                    canvas.planeDistance = Mathf.Max(capture.nearClipPlane + 0.15f, 0.25f);
+                }
                 RenderTexture.active = target;
+                Canvas.ForceUpdateCanvases();
                 GL.Clear(true, true, new Color(0.47f, 0.62f, 0.8f));
                 capture.Render();
                 RenderTexture.active = target;
@@ -68,6 +88,14 @@ namespace SafetyTraining.Runtime
             }
             finally
             {
+                for (var index = 0; index < canvases.Length; index++)
+                {
+                    if (!renderWithCapture[index] || canvases[index] == null)
+                        continue;
+                    canvases[index].renderMode = previousModes[index];
+                    canvases[index].worldCamera = previousCameras[index];
+                    canvases[index].planeDistance = previousPlaneDistances[index];
+                }
                 RenderTexture.active = previousActive;
                 UnityEngine.Object.Destroy(captureObject);
                 UnityEngine.Object.Destroy(target);
