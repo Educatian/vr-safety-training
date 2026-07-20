@@ -1,3 +1,4 @@
+using System.IO;
 using NUnit.Framework;
 using SafetyTraining.Core;
 using SafetyTraining.Runtime;
@@ -14,6 +15,22 @@ namespace SafetyTraining.Tests.EditMode
         public void OpenTrainingScene()
         {
             EditorSceneManager.OpenScene(ScenePath);
+        }
+
+        [Test]
+        public void LegacyXrSettings_IsExcludedFromAndroidPlayerCompilation()
+        {
+            const string tourSourcePath = "Assets/SafetyTraining/Scripts/Runtime/VisualCaptureTour.cs";
+            var source = File.ReadAllText(tourSourcePath).Replace("\r\n", "\n");
+
+            StringAssert.DoesNotContain(
+                "UnityEngine.XR.XRSettings",
+                source,
+                "Legacy XRSettings requires the removed VR module and must not compile into Android or Unity 6000.4.");
+            StringAssert.Contains(
+                "UnityEngine.XR.Management.XRGeneralSettings.Instance?.Manager",
+                source,
+                "The screenshot tour must stop XR through the supported XR Management API.");
         }
 
         [Test]

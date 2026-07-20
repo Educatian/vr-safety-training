@@ -41,7 +41,12 @@ namespace SafetyTraining.Runtime
                 yield break;
             }
 
-            UnityEngine.XR.XRSettings.enabled = false;
+            var xrManager = UnityEngine.XR.Management.XRGeneralSettings.Instance?.Manager;
+            if (xrManager != null && xrManager.activeLoader != null)
+            {
+                xrManager.StopSubsystems();
+                xrManager.DeinitializeLoader();
+            }
             VisualCaptureCamera.ConfigureForCapture(viewer);
             yield return CaptureView(viewer, outputDirectory, "01-campus-hub.png",
                 new Vector3(0f, 2.2f, -10.2f), new Vector3(0f, 0.9f, -3.5f));
