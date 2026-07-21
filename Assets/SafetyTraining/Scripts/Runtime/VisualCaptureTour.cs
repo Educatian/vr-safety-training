@@ -198,10 +198,23 @@ namespace SafetyTraining.Runtime
             return site != null ? site.transform.position : Vector3.zero;
         }
 
+        // Static singletons can hold destroyed objects after an in-domain scene
+        // rebuild (OnDestroy never ran), and the C# ?? operator does not see
+        // Unity's overloaded null - resolve through lifecycle-aware checks.
+        static NpcChatPanel LiveChatPanel()
+        {
+            var panel = NpcChatPanel.Instance;
+            return panel != null ? panel : FindFirstObjectByType<NpcChatPanel>();
+        }
+
         public static void PrepareSiteCapture(SafetyTraining.Core.TrainingSiteId siteId)
         {
-            (NpcChatPanel.Instance ?? FindFirstObjectByType<NpcChatPanel>())?.Close();
-            var isolation = SiteIsolationController.Instance ?? FindFirstObjectByType<SiteIsolationController>();
+            var chat = LiveChatPanel();
+            if (chat != null)
+                chat.Close();
+            var isolation = SiteIsolationController.Instance != null
+                ? SiteIsolationController.Instance
+                : FindFirstObjectByType<SiteIsolationController>();
             isolation?.ShowSite(siteId);
             var director = FindFirstObjectByType<SiteExperienceDirector>();
             if (director != null)
@@ -286,7 +299,7 @@ namespace SafetyTraining.Runtime
                 yield return CaptureView(viewer, directory, fileName,
                     dialogueFocus + captureDirection * distance,
                     dialogueFocus);
-                (NpcChatPanel.Instance ?? FindFirstObjectByType<NpcChatPanel>())?.CloseFor(coach);
+                LiveChatPanel()?.CloseFor(coach);
                 yield return new WaitForSecondsRealtime(2f);
                 coach.GetComponent<NpcRelaxedPose>()?.ReturnToIdle();
                 yield return new WaitForSecondsRealtime(0.4f);
@@ -616,7 +629,7 @@ namespace SafetyTraining.Runtime
                 .ToArray() ?? Array.Empty<NpcSpeechBubbleView>();
             foreach (var bubble in activeBubbles)
                 bubble.gameObject.SetActive(false);
-            (NpcChatPanel.Instance ?? FindFirstObjectByType<NpcChatPanel>())?.Close();
+            LiveChatPanel()?.Close();
             var activeCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None)
                 .Where(canvas => canvas.gameObject.activeInHierarchy)
                 .ToArray();

@@ -399,7 +399,49 @@ namespace SafetyTraining.Editor
             }
             CreateSessionDebriefBoard(root);
             CreateMovementHeatmapBoard(root);
+            CreateOnboardingBoard(root);
             return root;
+        }
+
+        static void CreateOnboardingBoard(Transform lobby)
+        {
+            var board = new GameObject("Onboarding Board").transform;
+            board.SetParent(lobby, false);
+            board.localPosition = new Vector3(6.45f, 2.05f, -5.4f);
+            board.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+            var backing = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Onboarding Board Backing",
+                board, Vector3.zero, new Vector3(4.6f, 2.6f, 0.1f), new Color(0.03f, 0.055f, 0.075f));
+            Object.DestroyImmediate(backing.GetComponent<Collider>());
+            var frame = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Onboarding Board Frame",
+                board, new Vector3(0f, 1.36f, 0f), new Vector3(4.6f, 0.07f, 0.12f),
+                new Color(0.98f, 0.68f, 0.08f));
+            Object.DestroyImmediate(frame.GetComponent<Collider>());
+
+            var heading = SafetyScenePrimitives.Label("HOW TO TRAIN", board,
+                new Vector3(0f, 1.1f, -0.08f), 0.11f);
+            heading.fontStyle = FontStyle.Bold;
+            heading.color = new Color(0.98f, 0.68f, 0.08f);
+
+            var flow = SafetyScenePrimitives.Label(
+                "1  ENTER A SITE THROUGH A NUMBERED PORTAL\n" +
+                "2  INSPECT HAZARDS - REPORT ONLY REAL VIOLATIONS\n" +
+                "3  COLLECT EVIDENCE, PICK A HYPOTHESIS, REPORT\n" +
+                "4  RUN THE PRACTICAL STEPS AND ASSEMBLY STATIONS\n" +
+                "5  ASK THE COACH - THEN RECERTIFY IN THE RETRIEVAL ROUND",
+                board, new Vector3(0f, 0.55f, -0.08f), 0.062f);
+            flow.alignment = TextAlignment.Center;
+            flow.anchor = TextAnchor.MiddleCenter;
+            flow.lineSpacing = 1.45f;
+            flow.color = new Color(0.78f, 0.9f, 0.96f);
+
+            var controls = SafetyScenePrimitives.Label(OnboardingBoard.DesktopControls, board,
+                new Vector3(0f, -0.55f, -0.08f), 0.062f);
+            controls.alignment = TextAlignment.Center;
+            controls.anchor = TextAnchor.MiddleCenter;
+            controls.lineSpacing = 1.45f;
+            controls.color = new Color(0.216f, 0.839f, 0.753f);
+            board.gameObject.AddComponent<OnboardingBoard>().Configure(controls);
         }
 
         static void CreateMovementHeatmapBoard(Transform lobby)

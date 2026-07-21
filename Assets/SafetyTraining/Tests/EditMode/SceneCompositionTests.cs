@@ -743,6 +743,20 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
+        public void Scene_LobbyHasOnboardingBoardWithModeAwareControls()
+        {
+            var lobby = GameObject.Find("Construction Safety Module Selection Lobby");
+
+            Assert.That(lobby, Is.Not.Null);
+            var board = lobby.transform.Find("Onboarding Board");
+            Assert.That(board, Is.Not.Null);
+            Assert.That(board.GetComponent<OnboardingBoard>(), Is.Not.Null);
+            var labels = board.GetComponentsInChildren<TextMesh>(true);
+            Assert.That(labels.Any(label => label.text.Contains("HOW TO TRAIN")), Is.True);
+            Assert.That(labels.Any(label => label.text.Contains("RETRIEVAL ROUND")), Is.True);
+        }
+
+        [Test]
         public void Scene_HasProximityBriefingAndOneCompanionPerSite()
         {
             Assert.That(Object.FindObjectsByType<SiteExperienceDirector>(FindObjectsSortMode.None), Has.Length.EqualTo(1));

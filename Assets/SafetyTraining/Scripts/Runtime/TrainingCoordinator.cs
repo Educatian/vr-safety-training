@@ -85,6 +85,7 @@ namespace SafetyTraining.Runtime
             }
         }
         int handsOnBonus;
+        bool firstSiteHintShown;
         public bool AllSitesComplete
         {
             get
@@ -267,6 +268,11 @@ namespace SafetyTraining.Runtime
             var inquiryPrompt = InquirySessionController.PromptFor(siteId);
             var openingObjective = LearningObjectiveCatalog.ObjectiveAt(siteId, 0);
             LastFeedback = $"{openingObjective.Id} | {openingObjective.Title}\n{inquiryPrompt}";
+            if (!firstSiteHintShown)
+            {
+                firstSiteHintShown = true;
+                LastFeedback += "\nTIP: select suspect equipment to inspect | talk to the coach | H folds this HUD";
+            }
             HudFeedback = LastFeedback;
             if (siteId == TrainingSiteId.Construction)
                 ConstructionGoldenModuleController.Instance?.Begin();
