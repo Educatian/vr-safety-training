@@ -6,6 +6,9 @@ namespace SafetyTraining.Runtime
 {
     internal sealed class PracticalProgressRegistry
     {
+        static readonly int NonConstructionSiteCount =
+            System.Enum.GetValues(typeof(TrainingSiteId)).Length - 1;
+
         ConstructionHandsOnController construction;
         SitePracticalController[] sitePracticals;
 
@@ -40,7 +43,8 @@ namespace SafetyTraining.Runtime
             {
                 EnsureLiveControllers();
                 return construction != null && construction.IsComplete &&
-                       sitePracticals.Length == 4 && sitePracticals.All(item => item.IsComplete);
+                       sitePracticals.Length == NonConstructionSiteCount &&
+                       sitePracticals.All(item => item.IsComplete);
             }
         }
 
@@ -60,7 +64,8 @@ namespace SafetyTraining.Runtime
 
         void EnsureLiveControllers()
         {
-            if (construction == null || sitePracticals == null || sitePracticals.Length != 4 ||
+            if (construction == null || sitePracticals == null ||
+                sitePracticals.Length != NonConstructionSiteCount ||
                 sitePracticals.Any(item => item == null))
                 RefreshControllers();
         }

@@ -43,6 +43,15 @@ namespace SafetyTraining.Core
                     new("proceed", "PROCEED: LINE-LINE IS 0", false, "Unsafe. The phase-to-ground reading indicates another energy source or backfeed."),
                     new("ppe", "WORK ENERGIZED WITH PPE", false, "Not justified. PPE does not replace the required de-energized work condition."),
                     new("stop", "STOP + FIND BACKFEED\nRETEST ALL POINTS", true, "Correct. Identify and isolate the secondary source, then perform a complete live-dead-live verification.")),
+                [TrainingSiteId.TowerCrane] = new(
+                    "tower-wind-limit", "TOWER CRANE WIND LIMIT CHECK",
+                    "Manufacturer's operating limit = 20 mph sustained. Anemometer log: sustained 17 mph, gusts to 24 mph, rising. Load = precast panel with large sail area.",
+                    "May the panel lift proceed under the documented conditions?",
+                    "Gusts exceed the 20 mph operating limit and the trend is rising. Sail-area loads amplify gust response.",
+                    "OSHA 1926.1417(n) | Comply with manufacturer procedures and limitations, including wind.",
+                    new("proceed", "PROCEED: SUSTAINED\nIS UNDER LIMIT", false, "Unsafe. Gusts govern for high sail-area loads and already exceed the manufacturer's limit."),
+                    new("faster", "LIFT FASTER BETWEEN\nGUSTS", false, "Unsafe. Timing gusts is not a manufacturer procedure and removes control margin."),
+                    new("suspend", "SUSPEND LIFTS\nSECURE THE CRANE", true, "Correct. Suspend panel lifts, weathervane per manual, and resume only within documented limits.")),
             };
 
         public static EngineeringDecisionDefinition ForSite(TrainingSiteId site) => Decisions[site];

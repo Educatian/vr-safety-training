@@ -19,6 +19,22 @@ namespace SafetyTraining.Runtime
         Vector3 lastSpatialSamplePosition;
         bool hasSpatialSamplePosition;
         int spatialSequence;
+        bool writeFailureLogged;
+
+        void SafeAppendLine(string serialized)
+        {
+            try
+            {
+                File.AppendAllText(logPath, serialized + Environment.NewLine);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                if (writeFailureLogged)
+                    return;
+                writeFailureLogged = true;
+                Debug.LogWarning($"Safety telemetry write failed; further failures suppressed: {e.Message}");
+            }
+        }
 
         public event Action<SpatialAnalyticsEvent> SpatialEventRecorded;
 
@@ -84,7 +100,7 @@ namespace SafetyTraining.Runtime
                 hazardsRequired = result.HazardsRequired,
                 siteComplete = result.IsComplete
             };
-            File.AppendAllText(logPath, JsonConvert.SerializeObject(entry) + Environment.NewLine);
+            SafeAppendLine(JsonConvert.SerializeObject(entry));
             AppendSpatialEvent("inspection", target.SiteId, target.TargetId, result.Outcome.ToString(), 0f,
                 "instant");
         }
@@ -109,7 +125,7 @@ namespace SafetyTraining.Runtime
                 success = success,
                 inputMode = inputMode
             };
-            File.AppendAllText(logPath, JsonConvert.SerializeObject(entry) + Environment.NewLine);
+            SafeAppendLine(JsonConvert.SerializeObject(entry));
             AppendSpatialEvent("placement_attempt", siteId, actionName,
                 success ? "success" : "retry", releaseDistance, "release_distance_meters");
         }
@@ -217,7 +233,7 @@ namespace SafetyTraining.Runtime
                 hitSiteY = localHit.y,
                 hitSiteZ = localHit.z
             };
-            File.AppendAllText(logPath, JsonConvert.SerializeObject(entry) + Environment.NewLine);
+            SafeAppendLine(JsonConvert.SerializeObject(entry));
             SpatialEventRecorded?.Invoke(entry);
         }
 
@@ -241,6 +257,7 @@ namespace SafetyTraining.Runtime
         [Serializable]
         sealed class TrainingEvent
         {
+            public int schemaVersion = TelemetrySchema.Version;
             public string timestampUtc = string.Empty;
             public string sessionId = string.Empty;
             public string site = string.Empty;
@@ -258,6 +275,7 @@ namespace SafetyTraining.Runtime
         [Serializable]
         sealed class PlacementEvent
         {
+            public int schemaVersion = TelemetrySchema.Version;
             public string timestampUtc = string.Empty;
             public string sessionId = string.Empty;
             public string eventType = string.Empty;
@@ -274,6 +292,7 @@ namespace SafetyTraining.Runtime
         [Serializable]
         public sealed class SpatialAnalyticsEvent
         {
+            public int schemaVersion = TelemetrySchema.Version;
             public string timestampUtc = string.Empty;
             public string sessionId = string.Empty;
             public int sequence;

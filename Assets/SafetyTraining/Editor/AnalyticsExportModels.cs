@@ -40,6 +40,21 @@ namespace SafetyTraining.Editor
         public float HitSiteX;
         public float HitSiteY;
         public float HitSiteZ;
+        public int Sequence;
+        public int ScoreDelta;
+        public int SiteScore;
+        public int OverallScore;
+        public int HazardsFound;
+        public int HazardsRequired;
+        public bool SiteComplete;
+        public bool IsHazard;
+        public int StepIndex;
+        public int TotalSteps;
+        public string ActionName = string.Empty;
+        public string Instruction = string.Empty;
+        public float ReleaseDistance;
+        public string InputMode = string.Empty;
+        public bool HasScoringPayload;
 
         public bool HasCoordinates =>
             Math.Abs(WorldX) > float.Epsilon ||
@@ -97,7 +112,8 @@ namespace SafetyTraining.Editor
     {
         public AnalyticsExportResult(string spatialPath, string inquiryPath, string dwellPath,
             string routeSummaryPath, int spatialRowCount, int inquiryRowCount, int dwellRowCount,
-            int routeSummaryRowCount)
+            int routeSummaryRowCount, string scoringPath = "", int scoringRowCount = 0,
+            int skippedLineCount = 0)
         {
             SpatialPath = spatialPath;
             InquiryPath = inquiryPath;
@@ -107,6 +123,9 @@ namespace SafetyTraining.Editor
             InquiryRowCount = inquiryRowCount;
             DwellRowCount = dwellRowCount;
             RouteSummaryRowCount = routeSummaryRowCount;
+            ScoringPath = scoringPath;
+            ScoringRowCount = scoringRowCount;
+            SkippedLineCount = skippedLineCount;
         }
 
         public string SpatialPath { get; }
@@ -117,5 +136,8 @@ namespace SafetyTraining.Editor
         public int InquiryRowCount { get; }
         public int DwellRowCount { get; }
         public int RouteSummaryRowCount { get; }
+        public string ScoringPath { get; }
+        public int ScoringRowCount { get; }
+        public int SkippedLineCount { get; }
     }
 }

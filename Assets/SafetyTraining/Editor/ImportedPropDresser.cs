@@ -157,6 +157,16 @@ namespace SafetyTraining.Editor
                 new Vector3(0f, 0f, 3.05f), 1.9f, new Vector3(0f, 180f, 0f)));
         }
 
+        public static void DressTowerCrane(Transform site)
+        {
+            SafetyWorldAssetPainter.AddModel(site, "Panel Delivery Stack", "cement_bag_1k.fbx",
+                new Vector3(-3.4f, 0f, -2.2f), 1.3f, new Vector3(0f, 24f, 0f));
+            SafetyWorldAssetPainter.AddModel(site, "Rigging Toolbox", "metal_toolbox_1k.fbx",
+                new Vector3(1.9f, 0f, 1.6f), 1.0f, new Vector3(0f, -14f, 0f));
+            SafetyWorldAssetPainter.AddModel(site, "Landing Zone Barrier", "concrete_road_barrier_1k.fbx",
+                new Vector3(0.4f, 0f, -1.4f), 1.4f, new Vector3(0f, 90f, 0f));
+        }
+
         public static void DressElectricalMaintenance(Transform site)
         {
             RemoveDirectChild(site, "RealEnvironment - Utility Cabinet A");

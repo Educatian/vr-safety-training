@@ -133,8 +133,13 @@ namespace SafetyTraining.Tests.EditMode
 
             Assert.That(golden.TryCoachExplanation(
                 "The crane load and fall risk require barricade isolation and guardrail protection."), Is.True);
+            var constructionRoot = GameObject.Find("Construction Site").transform;
             var report = Object.FindObjectsByType<InquiryDecisionStation>(FindObjectsSortMode.None)
-                .Single(item => item.transform.IsChildOf(GameObject.Find("Construction Site").transform));
+                .Single(item => item.transform.IsChildOf(constructionRoot));
+            var correctHypothesis = Object.FindObjectsByType<HypothesisOption>(FindObjectsSortMode.None)
+                .Single(item => item.transform.IsChildOf(constructionRoot) && item.IsEvidenceConsistent);
+            report.ChooseHypothesis(correctHypothesis);
+            Assert.That(report.HasChosenHypothesis, Is.True);
             report.Submit();
 
             Assert.That(report.HasSubmitted, Is.True);

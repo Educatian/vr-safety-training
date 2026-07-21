@@ -27,6 +27,7 @@ namespace SafetyTraining.Editor
         static readonly Vector3 FireOrigin = new(360f, 0f, 120f);
         static readonly Vector3 ChemicalOrigin = new(540f, 0f, 120f);
         static readonly Vector3 ElectricalOrigin = new(720f, 0f, 120f);
+        static readonly Vector3 TowerCraneOrigin = new(900f, 0f, 120f);
         static readonly Vector3 HubArrival = new(0f, 0.02f, -9.2f);
 
         [MenuItem("Safety Training/Build Prototype Scene")]
@@ -97,24 +98,34 @@ namespace SafetyTraining.Editor
             SafetyCoachFactory.Create(electrical, TrainingSiteId.ElectricalMaintenance, "electrical maintenance lead",
                 "Lockout tags and barriers must be visible before panel access. Route cables through protected crossings.",
                 SafetyCoachFactory.ConstructionCoachPath);
-            SitePracticalFactory.CreateAll(warehouse, fire, chemical, electrical);
+            var towerCrane = SafetySiteFactory.TowerCrane(TowerCraneOrigin);
+            towerCrane.gameObject.AddComponent<SiteExperienceZone>().Configure(TrainingSiteId.TowerCrane);
+            RealEnvironmentDresser.DressSite(towerCrane, RealEnvironmentDresser.SiteStyle.TowerCrane);
+            RealEnvironmentDresser.AddIsolationEnclosure(towerCrane, RealEnvironmentDresser.SiteStyle.TowerCrane);
+            ImportedPropDresser.DressTowerCrane(towerCrane);
+            SafetyCoachFactory.Create(towerCrane, TrainingSiteId.TowerCrane, "lift director",
+                "Loads never travel over unprotected workers. The load chart, wind limits, and rigging condition govern every lift.",
+                SafetyCoachFactory.ConstructionCoachPath);
+            SitePracticalFactory.CreateAll(warehouse, fire, chemical, electrical, towerCrane);
 
-            SafetyWorldExpansionFactory.ExpandAll(construction, warehouse, fire, chemical, electrical);
-            LearningContentFactory.CreateAll(construction, warehouse, fire, chemical, electrical);
+            SafetyWorldExpansionFactory.ExpandAll(construction, warehouse, fire, chemical, electrical, towerCrane);
+            LearningContentFactory.CreateAll(construction, warehouse, fire, chemical, electrical, towerCrane);
             CreateReturnPortal(construction, TrainingSiteId.Construction, new Color(0.95f, 0.55f, 0.08f));
             CreateReturnPortal(warehouse, TrainingSiteId.Warehouse, new Color(0.12f, 0.48f, 0.85f));
             CreateReturnPortal(fire, TrainingSiteId.FireResponse, new Color(0.78f, 0.16f, 0.1f));
             CreateReturnPortal(chemical, TrainingSiteId.ChemicalProcessing, new Color(0.26f, 0.65f, 0.52f));
             CreateReturnPortal(electrical, TrainingSiteId.ElectricalMaintenance, new Color(0.32f, 0.38f, 0.72f));
+            CreateReturnPortal(towerCrane, TrainingSiteId.TowerCrane, new Color(0.85f, 0.4f, 0.12f));
 
-            CreateSiteLightingAndProbes(construction, warehouse, fire, chemical, electrical);
+            CreateSiteLightingAndProbes(construction, warehouse, fire, chemical, electrical, towerCrane);
             isolation.Configure(new[] { navigation, lobby, portalRoot }, new[]
             {
                 construction.GetComponent<SiteExperienceZone>(),
                 warehouse.GetComponent<SiteExperienceZone>(),
                 fire.GetComponent<SiteExperienceZone>(),
                 chemical.GetComponent<SiteExperienceZone>(),
-                electrical.GetComponent<SiteExperienceZone>()
+                electrical.GetComponent<SiteExperienceZone>(),
+                towerCrane.GetComponent<SiteExperienceZone>()
             });
 
             foreach (var agent in Object.FindObjectsByType<NpcConversationAgent>(FindObjectsSortMode.None))
@@ -386,7 +397,36 @@ namespace SafetyTraining.Editor
                 light.range = 6f;
                 light.shadows = LightShadows.Soft;
             }
+            CreateSessionDebriefBoard(root);
             return root;
+        }
+
+        static void CreateSessionDebriefBoard(Transform lobby)
+        {
+            var board = new GameObject("Session Debrief Dashboard").transform;
+            board.SetParent(lobby, false);
+            board.localPosition = new Vector3(-6.45f, 2.05f, -5.4f);
+            board.localRotation = Quaternion.Euler(0f, -90f, 0f);
+
+            var backing = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Debrief Board Backing",
+                board, Vector3.zero, new Vector3(4.6f, 2.15f, 0.1f), new Color(0.03f, 0.055f, 0.075f));
+            Object.DestroyImmediate(backing.GetComponent<Collider>());
+            var frame = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Debrief Board Frame",
+                board, new Vector3(0f, 1.14f, 0f), new Vector3(4.6f, 0.07f, 0.12f),
+                new Color(0.216f, 0.839f, 0.753f));
+            Object.DestroyImmediate(frame.GetComponent<Collider>());
+
+            var heading = SafetyScenePrimitives.Label("SESSION DEBRIEF", board,
+                new Vector3(0f, 0.86f, -0.08f), 0.11f);
+            heading.fontStyle = FontStyle.Bold;
+            heading.color = new Color(0.216f, 0.839f, 0.753f);
+            var stats = SafetyScenePrimitives.Label("SESSION DEBRIEF\nINITIALIZING", board,
+                new Vector3(0f, 0.12f, -0.08f), 0.075f);
+            stats.alignment = TextAlignment.Center;
+            stats.anchor = TextAnchor.MiddleCenter;
+            stats.lineSpacing = 1.35f;
+            stats.color = new Color(0.78f, 0.9f, 0.96f);
+            board.gameObject.AddComponent<SessionDebriefBoard>().Configure(stats);
         }
 
         static void CreateLobbyWallPanel(Transform parent, string name, Vector3 position, Vector3 scale)
@@ -400,25 +440,29 @@ namespace SafetyTraining.Editor
         {
             var root = new GameObject("Site Navigation Portals").transform;
             IndustrialPortalBuilder.CreateModePortal(root, "01", "CONSTRUCTION", "FALL PROTECTION",
-                TrainingSiteId.Construction, new Vector3(-4.4f, 0f, -3.15f),
+                TrainingSiteId.Construction, new Vector3(-5.5f, 0f, -3.05f),
                 ConstructionOrigin + new Vector3(0.9f, 0.02f, -3.55f), new Color(0.95f, 0.55f, 0.08f),
                 "cement_bag_1k.fbx", new Vector3(0f, -12f, 0f));
             IndustrialPortalBuilder.CreateModePortal(root, "02", "WAREHOUSE", "VEHICLE ROUTES",
-                TrainingSiteId.Warehouse, new Vector3(-2.2f, 0f, -3.72f),
+                TrainingSiteId.Warehouse, new Vector3(-3.3f, 0f, -3.55f),
                 WarehouseOrigin + new Vector3(0f, 0.02f, -3.55f), new Color(0.12f, 0.48f, 0.85f),
                 "plastic_crate_02_1k.fbx", new Vector3(0f, 10f, 0f));
             IndustrialPortalBuilder.CreateModePortal(root, "03", "FIRE RESPONSE", "EXTINGUISHER + EGRESS",
-                TrainingSiteId.FireResponse, new Vector3(0f, 0f, -4f),
+                TrainingSiteId.FireResponse, new Vector3(-1.1f, 0f, -3.9f),
                 FireOrigin + new Vector3(0.85f, 0.02f, -3.55f), new Color(0.78f, 0.16f, 0.1f),
                 "korean_fire_extinguisher_01_1k.fbx", new Vector3(-90f, 0f, 0f));
             IndustrialPortalBuilder.CreateModePortal(root, "04", "CHEMICAL", "LABEL + SEGREGATE",
-                TrainingSiteId.ChemicalProcessing, new Vector3(2.2f, 0f, -3.72f),
+                TrainingSiteId.ChemicalProcessing, new Vector3(1.1f, 0f, -3.9f),
                 ChemicalOrigin + new Vector3(0f, 0.02f, -3.55f), new Color(0.26f, 0.65f, 0.52f),
                 "Barrel_01_1k.fbx", new Vector3(90f, 0f, 0f));
             IndustrialPortalBuilder.CreateModePortal(root, "05", "ELECTRICAL", "LOCKOUT / TAGOUT",
-                TrainingSiteId.ElectricalMaintenance, new Vector3(4.4f, 0f, -3.15f),
+                TrainingSiteId.ElectricalMaintenance, new Vector3(3.3f, 0f, -3.55f),
                 ElectricalOrigin + new Vector3(0.65f, 0.02f, -3.55f), new Color(0.32f, 0.38f, 0.72f),
                 "metal_toolbox_1k.fbx", new Vector3(0f, 12f, 0f));
+            IndustrialPortalBuilder.CreateModePortal(root, "06", "TOWER CRANE", "LIFT ZONE CONTROL",
+                TrainingSiteId.TowerCrane, new Vector3(5.5f, 0f, -3.05f),
+                TowerCraneOrigin + new Vector3(0.9f, 0.02f, -3.55f), new Color(0.85f, 0.4f, 0.12f),
+                "concrete_road_barrier_1k.fbx", new Vector3(0f, -90f, 0f));
             return root;
         }
 
@@ -439,7 +483,7 @@ namespace SafetyTraining.Editor
 
         static Vector3[] SiteOrigins() => new[]
         {
-            ConstructionOrigin, WarehouseOrigin, FireOrigin, ChemicalOrigin, ElectricalOrigin
+            ConstructionOrigin, WarehouseOrigin, FireOrigin, ChemicalOrigin, ElectricalOrigin, TowerCraneOrigin
         };
 
         static GameObject LoadOrImportXrRig()

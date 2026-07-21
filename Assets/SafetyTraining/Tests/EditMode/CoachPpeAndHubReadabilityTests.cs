@@ -48,7 +48,7 @@ namespace SafetyTraining.Tests.EditMode
                 .Where(portal => !portal.ReturnsToHub).ToArray();
 
             // When: subtitle and action labels are measured.
-            Assert.That(portals, Has.Length.EqualTo(5));
+            Assert.That(portals, Has.Length.EqualTo(6));
             foreach (var portal in portals)
             {
                 var labels = portal.GetComponentsInChildren<TextMesh>(true);

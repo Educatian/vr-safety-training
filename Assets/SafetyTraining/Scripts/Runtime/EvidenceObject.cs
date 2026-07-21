@@ -14,6 +14,7 @@ namespace SafetyTraining.Runtime
         [SerializeField] string hazardType = "General";
         [SerializeField, TextArea] string observation = "Record this observation.";
         [SerializeField] bool distractor;
+        [SerializeField] GameObject hoverLabel;
 
         XRSimpleInteractable interactable;
         InteractiveHoverFeedback hoverFeedback;
@@ -53,8 +54,24 @@ namespace SafetyTraining.Runtime
             interactable.hoverExited.RemoveListener(OnHoverExited);
         }
 
-        void OnMouseEnter() => hoverFeedback?.SetHovered(true);
-        void OnMouseExit() => hoverFeedback?.SetHovered(false);
+        // Labels stay hidden until the learner attends to the object, keeping the
+        // scene readable and avoiding always-on floating text.
+        public void SetHoverLabel(GameObject label)
+        {
+            hoverLabel = label;
+            if (hoverLabel != null)
+                hoverLabel.SetActive(false);
+        }
+
+        void SetHovered(bool hovered)
+        {
+            hoverFeedback?.SetHovered(hovered);
+            if (hoverLabel != null)
+                hoverLabel.SetActive(hovered);
+        }
+
+        void OnMouseEnter() => SetHovered(true);
+        void OnMouseExit() => SetHovered(false);
 
         void OnMouseDown()
         {
@@ -77,12 +94,14 @@ namespace SafetyTraining.Runtime
         {
             if (collected)
                 return;
+            var controller = InquirySessionController.Instance;
+            if (controller == null || !controller.CollectEvidence(this))
+                return;
             collected = true;
-            InquirySessionController.Instance?.CollectEvidence(this);
         }
 
         void OnSelected(SelectEnterEventArgs _) => Collect();
-        void OnHoverEntered(HoverEnterEventArgs _) => hoverFeedback?.SetHovered(true);
-        void OnHoverExited(HoverExitEventArgs _) => hoverFeedback?.SetHovered(false);
+        void OnHoverEntered(HoverEnterEventArgs _) => SetHovered(true);
+        void OnHoverExited(HoverExitEventArgs _) => SetHovered(false);
     }
 }

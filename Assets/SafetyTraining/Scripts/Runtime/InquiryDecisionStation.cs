@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SafetyTraining.Core;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -16,6 +17,8 @@ namespace SafetyTraining.Runtime
         XRSimpleInteractable interactable;
         InteractiveHoverFeedback hoverFeedback;
         bool submitted;
+        HypothesisOption chosenHypothesis;
+        readonly HashSet<string> attemptedHypotheses = new();
 
         void Awake()
         {
@@ -54,6 +57,34 @@ namespace SafetyTraining.Runtime
 
         public bool HasSubmitted => submitted;
         public int MinimumEvidenceRequired => minimumEvidenceRequired;
+        public bool HasChosenHypothesis => chosenHypothesis != null;
+
+        /// <summary>
+        /// Registers the learner's hypothesis selection. Each distinct choice is
+        /// logged; the hypothesis criterion is met only by the evidence-consistent
+        /// option, and a first-attempt marker is recorded when it is chosen first.
+        /// </summary>
+        public void ChooseHypothesis(HypothesisOption option)
+        {
+            if (option == null || submitted)
+                return;
+            var firstAttempt = attemptedHypotheses.Count == 0;
+            if (!attemptedHypotheses.Add(option.OptionId) && chosenHypothesis == option)
+                return;
+            chosenHypothesis = option;
+            var controller = InquirySessionController.Instance;
+            controller?.SelectHypothesis(siteId, option.HypothesisText, learnerAuthored: true);
+            var objectives = LearningObjectiveCatalog.ForSite(siteId);
+            LearningOutcomeTracker.Instance?.Record(siteId, objectives[objectives.Count - 1].Id,
+                "hypothesis_choice", option.IsEvidenceConsistent,
+                $"option={option.OptionId} attempt={attemptedHypotheses.Count}");
+            if (option.IsEvidenceConsistent && firstAttempt)
+                LearningOutcomeTracker.Instance?.Record(siteId, objectives[objectives.Count - 1].Id,
+                    "hypothesis_choice:first_attempt", true, $"option={option.OptionId}", 0);
+            TrainingCoordinator.Instance?.SetContextFeedback(option.IsEvidenceConsistent
+                ? $"Hypothesis selected\n{option.HypothesisText}\nSubmit the report when your evidence supports it."
+                : $"Hypothesis selected\n{option.HypothesisText}\nCompare this against the evidence you collected before submitting.");
+        }
 
         public void Configure(TrainingSiteId site, string selectedHypothesis, string explanation,
             int requiredEvidence = InquirySessionController.DefaultMinimumEvidenceForReport)
@@ -80,15 +111,36 @@ namespace SafetyTraining.Runtime
             var controller = InquirySessionController.Instance;
             if (controller != null && !controller.CanSubmitReport(siteId, minimumEvidenceRequired))
             {
-                controller.BlockReportSubmission(siteId, minimumEvidenceRequired, hypothesis);
+                controller.BlockReportSubmission(siteId, minimumEvidenceRequired, SubmittedHypothesis());
+                return;
+            }
+            if (chosenHypothesis == null && HasHypothesisOptions())
+            {
+                TrainingCoordinator.Instance?.SetContextFeedback(
+                    "Report blocked\nSelect one hypothesis plate before submitting the report.");
                 return;
             }
             submitted = true;
-            controller?.SelectHypothesis(siteId, hypothesis);
-            controller?.SubmitFinalExplanation(siteId, finalExplanation);
+            if (chosenHypothesis == null)
+                controller?.SelectHypothesis(siteId, hypothesis, learnerAuthored: false);
+            controller?.SubmitFinalExplanation(siteId, finalExplanation, learnerAuthored: false);
             golden?.TrySubmitFinalReport();
             TrainingCoordinator.Instance?.SetContextFeedback(
-                $"Inquiry report submitted\nHypothesis: {hypothesis}");
+                $"Inquiry report submitted\nHypothesis: {SubmittedHypothesis()}");
+        }
+
+        string SubmittedHypothesis() =>
+            chosenHypothesis != null ? chosenHypothesis.HypothesisText : hypothesis;
+
+        bool HasHypothesisOptions()
+        {
+            foreach (var option in FindObjectsByType<HypothesisOption>(FindObjectsSortMode.None))
+            {
+                if (option != null && option.gameObject.activeInHierarchy &&
+                    ReferenceEquals(option.Station, this))
+                    return true;
+            }
+            return false;
         }
 
         void OnSelected(SelectEnterEventArgs _) => Submit();

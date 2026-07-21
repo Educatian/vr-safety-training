@@ -54,6 +54,16 @@ namespace SafetyTraining.Runtime
                 return count;
             }
         }
+        public int TotalFalsePositives
+        {
+            get
+            {
+                var count = 0;
+                foreach (var session in sessions.Values)
+                    count += session.FalsePositives;
+                return count;
+            }
+        }
         public TrainingSiteId? ActiveSite { get; private set; }
         public string ActiveLearningSummary => ActiveSite.HasValue
             ? (learningOutcomes != null ? learningOutcomes.CompactSummary(ActiveSite.Value) : "ASSESSMENT INITIALIZING")
@@ -66,11 +76,12 @@ namespace SafetyTraining.Runtime
         {
             get
             {
-                var time = Mathf.Clamp01(SessionElapsedSeconds / GuidedSessionPlan.MinimumSessionSeconds);
                 var checks = (float)IdentifiedHazardCount / Mathf.Max(1, TotalHazardCount);
-                var coach = (float)CompletedCoachTurns / 10f;
+                var coach = (float)CompletedCoachTurns /
+                    (GuidedSessionPlan.RequiredCoachTurnsPerSite *
+                     System.Enum.GetValues(typeof(TrainingSiteId)).Length);
                 var practical = practicals?.Progress01 ?? 0f;
-                return Mathf.Clamp01(time * 0.4f + checks * 0.3f + coach * 0.2f + practical * 0.1f);
+                return Mathf.Clamp01(checks * 0.45f + practical * 0.3f + coach * 0.25f);
             }
         }
         int handsOnBonus;
@@ -89,6 +100,30 @@ namespace SafetyTraining.Runtime
 
         public event Action<TrainingSiteId, InspectionResult> InspectionCompleted;
 
+        /// <summary>
+        /// Builds the recertification retrieval set: every look-alike the learner
+        /// falsely selected, mixed with one real hazard from each affected site so
+        /// an always-safe response strategy cannot pass the round.
+        /// </summary>
+        public RetrievalItemSpec[] BuildRetrievalItems()
+        {
+            var specs = new List<RetrievalItemSpec>();
+            foreach (var pair in sessions)
+            {
+                var falsePositives = pair.Value.FalsePositiveTargetIds;
+                if (falsePositives.Count == 0)
+                    continue;
+                foreach (var foilId in falsePositives)
+                    specs.Add(new RetrievalItemSpec(pair.Key, foilId, false));
+                foreach (var hazardId in pair.Value.HazardTargetIds)
+                {
+                    specs.Add(new RetrievalItemSpec(pair.Key, hazardId, true));
+                    break;
+                }
+            }
+            return specs.ToArray();
+        }
+
         void Awake()
         {
             if (Instance != null && Instance != this)
@@ -101,8 +136,11 @@ namespace SafetyTraining.Runtime
             eventLogger = GetComponent<TrainingEventLogger>() ?? gameObject.AddComponent<TrainingEventLogger>();
             if (GetComponent<GazeAnalyticsTracker>() == null)
                 gameObject.AddComponent<GazeAnalyticsTracker>();
+            if (GetComponent<RetrievalRoundController>() == null)
+                gameObject.AddComponent<RetrievalRoundController>();
             CloudAnalyticsUploader.EnsureOn(gameObject, eventLogger);
             learningOutcomes = GetComponent<LearningOutcomeTracker>() ?? gameObject.AddComponent<LearningOutcomeTracker>();
+            learningOutcomes.RecordExperimentCondition("feedback_mode", ExperimentConditions.Token);
             BuildSessions();
             practicals = new PracticalProgressRegistry();
         }
@@ -210,6 +248,7 @@ namespace SafetyTraining.Runtime
                 TrainingSiteId.FireResponse => "Fire Response",
                 TrainingSiteId.ChemicalProcessing => "Chemical Processing",
                 TrainingSiteId.ElectricalMaintenance => "Electrical Maintenance",
+                TrainingSiteId.TowerCrane => "Tower Crane",
                 _ => siteId.ToString()
             };
             ActiveSiteName = siteName.ToUpperInvariant();
@@ -263,6 +302,14 @@ namespace SafetyTraining.Runtime
 
         string FormatFeedback(InspectionTarget target, InspectionResult result)
         {
+            if (ExperimentConditions.DelayedFeedback &&
+                (result.Outcome == InspectionOutcome.CorrectHazard ||
+                 result.Outcome == InspectionOutcome.SafeObjectSelected))
+            {
+                return result.IsComplete
+                    ? $"Site review complete: {result.Score} points. Debrief the outcomes with the coach."
+                    : $"Observation recorded: {target.DisplayName}. Verdicts are shared at the site debrief.";
+            }
             switch (result.Outcome)
             {
                 case InspectionOutcome.CorrectHazard when result.IsComplete:
@@ -288,6 +335,19 @@ namespace SafetyTraining.Runtime
 
         static string FormatHudFeedback(InspectionTarget target, InspectionResult result)
         {
+            if (ExperimentConditions.DelayedFeedback)
+            {
+                return result.Outcome switch
+                {
+                    InspectionOutcome.CorrectHazard when result.IsComplete =>
+                        $"Site debrief | {result.Score} points, all required hazards identified.",
+                    InspectionOutcome.CorrectHazard or InspectionOutcome.SafeObjectSelected =>
+                        $"Observation recorded | {target.DisplayName}\nAssessment feedback at the site debrief.",
+                    InspectionOutcome.AlreadyInspected => "That condition is already recorded.",
+                    InspectionOutcome.UnknownTarget => "That object is outside the current inspection.",
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+            }
             return result.Outcome switch
             {
                 InspectionOutcome.CorrectHazard when result.IsComplete =>

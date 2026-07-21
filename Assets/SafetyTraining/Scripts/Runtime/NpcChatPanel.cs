@@ -29,8 +29,11 @@ namespace SafetyTraining.Runtime
         [SerializeField] Button closeButton;
         NpcConversationAgent activeAgent;
         string lastReply;
+        string conversationLog = string.Empty;
         Coroutine refresh;
         bool controlsBound;
+
+        const int MaxTranscriptChars = 1400;
 
         public bool IsVisible => panel != null && panel.activeSelf;
         public bool IsOpenFor(NpcConversationAgent agent) => activeAgent == agent && IsVisible;
@@ -71,7 +74,8 @@ namespace SafetyTraining.Runtime
             activeAgent = agent;
             var conciseSiteName = agent.SiteName.Split(' ')[0].ToUpperInvariant();
             title.text = $"{conciseSiteName} SAFETY COACH";
-            transcript.text = $"{agent.SiteName} coach ready.\nAsk about the visible condition, risk, or required control.";
+            conversationLog = $"{agent.SiteName} coach ready.\nAsk about the visible condition, risk, or required control.";
+            transcript.text = conversationLog;
             lastReply = agent.LastReply;
             SetVisible(true);
             input.Select();
@@ -113,7 +117,8 @@ namespace SafetyTraining.Runtime
                 return;
             var message = value.Trim();
             input.text = string.Empty;
-            transcript.text = $"You: {message}\n\nCoach is responding...";
+            AppendToLog($"You: {message}");
+            transcript.text = $"{conversationLog}\n\nCoach is responding...";
             activeAgent.Ask(message);
         }
 
@@ -124,12 +129,22 @@ namespace SafetyTraining.Runtime
                 if (activeAgent.LastReply != lastReply)
                 {
                     lastReply = activeAgent.LastReply;
-                    transcript.text = "Coach replied in the speech bubble.\nAsk a follow-up or request a control explanation.";
+                    AppendToLog($"Coach: {lastReply}");
+                    transcript.text = conversationLog;
                     input.Select();
                     input.ActivateInputField();
                 }
                 yield return null;
             }
+        }
+
+        void AppendToLog(string line)
+        {
+            conversationLog = string.IsNullOrEmpty(conversationLog)
+                ? line
+                : $"{conversationLog}\n\n{line}";
+            if (conversationLog.Length > MaxTranscriptChars)
+                conversationLog = conversationLog[^MaxTranscriptChars..];
         }
 
         void SetVisible(bool visible)

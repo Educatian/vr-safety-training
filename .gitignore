@@ -24,3 +24,6 @@
 *.pdb
 *.mdb
 sysinfo.txt
+
+# Build artifacts (APKs exceed GitHub's 100MB limit)
+Builds/

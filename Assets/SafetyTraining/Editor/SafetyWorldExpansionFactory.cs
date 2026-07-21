@@ -8,7 +8,9 @@ namespace SafetyTraining.Editor
     {
         const float Width = 30f;
         const float Depth = 26f;
-        const float ZoneRadius = 19f;
+        const float ZoneRadius = 24f;
+        const float AnnexDepth = 10f;
+        const float AnnexCenterZ = 16.6f;
 
         readonly struct AnalyticsSpec
         {
@@ -41,6 +43,7 @@ namespace SafetyTraining.Editor
                 AddAnalyticsZones(site, zone.SiteId);
                 AddModuleDressing(site, zone.SiteId);
                 AddOperationalSubzones(site, zone.SiteId);
+                AddRearAnnex(site, zone.SiteId);
                 SafetyInquiryContentFactory.AddInquiryContent(site, zone.SiteId);
                 SafetyWorldAssetPainter.MarkStaticEnvironment(site);
             }
@@ -73,11 +76,14 @@ namespace SafetyTraining.Editor
 
         static void ExpandBoundaries(Transform site)
         {
-            SetCollider(site, "Isolation Collider Left", new Vector3(-15.15f, 2.1f, 0f),
-                new Vector3(0.25f, 4.2f, Depth));
-            SetCollider(site, "Isolation Collider Right", new Vector3(15.15f, 2.1f, 0f),
-                new Vector3(0.25f, 4.2f, Depth));
-            SetCollider(site, "Isolation Collider Rear", new Vector3(0f, 2.1f, 13.15f),
+            var sideSpan = Depth / 2f + 0.3f + AnnexCenterZ + AnnexDepth / 2f;
+            var sideCenterZ = (AnnexCenterZ + AnnexDepth / 2f - (Depth / 2f + 0.3f)) / 2f;
+            SetCollider(site, "Isolation Collider Left", new Vector3(-15.15f, 2.1f, sideCenterZ),
+                new Vector3(0.25f, 4.2f, sideSpan));
+            SetCollider(site, "Isolation Collider Right", new Vector3(15.15f, 2.1f, sideCenterZ),
+                new Vector3(0.25f, 4.2f, sideSpan));
+            SetCollider(site, "Isolation Collider Rear",
+                new Vector3(0f, 2.1f, AnnexCenterZ + AnnexDepth / 2f + 0.15f),
                 new Vector3(Width, 4.2f, 0.25f));
             SetCollider(site, "Isolation Collider Entry Left", new Vector3(-9.4f, 2.1f, -13.15f),
                 new Vector3(11.2f, 4.2f, 0.25f));
@@ -87,15 +93,72 @@ namespace SafetyTraining.Editor
                 new Vector3(5.1f, 4.2f, 0.25f));
 
             SafetyWorldAssetPainter.AddModel(site, "North Chainlink Perimeter", "modular_chainlink_fence_1k.fbx",
-                new Vector3(-7.5f, 0f, 12.4f), 8.5f, new Vector3(0f, 90f, 0f));
+                new Vector3(-7.5f, 0f, 21.4f), 8.5f, new Vector3(0f, 90f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "North Chainlink Perimeter B", "modular_chainlink_fence_1k.fbx",
-                site.name == "Construction Site" ? new Vector3(40f, 0f, 40f) : new Vector3(7.5f, 0f, 12.4f),
+                site.name == "Construction Site" ? new Vector3(40f, 0f, 40f) : new Vector3(7.5f, 0f, 21.4f),
                 8.5f, new Vector3(0f, 90f, 0f));
             SafetyWorldAssetPainter.AddModel(site, "Left Chainlink Perimeter", "modular_chainlink_fence_1k.fbx",
                 new Vector3(-14.2f, 0f, 1f), 10f, Vector3.zero);
             SafetyWorldAssetPainter.AddModel(site, "Right Chainlink Perimeter", "modular_chainlink_fence_1k.fbx",
                 site.name == "Construction Site" ? new Vector3(40f, 0f, -40f) : new Vector3(14.2f, 0f, 1f),
                 10f, Vector3.zero);
+            SafetyWorldAssetPainter.AddModel(site, "Annex Left Chainlink", "modular_chainlink_fence_1k.fbx",
+                new Vector3(-14.2f, 0f, AnnexCenterZ), 10f, Vector3.zero);
+            SafetyWorldAssetPainter.AddModel(site, "Annex Right Chainlink", "modular_chainlink_fence_1k.fbx",
+                new Vector3(14.2f, 0f, AnnexCenterZ), 10f, Vector3.zero);
+        }
+
+        // Rear annex yard: walkable expansion behind each module with its own
+        // analytics zones so movement data keeps spatial resolution, plus staged
+        // laydown/drill areas reserved for future item pairs.
+        static void AddRearAnnex(Transform site, TrainingSiteId siteId)
+        {
+            var slab = SafetyScenePrimitives.Primitive(PrimitiveType.Cube,
+                "WorldExpansion - Annex Yard Slab", site,
+                new Vector3(0f, 0.008f, AnnexCenterZ),
+                new Vector3(Width - 1.6f, 0.016f, AnnexDepth), Color.white);
+            slab.GetComponent<Renderer>().sharedMaterial = RealEnvironmentMaterials.DamagedConcrete;
+            AddPath(site, "Annex Spine", new Vector3(0f, 0.05f, AnnexCenterZ - 1f),
+                new Vector3(2.4f, 0.035f, AnnexDepth + 2.2f));
+
+            var prefix = siteId.ToString().ToLowerInvariant();
+            CreateAnalyticsZone(site, siteId, $"{prefix}_annex_laydown", "Annex Laydown Yard",
+                new Vector3(-7f, 1.2f, AnnexCenterZ), new Vector3(13.5f, 2.4f, AnnexDepth - 1f));
+            CreateAnalyticsZone(site, siteId, $"{prefix}_annex_drill", "Annex Drill Yard",
+                new Vector3(7f, 1.2f, AnnexCenterZ), new Vector3(13.5f, 2.4f, AnnexDepth - 1f));
+
+            AddWaypoint(site, "05 Annex Yard", new Vector3(0f, 0.12f, AnnexCenterZ - 2.4f), siteId);
+            AddSubzone(site, "Annex Laydown Yard", new Vector3(-7f, 0f, AnnexCenterZ + 1.6f),
+                "plastic_crate_02_1k.fbx", 1.5f, new Vector3(0f, 12f, 0f), ColorFor(siteId));
+            AddSubzone(site, "Annex Drill Yard", new Vector3(7f, 0f, AnnexCenterZ + 1.6f),
+                "concrete_road_barrier_1k.fbx", 1.6f, new Vector3(0f, -95f, 0f), ColorFor(siteId));
+            SafetyWorldAssetPainter.AddModel(site, "Annex Hand Truck", "hand_truck_1k.fbx",
+                new Vector3(-3.4f, 0f, AnnexCenterZ - 2.2f), 1.2f, new Vector3(0f, 205f, 0f));
+            SafetyWorldAssetPainter.AddModel(site, "Annex Generator", "portable_generator_1k.fbx",
+                new Vector3(3.6f, 0f, AnnexCenterZ + 3f), 1.5f, new Vector3(0f, 40f, 0f));
+            foreach (var x in new[] { -7f, 7f })
+            {
+                var lightObject = new GameObject("Annex Work Light");
+                lightObject.transform.SetParent(site, false);
+                lightObject.transform.localPosition = new Vector3(x, 3.4f, AnnexCenterZ);
+                var light = lightObject.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.color = new Color(1f, 0.92f, 0.76f);
+                light.intensity = 1.3f;
+                light.range = 9f;
+                light.shadows = LightShadows.None;
+            }
+        }
+
+        static void CreateAnalyticsZone(Transform site, TrainingSiteId siteId, string id,
+            string title, Vector3 position, Vector3 size)
+        {
+            var zone = new GameObject($"Analytics Zone - {title}");
+            zone.transform.SetParent(site, false);
+            zone.transform.localPosition = position;
+            var collider = zone.AddComponent<BoxCollider>();
+            collider.size = size;
+            zone.AddComponent<SpatialAnalyticsZone>().Configure(siteId, id, title);
         }
 
         static void SetCollider(Transform site, string name, Vector3 center, Vector3 size)
@@ -215,6 +278,24 @@ namespace SafetyTraining.Editor
                         new Vector3(6f, 2.4f, 12f))
                 };
             }
+            if (siteId == TrainingSiteId.TowerCrane)
+            {
+                return new[]
+                {
+                    new AnalyticsSpec($"{prefix}_entry", "Entry Orientation", new Vector3(0f, 1.2f, -7.6f),
+                        new Vector3(7f, 2.4f, 6f)),
+                    new AnalyticsSpec($"{prefix}_left_evidence", "Left Evidence Run", new Vector3(-5.2f, 1.2f, 0.8f),
+                        new Vector3(6f, 2.4f, 12f)),
+                    new AnalyticsSpec($"{prefix}_lift_corridor", "Lift Corridor Watch", new Vector3(0f, 1.2f, 0.5f),
+                        new Vector3(4f, 2.4f, 7.4f)),
+                    new AnalyticsSpec($"{prefix}_landing_zone", "Panel Landing Review", new Vector3(2.6f, 1.2f, -2.6f),
+                        new Vector3(3.4f, 2.4f, 3f)),
+                    new AnalyticsSpec($"{prefix}_crane_base", "Crane Base and Rigging", new Vector3(3f, 1.2f, 8.6f),
+                        new Vector3(9f, 2.4f, 6f)),
+                    new AnalyticsSpec($"{prefix}_right_return", "Right Return Route", new Vector3(5.2f, 1.2f, 0.8f),
+                        new Vector3(6f, 2.4f, 12f))
+                };
+            }
             return new[]
             {
                 new AnalyticsSpec($"{prefix}_entry", "Entry Orientation", new Vector3(0f, 1.2f, -7.6f),
@@ -243,8 +324,8 @@ namespace SafetyTraining.Editor
                 new Vector3(0.42f, 0.04f, 0.42f), ColorFor(siteId));
             Object.DestroyImmediate(marker.GetComponent<Collider>());
             var text = SafetyScenePrimitives.Label(label.ToUpperInvariant(), site,
-                position + new Vector3(0f, 0.58f, 0f), 0.08f);
-            text.color = Color.white;
+                position + new Vector3(0f, 0.42f, 0f), 0.05f);
+            text.color = new Color(1f, 1f, 1f, 0.75f);
         }
 
         static void AddModuleDressing(Transform site, TrainingSiteId siteId)
@@ -265,6 +346,12 @@ namespace SafetyTraining.Editor
                     break;
                 case TrainingSiteId.ElectricalMaintenance:
                     AddElectrical(site);
+                    break;
+                case TrainingSiteId.TowerCrane:
+                    SafetyWorldAssetPainter.AddModel(site, "Facade Skeleton Tower Wing", "modular_factory_facade_1k.fbx",
+                        new Vector3(-7f, 0f, 6.5f), 6.2f, Vector3.zero);
+                    SafetyWorldAssetPainter.AddModel(site, "Panel Laydown Rows", "cement_bag_1k.fbx",
+                        new Vector3(8.2f, 0f, -5.6f), 1.6f, new Vector3(0f, 40f, 0f));
                     break;
             }
         }
@@ -382,6 +469,14 @@ namespace SafetyTraining.Editor
                     AddSubzone(site, "Cable Trench Service", new Vector3(-7.5f, 0f, 4.2f),
                         "Drill_01_1k.fbx", 0.72f, new Vector3(0f, -25f, 0f), ColorFor(siteId));
                     break;
+                case TrainingSiteId.TowerCrane:
+                    AddSubzone(site, "Panel Casting Yard", new Vector3(-7.5f, 0f, -6.4f),
+                        "cement_bag_1k.fbx", 1.5f, new Vector3(0f, 18f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Rigging Loft", new Vector3(7.5f, 0f, 6.3f),
+                        "metal_toolbox_1k.fbx", 1.15f, new Vector3(0f, -20f, 0f), ColorFor(siteId));
+                    AddSubzone(site, "Operator Briefing", new Vector3(7.5f, 0f, -6.2f),
+                        "clipboard_1k.fbx", 0.95f, new Vector3(0f, 12f, 0f), ColorFor(siteId));
+                    break;
             }
         }
 
@@ -419,6 +514,7 @@ namespace SafetyTraining.Editor
                 TrainingSiteId.FireResponse => new Color(0.78f, 0.16f, 0.1f),
                 TrainingSiteId.ChemicalProcessing => new Color(0.26f, 0.65f, 0.52f),
                 TrainingSiteId.ElectricalMaintenance => new Color(0.32f, 0.38f, 0.72f),
+                TrainingSiteId.TowerCrane => new Color(0.85f, 0.4f, 0.12f),
                 _ => Color.white
             };
         }

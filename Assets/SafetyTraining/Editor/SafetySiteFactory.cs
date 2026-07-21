@@ -45,8 +45,50 @@ namespace SafetyTraining.Editor
             SafetyScenePrimitives.Target(stored, TrainingSiteId.Construction, "stored-materials", false,
                 "Materials in staging zone", "The materials are stable and outside the marked access route.",
                 "Keep the stack stable and within the designated boundary.");
+
+            var damagedLadder = Ladder(root, "Damaged Access Ladder", new Vector3(-0.2f, 0f, 2.55f), true);
+            SafetyScenePrimitives.Target(damagedLadder, TrainingSiteId.Construction, "damaged-ladder", true,
+                "Damaged access ladder", "A rung is missing and the ladder leans without a top tie-off.",
+                "Tag the ladder out of service and replace it with an inspected ladder.");
+
+            var securedLadder = Ladder(root, "Secured Access Ladder", new Vector3(1.35f, 0f, 2.55f), false);
+            SafetyScenePrimitives.Target(securedLadder, TrainingSiteId.Construction, "secured-ladder", false,
+                "Secured access ladder", "The ladder is complete, footed on a firm surface, and tied off at the top.",
+                "Inspect it before each shift and keep the tie-off intact.");
             CreateConstructionHandsOn(root);
             return root;
+        }
+
+        static GameObject Ladder(Transform parent, string name, Vector3 position, bool damaged)
+        {
+            var ladder = AssemblyRoot(parent, name, position, new Vector3(1.1f, 2.9f, 0.9f),
+                new Vector3(0f, 1.4f, 0f));
+            var rail = damaged ? new Color(0.52f, 0.5f, 0.46f) : new Color(0.72f, 0.72f, 0.68f);
+            foreach (var x in new[] { -0.32f, 0.32f })
+                DecorativePrimitive(PrimitiveType.Cylinder, "Ladder Rail", ladder.transform,
+                    new Vector3(x, 1.35f, 0f), new Vector3(0.06f, 1.35f, 0.06f), rail, 0.4f, 0.5f);
+            for (var rung = 0; rung < 6; rung++)
+            {
+                if (damaged && rung == 3)
+                    continue;
+                DecorativePrimitive(PrimitiveType.Cylinder, "Ladder Rung", ladder.transform,
+                        new Vector3(0f, 0.35f + rung * 0.45f, 0f), new Vector3(0.045f, 0.34f, 0.045f),
+                        rail * 1.05f, 0.4f, 0.5f)
+                    .transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            }
+            if (damaged)
+            {
+                ladder.transform.localRotation = Quaternion.Euler(0f, 0f, 9f);
+                DecorativePrimitive(PrimitiveType.Cube, "Broken Rung Stub", ladder.transform,
+                    new Vector3(-0.24f, 0.35f + 3 * 0.45f, 0f), new Vector3(0.12f, 0.05f, 0.05f),
+                    new Color(0.4f, 0.32f, 0.26f));
+            }
+            else
+            {
+                DecorativePrimitive(PrimitiveType.Cube, "Top Tie-Off Strap", ladder.transform,
+                    new Vector3(0f, 2.62f, -0.08f), new Vector3(0.72f, 0.08f, 0.1f), SafetyYellow);
+            }
+            return ladder;
         }
 
         static void CreateConstructionHandsOn(Transform root)
@@ -225,7 +267,48 @@ namespace SafetyTraining.Editor
             SafetyScenePrimitives.Target(rackCargo, TrainingSiteId.Warehouse, "racked-cargo", false,
                 "Cargo in staging bay", "The pallet is stable and fully contained inside the marked bay.",
                 "Maintain aisle clearance and verify the load remains stable.");
+
+            var damagedUpright = RackUpright(root, "Damaged Rack Upright", new Vector3(-0.7f, 0f, 2.35f), true);
+            SafetyScenePrimitives.Target(damagedUpright, TrainingSiteId.Warehouse, "damaged-rack-upright", true,
+                "Damaged rack upright", "The loaded rack column is visibly bent at impact height with no protector.",
+                "Unload the bay and have the upright assessed before it carries load again.");
+
+            var guardedUpright = RackUpright(root, "Guarded Rack Upright", new Vector3(1.1f, 0f, 2.35f), false);
+            SafetyScenePrimitives.Target(guardedUpright, TrainingSiteId.Warehouse, "guarded-rack-upright", false,
+                "Guarded rack upright", "The identical column is straight and fitted with a base protector.",
+                "Keep the protector seated and report any vehicle impact.");
             return root;
+        }
+
+        static GameObject RackUpright(Transform parent, string name, Vector3 position, bool damaged)
+        {
+            var rack = AssemblyRoot(parent, name, position, new Vector3(1.4f, 2.6f, 1f),
+                new Vector3(0f, 1.25f, 0f));
+            var column = new Color(0.24f, 0.4f, 0.62f);
+            if (damaged)
+            {
+                DecorativePrimitive(PrimitiveType.Cube, "Upright Lower", rack.transform,
+                    new Vector3(0f, 0.35f, 0f), new Vector3(0.12f, 0.35f, 0.12f), column, 0.55f, 0.42f);
+                var bent = DecorativePrimitive(PrimitiveType.Cube, "Upright Bent Section", rack.transform,
+                    new Vector3(0.12f, 0.92f, 0f), new Vector3(0.12f, 0.3f, 0.12f), column * 0.82f,
+                    0.55f, 0.42f);
+                bent.transform.localRotation = Quaternion.Euler(0f, 0f, -24f);
+                DecorativePrimitive(PrimitiveType.Cube, "Upright Upper", rack.transform,
+                    new Vector3(0.04f, 1.75f, 0f), new Vector3(0.12f, 0.62f, 0.12f), column, 0.55f, 0.42f);
+            }
+            else
+            {
+                DecorativePrimitive(PrimitiveType.Cube, "Upright Column", rack.transform,
+                    new Vector3(0f, 1.2f, 0f), new Vector3(0.12f, 1.2f, 0.12f), column, 0.55f, 0.42f);
+                DecorativePrimitive(PrimitiveType.Cube, "Column Protector", rack.transform,
+                    new Vector3(0f, 0.25f, 0f), new Vector3(0.3f, 0.25f, 0.3f), SafetyYellow);
+            }
+            DecorativePrimitive(PrimitiveType.Cube, "Rack Beam", rack.transform,
+                new Vector3(0.55f, 2.15f, 0f), new Vector3(1.2f, 0.1f, 0.12f),
+                new Color(0.85f, 0.42f, 0.08f), 0.45f, 0.4f);
+            DecorativePrimitive(PrimitiveType.Cube, "Beam Load", rack.transform,
+                new Vector3(0.55f, 2.5f, 0f), new Vector3(0.9f, 0.55f, 0.7f), Timber);
+            return rack;
         }
 
         public static Transform FireResponse(Vector3 origin)
@@ -258,7 +341,46 @@ namespace SafetyTraining.Editor
             SafetyScenePrimitives.Target(clearRoute, TrainingSiteId.FireResponse, "clear-egress", false,
                 "Clear egress route", "The marked evacuation route is unobstructed and easy to follow.",
                 "Keep temporary storage and equipment outside the route.");
+
+            var proppedDoor = FireDoor(root, "Propped Fire Door", new Vector3(-1f, 0f, 3.45f), true);
+            SafetyScenePrimitives.Target(proppedDoor, TrainingSiteId.FireResponse, "propped-fire-door", true,
+                "Propped-open fire door", "A wedge holds the self-closing fire door open on the egress route.",
+                "Remove the prop and let the door close to protect the escape path.");
+
+            var closedDoor = FireDoor(root, "Closed Fire Door", new Vector3(1.1f, 0f, 3.45f), false);
+            SafetyScenePrimitives.Target(closedDoor, TrainingSiteId.FireResponse, "closed-fire-door", false,
+                "Closed self-closing fire door", "The identical fire door is fully closed and latched.",
+                "Keep the closer unobstructed and report latch damage.");
             return root;
+        }
+
+        static GameObject FireDoor(Transform parent, string name, Vector3 position, bool propped)
+        {
+            var doorway = AssemblyRoot(parent, name, position, new Vector3(1.6f, 2.4f, 1f),
+                new Vector3(0f, 1.15f, 0f));
+            var frame = new Color(0.4f, 0.12f, 0.1f);
+            foreach (var x in new[] { -0.62f, 0.62f })
+                DecorativePrimitive(PrimitiveType.Cube, "Door Jamb", doorway.transform,
+                    new Vector3(x, 1.1f, 0f), new Vector3(0.12f, 1.1f, 0.16f), frame);
+            DecorativePrimitive(PrimitiveType.Cube, "Door Header", doorway.transform,
+                new Vector3(0f, 2.24f, 0f), new Vector3(1.36f, 0.12f, 0.16f), frame);
+            var slab = DecorativePrimitive(PrimitiveType.Cube, "Fire Door Slab", doorway.transform,
+                propped ? new Vector3(-0.28f, 1.08f, -0.42f) : new Vector3(0f, 1.08f, 0f),
+                new Vector3(1.1f, 2.05f, 0.08f), new Color(0.62f, 0.2f, 0.14f));
+            if (propped)
+            {
+                slab.transform.localRotation = Quaternion.Euler(0f, 55f, 0f);
+                DecorativePrimitive(PrimitiveType.Cube, "Door Wedge", doorway.transform,
+                    new Vector3(-0.62f, 0.08f, -0.72f), new Vector3(0.22f, 0.16f, 0.3f), Timber);
+            }
+            else
+            {
+                DecorativePrimitive(PrimitiveType.Cube, "Door Closer Arm", doorway.transform,
+                    new Vector3(0.3f, 2.05f, -0.1f), new Vector3(0.5f, 0.06f, 0.06f), Steel);
+            }
+            SafetyScenePrimitives.Label("FIRE DOOR\nKEEP CLOSED", doorway.transform,
+                new Vector3(0f, 1.55f, -0.12f), 0.055f);
+            return doorway;
         }
 
         public static Transform ChemicalProcessing(Vector3 origin)
@@ -291,7 +413,38 @@ namespace SafetyTraining.Editor
             SafetyScenePrimitives.Target(eyewash, TrainingSiteId.ChemicalProcessing, "clear-eyewash", false,
                 "Accessible emergency eyewash", "The eyewash station has a clear approach from the transfer lane.",
                 "Keep the approach clear and test the station on the site schedule.");
+
+            var incompatible = DrumPair(root, "Incompatible Storage Pair", new Vector3(-0.9f, 0f, 3.2f), false);
+            SafetyScenePrimitives.Target(incompatible, TrainingSiteId.ChemicalProcessing, "incompatible-storage", true,
+                "Incompatible chemicals stored together", "An oxidizer drum sits directly against a flammable-solvent drum with no separation.",
+                "Separate the containers per the SDS segregation plan before any transfer.");
+
+            var segregated = DrumPair(root, "Segregated Storage Pair", new Vector3(1.5f, 0f, 3.2f), true);
+            SafetyScenePrimitives.Target(segregated, TrainingSiteId.ChemicalProcessing, "segregated-storage", false,
+                "Segregated compatible storage", "The same two chemical classes are separated by a rated divider wall.",
+                "Maintain the divider and keep both labels legible.");
             return root;
+        }
+
+        static GameObject DrumPair(Transform parent, string name, Vector3 position, bool divided)
+        {
+            var pair = AssemblyRoot(parent, name, position, new Vector3(2f, 1.6f, 1.1f),
+                new Vector3(0f, 0.75f, 0f));
+            var spacing = divided ? 0.62f : 0.4f;
+            Drum(pair, $"{name} Oxidizer", new Vector3(-spacing, 0f, 0f),
+                new Color(0.75f, 0.62f, 0.16f), new Color(0.95f, 0.85f, 0.1f));
+            Drum(pair, $"{name} Solvent", new Vector3(spacing, 0f, 0f),
+                new Color(0.5f, 0.16f, 0.1f), new Color(0.88f, 0.2f, 0.12f));
+            if (divided)
+                DecorativePrimitive(PrimitiveType.Cube, "Segregation Divider", pair.transform,
+                    new Vector3(0f, 0.7f, 0f), new Vector3(0.1f, 0.7f, 0.95f),
+                    new Color(0.78f, 0.8f, 0.82f));
+            return pair.gameObject;
+        }
+
+        static void Drum(GameObject parent, string name, Vector3 position, Color body, Color band)
+        {
+            Drum(parent.transform, name, position, body, band);
         }
 
         public static Transform ElectricalMaintenance(Vector3 origin)
@@ -321,7 +474,393 @@ namespace SafetyTraining.Editor
             SafetyScenePrimitives.Target(protectedCable, TrainingSiteId.ElectricalMaintenance, "protected-cable", false,
                 "Protected cable crossing", "The cable crossing is covered by a high-visibility floor protector.",
                 "Inspect the ramp before use and keep its edges seated.");
+
+            var damagedCord = ExtensionCord(root, "Spliced Extension Cord", new Vector3(-0.8f, 0f, 3.3f), true);
+            SafetyScenePrimitives.Target(damagedCord, TrainingSiteId.ElectricalMaintenance, "damaged-cord", true,
+                "Damaged extension cord", "The cord shows a taped field splice with exposed conductor strands.",
+                "Remove the cord from service and replace it before energizing equipment.");
+
+            var elevatedCord = ExtensionCord(root, "Elevated Extension Cord", new Vector3(1.2f, 0f, 3.3f), false);
+            SafetyScenePrimitives.Target(elevatedCord, TrainingSiteId.ElectricalMaintenance, "elevated-cord", false,
+                "Elevated intact cord", "The identical cord is intact and routed on hooks above the walking surface.",
+                "Keep the cord elevated and inspect the jacket before each use.");
             return root;
+        }
+
+        static GameObject ExtensionCord(Transform parent, string name, Vector3 position, bool damaged)
+        {
+            var cord = AssemblyRoot(parent, name, position, new Vector3(1.9f, damaged ? 0.5f : 1.6f, 0.8f),
+                new Vector3(0f, damaged ? 0.2f : 0.85f, 0f));
+            var jacket = new Color(0.16f, 0.38f, 0.78f);
+            var height = damaged ? 0.08f : 1.25f;
+            var run = DecorativePrimitive(PrimitiveType.Cylinder, "Cord Run", cord.transform,
+                new Vector3(0f, height, 0f), new Vector3(0.04f, 0.85f, 0.04f), jacket);
+            run.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            if (damaged)
+            {
+                DecorativePrimitive(PrimitiveType.Cylinder, "Field Splice Tape", cord.transform,
+                    new Vector3(0.1f, height, 0f), new Vector3(0.09f, 0.14f, 0.09f),
+                    new Color(0.12f, 0.12f, 0.14f)).transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                DecorativePrimitive(PrimitiveType.Cylinder, "Exposed Strands", cord.transform,
+                    new Vector3(0.28f, height, 0f), new Vector3(0.05f, 0.06f, 0.05f),
+                    new Color(0.85f, 0.6f, 0.3f)).transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            }
+            else
+            {
+                foreach (var x in new[] { -0.62f, 0.62f })
+                {
+                    DecorativePrimitive(PrimitiveType.Cylinder, "Cord Hook Post", cord.transform,
+                        new Vector3(x, 0.62f, 0f), new Vector3(0.05f, 0.62f, 0.05f), Steel);
+                    DecorativePrimitive(PrimitiveType.Cube, "Cord Hook", cord.transform,
+                        new Vector3(x, 1.25f, 0f), new Vector3(0.1f, 0.06f, 0.14f), SafetyYellow);
+                }
+            }
+            return cord;
+        }
+
+        public static Transform TowerCrane(Vector3 origin)
+        {
+            var root = SiteRoot("Tower Crane", origin, new Color(0.3f, 0.27f, 0.24f));
+            AddLane(root, "Lift Corridor", new Vector3(0f, 0.02f, 0.5f),
+                new Vector2(3.2f, 6.6f), new Color(0.3f, 0.3f, 0.3f), SafetyYellow);
+            AddBay(root, "Panel Landing Zone", new Vector3(2.6f, 0.04f, -2.6f),
+                new Vector2(2.6f, 2f), SafetyYellow);
+            ApartmentFrame(root, new Vector3(-2.55f, 0f, 2.3f));
+            var craneAnimator = TowerCraneRig(root, new Vector3(3.5f, 0f, 3.4f));
+            RiggingAssembly(root, craneAnimator);
+
+            var fallZone = AssemblyRoot(root, "Uncontrolled Fall Zone Walkway", new Vector3(0.1f, 0f, 3.3f),
+                new Vector3(2.6f, 3f, 1.8f), new Vector3(0f, 1.4f, 0f));
+            DecorativePrimitive(PrimitiveType.Cube, "Walkway Tool Crate", fallZone.transform,
+                new Vector3(-0.6f, 0.25f, 0.3f), new Vector3(0.6f, 0.5f, 0.45f), Timber);
+            DecorativePrimitive(PrimitiveType.Cube, "Dropped Panel Shim", fallZone.transform,
+                new Vector3(0.7f, 0.03f, -0.5f), new Vector3(0.8f, 0.06f, 0.25f),
+                new Color(0.62f, 0.6f, 0.57f));
+            SafetyScenePrimitives.Target(fallZone.gameObject, TrainingSiteId.TowerCrane, "uncontrolled-fall-zone", true,
+                "Unbarricaded fall zone", "The suspended panel travels directly over an open walkway with no barricade.",
+                "Stop the lift, clear the route, and barricade the fall zone before loads travel overhead.");
+
+            var landed = AssemblyRoot(root, "Barricaded Landing Zone", new Vector3(2.6f, 0f, -2.6f),
+                new Vector3(2.6f, 2f, 2f), new Vector3(0f, 0.9f, 0f));
+            DecorativePrimitive(PrimitiveType.Cube, "Landed Precast Panel", landed.transform,
+                new Vector3(0f, 0.55f, 0f), new Vector3(2.2f, 0.9f, 0.18f), new Color(0.66f, 0.64f, 0.6f));
+            foreach (var dx in new[] { -0.8f, 0.8f })
+                DecorativePrimitive(PrimitiveType.Cube, "Landing Dunnage", landed.transform,
+                    new Vector3(dx, 0.06f, 0f), new Vector3(0.25f, 0.12f, 0.6f), Timber);
+            foreach (var dz in new[] { -0.85f, 0.85f })
+            {
+                DecorativePrimitive(PrimitiveType.Cube, "Landing Barricade Rail", landed.transform,
+                    new Vector3(0f, 0.5f, dz), new Vector3(2.4f, 0.07f, 0.06f), SafetyYellow);
+                foreach (var dx in new[] { -1.1f, 1.1f })
+                    DecorativePrimitive(PrimitiveType.Cylinder, "Landing Barricade Post", landed.transform,
+                        new Vector3(dx, 0.25f, dz), new Vector3(0.06f, 0.25f, 0.06f), SafetyYellow);
+            }
+            SafetyScenePrimitives.Target(landed.gameObject, TrainingSiteId.TowerCrane, "barricaded-fall-zone", false,
+                "Barricaded landing zone", "The identical panel path ends inside a barricaded landing zone on dunnage.",
+                "Keep the barricade line intact while loads travel overhead.");
+
+            var barePole = PowerPole(root, "Unmarked Power Line", new Vector3(-2.7f, 0f, -1.6f), false);
+            SafetyScenePrimitives.Target(barePole, TrainingSiteId.TowerCrane, "powerline-encroachment", true,
+                "Power line inside swing path", "The energized line crosses the jib swing path with no warning line or spotter.",
+                "Stop work and establish the minimum clearance, warning line, and dedicated spotter.");
+
+            var markedPole = PowerPole(root, "Controlled Power Line", new Vector3(-0.8f, 0f, -3.6f), true);
+            SafetyScenePrimitives.Target(markedPole, TrainingSiteId.TowerCrane, "cleared-powerline-plan", false,
+                "Controlled power line crossing", "The same line type is flagged with a warning line and a staffed spotter post.",
+                "Maintain the warning line and keep the spotter post staffed.");
+
+            var badSling = SlingStation(root, "Frayed Sling Station", new Vector3(1.2f, 0f, 2.2f), true);
+            SafetyScenePrimitives.Target(badSling, TrainingSiteId.TowerCrane, "damaged-sling", true,
+                "Damaged synthetic sling", "The staged sling shows cut strands at the wear point and no inspection tag.",
+                "Remove the sling from service and rig with tagged, inspected gear.");
+
+            var goodSling = SlingStation(root, "Inspected Rigging Rack", new Vector3(2.7f, 0f, 0.9f), false);
+            SafetyScenePrimitives.Target(goodSling, TrainingSiteId.TowerCrane, "inspected-rigging", false,
+                "Inspected rigging rack", "Identical slings hang tagged, dated, and clear of the ground.",
+                "Keep the inspection tags legible and stage rigging off the ground.");
+            return root;
+        }
+
+        // Magnetic-snap rigging assembly in the Rigging Loft: the learner chooses
+        // between tagged and damaged slings, snaps two sling legs and a tagline
+        // onto the lift jig, and only a fully serviceable rig authorizes trolley
+        // travel on the tower crane.
+        static void RiggingAssembly(Transform root, TowerCraneAnimator craneAnimator)
+        {
+            craneAnimator.SetLiftAuthorized(false);
+            var stationRoot = new GameObject("Rigging Assembly Station").transform;
+            stationRoot.SetParent(root, false);
+            stationRoot.localPosition = new Vector3(7.5f, 0f, 7.6f);
+            var station = stationRoot.gameObject.AddComponent<RiggingAssemblyStation>();
+            station.Configure(TrainingSiteId.TowerCrane, "TCR-02", craneAnimator);
+
+            foreach (var x in new[] { -1.1f, 1.1f })
+            {
+                DecorativePrimitive(PrimitiveType.Cube, "Jig A-Post", stationRoot,
+                    new Vector3(x, 0.75f, 0f), new Vector3(0.14f, 0.75f, 0.14f), Steel);
+            }
+            DecorativePrimitive(PrimitiveType.Cube, "Spreader Bar", stationRoot,
+                new Vector3(0f, 1.52f, 0f), new Vector3(2.6f, 0.12f, 0.16f), SafetyYellow);
+            DecorativePrimitive(PrimitiveType.Cube, "Mock Panel Load", stationRoot,
+                new Vector3(0f, 0.45f, 0.55f), new Vector3(2.2f, 0.9f, 0.14f),
+                new Color(0.66f, 0.64f, 0.6f));
+            var jigLabel = SafetyScenePrimitives.Label("RIG THE LIFT\nSLING + SLING + TAGLINE", stationRoot,
+                new Vector3(0f, 2.05f, -0.1f), 0.07f);
+            jigLabel.color = new Color(0.72f, 0.88f, 0.96f);
+
+            CreateAssemblySocket(station, stationRoot, "sling-shackle-left",
+                "sling", new Vector3(-0.7f, 1.2f, 0f));
+            CreateAssemblySocket(station, stationRoot, "sling-shackle-right",
+                "sling", new Vector3(0.7f, 1.2f, 0f));
+            CreateAssemblySocket(station, stationRoot, "tagline-anchor",
+                "tagline", new Vector3(0f, 0.5f, 0.75f));
+
+            CreateAssemblyPart(station, stationRoot, "tagged-sling-a", "sling", true,
+                new Vector3(-2.4f, 0.55f, -1.6f), new Color(0.2f, 0.35f, 0.7f));
+            CreateAssemblyPart(station, stationRoot, "tagged-sling-b", "sling", true,
+                new Vector3(-1.7f, 0.55f, -1.9f), new Color(0.2f, 0.35f, 0.7f));
+            CreateAssemblyPart(station, stationRoot, "frayed-sling-a", "sling", false,
+                new Vector3(1.7f, 0.55f, -1.9f), new Color(0.5f, 0.42f, 0.2f));
+            CreateAssemblyPart(station, stationRoot, "frayed-sling-b", "sling", false,
+                new Vector3(2.4f, 0.55f, -1.6f), new Color(0.5f, 0.42f, 0.2f));
+            CreateAssemblyPart(station, stationRoot, "tagline-coil", "tagline", true,
+                new Vector3(0f, 0.35f, -2.1f), new Color(0.9f, 0.55f, 0.12f));
+            var partsLabel = SafetyScenePrimitives.Label("TAGGED            FRAYED", stationRoot,
+                new Vector3(0f, 1.25f, -1.85f), 0.06f);
+            partsLabel.color = new Color(0.72f, 0.88f, 0.96f);
+        }
+
+        static void CreateAssemblySocket(RiggingAssemblyStation station, Transform parent,
+            string id, string category, Vector3 localPosition)
+        {
+            var socketObject = new GameObject($"Assembly Socket - {id}");
+            socketObject.transform.SetParent(parent, false);
+            socketObject.transform.localPosition = localPosition;
+            var marker = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Socket Marker",
+                socketObject.transform, Vector3.zero, new Vector3(0.16f, 0.16f, 0.16f),
+                new Color(0.16f, 0.5f, 0.42f));
+            Object.DestroyImmediate(marker.GetComponent<Collider>());
+            var socket = socketObject.AddComponent<AssemblySocket>();
+            socket.Configure(id, category, 0.55f);
+            station.RegisterSocket(socket);
+        }
+
+        static void CreateAssemblyPart(RiggingAssemblyStation station, Transform parent,
+            string id, string category, bool serviceable, Vector3 localPosition, Color color)
+        {
+            var part = SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, $"Assembly Part - {id}",
+                parent, localPosition, new Vector3(0.09f, 0.32f, 0.09f), color);
+            part.AddComponent<Rigidbody>();
+            part.AddComponent<XRGrabInteractable>();
+            part.AddComponent<InteractiveHoverFeedback>();
+            part.AddComponent<AssemblyPart>().Configure(station, id, category, serviceable);
+            if (serviceable)
+            {
+                var tag = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Inspection Tag",
+                    part.transform, new Vector3(0.1f, 0.55f, 0f), new Vector3(0.55f, 0.28f, 0.1f),
+                    SafetyYellow);
+                Object.DestroyImmediate(tag.GetComponent<Collider>());
+            }
+        }
+
+        static void ApartmentFrame(Transform parent, Vector3 position)
+        {
+            var frame = new GameObject("Apartment Frame Under Construction").transform;
+            frame.SetParent(parent, false);
+            frame.localPosition = position;
+            var concrete = new Color(0.62f, 0.61f, 0.58f);
+            for (var floor = 0; floor < 5; floor++)
+            {
+                var y = 0.95f * (floor + 1);
+                var slab = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, $"Apartment Slab L{floor + 1}",
+                    frame, new Vector3(0f, y, 0f), new Vector3(4.1f, 0.14f, 3.4f), concrete);
+                Object.DestroyImmediate(slab.GetComponent<Collider>());
+                foreach (var x in new[] { -1.8f, 0f, 1.8f })
+                    foreach (var z in new[] { -1.45f, 1.45f })
+                    {
+                        var column = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Apartment Column",
+                            frame, new Vector3(x, y - 0.48f, z), new Vector3(0.22f, 0.82f, 0.22f), concrete * 0.94f);
+                        Object.DestroyImmediate(column.GetComponent<Collider>());
+                    }
+            }
+            foreach (var x in new[] { -1.6f, 0.4f, 1.9f })
+            {
+                var rebar = SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, "Column Rebar Cage",
+                    frame, new Vector3(x, 5.15f, 1.45f), new Vector3(0.1f, 0.35f, 0.1f),
+                    new Color(0.45f, 0.3f, 0.2f));
+                Object.DestroyImmediate(rebar.GetComponent<Collider>());
+            }
+            ApplyMetalFinish(frame, 0.05f, 0.24f);
+        }
+
+        static TowerCraneAnimator TowerCraneRig(Transform parent, Vector3 position)
+        {
+            var rig = new GameObject("Fixed Tower Crane").transform;
+            rig.SetParent(parent, false);
+            rig.localPosition = position;
+            var craneYellow = new Color(0.92f, 0.62f, 0.1f);
+            var pad = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Crane Foundation Pad",
+                rig, new Vector3(0f, 0.25f, 0f), new Vector3(2.8f, 0.5f, 2.8f), Concrete);
+            Object.DestroyImmediate(pad.GetComponent<Collider>());
+            const int mastSegments = 11;
+            const float segmentHeight = 1.3f;
+            for (var segment = 0; segment < mastSegments; segment++)
+            {
+                var y = 0.5f + segmentHeight * segment + segmentHeight / 2f;
+                foreach (var x in new[] { -0.55f, 0.55f })
+                    foreach (var z in new[] { -0.55f, 0.55f })
+                    {
+                        var chord = SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, "Mast Chord",
+                            rig, new Vector3(x, y, z), new Vector3(0.09f, segmentHeight / 2f, 0.09f), craneYellow);
+                        Object.DestroyImmediate(chord.GetComponent<Collider>());
+                    }
+                var band = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Mast Lattice Band",
+                    rig, new Vector3(0f, y + segmentHeight / 2f - 0.05f, 0f),
+                    new Vector3(1.25f, 0.1f, 1.25f), craneYellow * 0.92f);
+                Object.DestroyImmediate(band.GetComponent<Collider>());
+            }
+            var slewY = 0.5f + segmentHeight * mastSegments + 0.25f;
+
+            var slewingUnit = new GameObject("Slewing Unit").transform;
+            slewingUnit.SetParent(rig, false);
+            slewingUnit.localPosition = new Vector3(0f, slewY, 0f);
+            void SlewPart(GameObject item) => Object.DestroyImmediate(item.GetComponent<Collider>());
+
+            SlewPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Slew Ring", slewingUnit,
+                new Vector3(0f, 0.12f, 0f), new Vector3(1.35f, 0.24f, 1.35f), craneYellow * 0.85f));
+            SlewPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Operator Cab", slewingUnit,
+                new Vector3(-0.95f, 0.62f, 0f), new Vector3(0.95f, 0.95f, 0.9f),
+                new Color(0.2f, 0.24f, 0.3f)));
+            SlewPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Main Jib", slewingUnit,
+                new Vector3(-6.4f, 1.05f, 0f), new Vector3(12.6f, 0.2f, 0.55f), craneYellow));
+            SlewPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Counter Jib", slewingUnit,
+                new Vector3(2.9f, 1.05f, 0f), new Vector3(4.6f, 0.2f, 0.55f), craneYellow));
+            SlewPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Counterweight Stack", slewingUnit,
+                new Vector3(4.85f, 0.5f, 0f), new Vector3(0.95f, 1.1f, 1.1f), Concrete * 0.85f));
+            SlewPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, "Apex Pylon", slewingUnit,
+                new Vector3(0f, 2.1f, 0f), new Vector3(0.08f, 1.1f, 0.08f), craneYellow));
+            Strut(slewingUnit, "Jib Tie Front", new Vector3(0f, 3.15f, 0f),
+                new Vector3(-12.5f, 1.15f, 0f), 0.045f, craneYellow * 0.9f);
+            Strut(slewingUnit, "Jib Tie Mid", new Vector3(0f, 3.15f, 0f),
+                new Vector3(-6.4f, 1.15f, 0f), 0.04f, craneYellow * 0.9f);
+            Strut(slewingUnit, "Counter Tie", new Vector3(0f, 3.15f, 0f),
+                new Vector3(4.9f, 1.15f, 0f), 0.045f, craneYellow * 0.9f);
+
+            var trolleyAssembly = new GameObject("Trolley Assembly").transform;
+            trolleyAssembly.SetParent(slewingUnit, false);
+            trolleyAssembly.localPosition = new Vector3(-9.2f, 0.85f, 0f);
+            void TrolleyPart(GameObject item) => Object.DestroyImmediate(item.GetComponent<Collider>());
+            TrolleyPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Jib Trolley", trolleyAssembly,
+                Vector3.zero, new Vector3(0.6f, 0.28f, 0.68f), new Color(0.25f, 0.28f, 0.32f)));
+            var lineLength = slewY + 0.85f - 6.5f;
+            TrolleyPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, "Hoist Line", trolleyAssembly,
+                new Vector3(0f, -lineLength / 2f, 0f), new Vector3(0.055f, lineLength / 2f, 0.055f),
+                new Color(0.15f, 0.15f, 0.16f)));
+            TrolleyPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Hook Block", trolleyAssembly,
+                new Vector3(0f, -lineLength, 0f), new Vector3(0.28f, 0.45f, 0.28f), SafetyYellow));
+            TrolleyPart(SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Suspended Precast Panel",
+                trolleyAssembly, new Vector3(0f, -lineLength - 0.95f, 0f),
+                new Vector3(2.6f, 1.3f, 0.2f), new Color(0.66f, 0.64f, 0.6f)));
+            foreach (var dx in new[] { -0.9f, 0.9f })
+            {
+                var sling = SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, "Panel Sling Leg",
+                    trolleyAssembly, new Vector3(dx / 2f, -lineLength - 0.35f, 0f),
+                    new Vector3(0.028f, 0.4f, 0.028f), new Color(0.2f, 0.35f, 0.7f));
+                sling.transform.localRotation = Quaternion.Euler(0f, 0f, dx > 0f ? -30f : 30f);
+                Object.DestroyImmediate(sling.GetComponent<Collider>());
+            }
+
+            var animator = rig.gameObject.AddComponent<TowerCraneAnimator>();
+            animator.Configure(slewingUnit, trolleyAssembly);
+            ApplyMetalFinish(rig, 0.55f, 0.42f);
+            return animator;
+        }
+
+        // Unifies primitive-built assemblies with the PBR props around them by
+        // swapping default materials for cached metal-finish materials.
+        static void ApplyMetalFinish(Transform root, float metallic, float smoothness)
+        {
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                var color = renderer.sharedMaterial != null
+                    ? renderer.sharedMaterial.color : Color.gray;
+                renderer.sharedMaterial = SafetyEquipmentMeshFactory.Material(color, metallic, smoothness);
+            }
+        }
+
+        static void Strut(Transform parent, string name, Vector3 from, Vector3 to,
+            float radius, Color color)
+        {
+            var strut = SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, name, parent,
+                (from + to) / 2f, new Vector3(radius, Vector3.Distance(from, to) / 2f, radius), color);
+            strut.transform.localRotation = Quaternion.FromToRotation(Vector3.up, to - from);
+            Object.DestroyImmediate(strut.GetComponent<Collider>());
+        }
+
+        static GameObject PowerPole(Transform parent, string name, Vector3 position, bool controlled)
+        {
+            var pole = AssemblyRoot(parent, name, position, new Vector3(1.6f, 4.6f, 1.3f),
+                new Vector3(0f, 2.2f, 0f));
+            DecorativePrimitive(PrimitiveType.Cylinder, "Utility Pole", pole.transform,
+                new Vector3(0f, 2.1f, 0f), new Vector3(0.14f, 2.1f, 0.14f), Timber * 0.8f);
+            DecorativePrimitive(PrimitiveType.Cube, "Crossarm", pole.transform,
+                new Vector3(0f, 4f, 0f), new Vector3(1.4f, 0.09f, 0.09f), Timber * 0.7f);
+            foreach (var x in new[] { -0.55f, 0.55f })
+                foreach (var direction in new[] { 1f, -1f })
+                {
+                    var span = DecorativePrimitive(PrimitiveType.Cylinder, "Energized Span", pole.transform,
+                        new Vector3(x, 3.72f, direction * 1.02f), new Vector3(0.032f, 1.08f, 0.032f),
+                        new Color(0.1f, 0.1f, 0.12f));
+                    span.transform.localRotation = Quaternion.Euler(direction * 79f, 0f, 0f);
+                }
+            if (controlled)
+            {
+                for (var flag = 0; flag < 4; flag++)
+                    DecorativePrimitive(PrimitiveType.Cube, "Warning Line Flag", pole.transform,
+                        new Vector3(-0.9f + flag * 0.6f, 2.5f, 0.9f), new Vector3(0.16f, 0.22f, 0.02f),
+                        new Color(0.95f, 0.4f, 0.05f));
+                DecorativePrimitive(PrimitiveType.Cube, "Spotter Post Sign", pole.transform,
+                    new Vector3(0.75f, 1.2f, 0.55f), new Vector3(0.55f, 0.55f, 0.05f), SafetyYellow);
+                SafetyScenePrimitives.Label("DEDICATED\nSPOTTER", pole.transform,
+                    new Vector3(0.75f, 1.2f, 0.5f), 0.05f);
+            }
+            return pole;
+        }
+
+        static GameObject SlingStation(Transform parent, string name, Vector3 position, bool damaged)
+        {
+            var rack = AssemblyRoot(parent, name, position, new Vector3(1.6f, 2f, 1f),
+                new Vector3(0f, 0.95f, 0f));
+            foreach (var x in new[] { -0.6f, 0.6f })
+                DecorativePrimitive(PrimitiveType.Cylinder, "Rack Post", rack.transform,
+                    new Vector3(x, 0.85f, 0f), new Vector3(0.06f, 0.85f, 0.06f), Steel);
+            DecorativePrimitive(PrimitiveType.Cylinder, "Rack Rail", rack.transform,
+                    new Vector3(0f, 1.68f, 0f), new Vector3(0.05f, 0.66f, 0.05f), Steel)
+                .transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            var slingColor = damaged ? new Color(0.5f, 0.42f, 0.2f) : new Color(0.2f, 0.35f, 0.7f);
+            foreach (var x in new[] { -0.3f, 0.1f })
+            {
+                var sling = DecorativePrimitive(PrimitiveType.Cylinder, "Staged Sling", rack.transform,
+                    new Vector3(x, damaged ? 1.05f : 1.25f, 0f), new Vector3(0.035f, 0.42f, 0.035f), slingColor);
+                if (damaged)
+                    sling.transform.localRotation = Quaternion.Euler(0f, 0f, x < 0f ? 14f : -9f);
+            }
+            if (damaged)
+            {
+                DecorativePrimitive(PrimitiveType.Cylinder, "Cut Strand Stub", rack.transform,
+                    new Vector3(-0.28f, 0.66f, 0.05f), new Vector3(0.015f, 0.09f, 0.015f),
+                    new Color(0.75f, 0.68f, 0.5f));
+                DecorativePrimitive(PrimitiveType.Cylinder, "Sling Tail On Ground", rack.transform,
+                        new Vector3(0.35f, 0.05f, 0.15f), new Vector3(0.03f, 0.3f, 0.03f), slingColor)
+                    .transform.localRotation = Quaternion.Euler(0f, 30f, 90f);
+            }
+            else
+            {
+                foreach (var x in new[] { -0.3f, 0.1f })
+                    DecorativePrimitive(PrimitiveType.Cube, "Inspection Tag", rack.transform,
+                        new Vector3(x + 0.06f, 0.86f, 0.03f), new Vector3(0.08f, 0.12f, 0.01f), SafetyYellow);
+            }
+            return rack;
         }
 
         static Transform SiteRoot(string title, Vector3 origin, Color color)

@@ -23,7 +23,7 @@ namespace SafetyTraining.Tests.EditMode
         {
             var zones = Object.FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None);
 
-            Assert.That(zones, Has.Length.EqualTo(5));
+            Assert.That(zones, Has.Length.EqualTo(6));
             foreach (var zone in zones)
             {
                 Assert.That(zone.InfluenceRadius, Is.GreaterThanOrEqualTo(19f), zone.name);
@@ -43,11 +43,12 @@ namespace SafetyTraining.Tests.EditMode
                     .Where(item => item.name.StartsWith("WorldExpansion - Route -"))
                     .Select(item => item.name).ToArray();
 
-                Assert.That(routeNames, Has.Length.EqualTo(4), site.name);
+                Assert.That(routeNames, Has.Length.EqualTo(5), site.name);
                 Assert.That(routeNames, Does.Contain("WorldExpansion - Route - Entry Spine"), site.name);
                 Assert.That(routeNames, Does.Contain("WorldExpansion - Route - Left Evidence Loop"), site.name);
                 Assert.That(routeNames, Does.Contain("WorldExpansion - Route - Rear Traverse"), site.name);
                 Assert.That(routeNames, Does.Contain("WorldExpansion - Route - Right Return Loop"), site.name);
+                Assert.That(routeNames, Does.Contain("WorldExpansion - Route - Annex Spine"), site.name);
             }
         }
 
@@ -56,11 +57,11 @@ namespace SafetyTraining.Tests.EditMode
         {
             var analyticsZones = Object.FindObjectsByType<SpatialAnalyticsZone>(FindObjectsSortMode.None);
 
-            Assert.That(analyticsZones, Has.Length.EqualTo(31));
+            Assert.That(analyticsZones, Has.Length.EqualTo(49));
             foreach (var site in (TrainingSiteId[])System.Enum.GetValues(typeof(TrainingSiteId)))
             {
                 var siteZones = analyticsZones.Where(zone => zone.SiteId == site).ToArray();
-                var expectedCount = site == TrainingSiteId.Construction ? 7 : 6;
+                var expectedCount = site == TrainingSiteId.Construction ? 9 : 8;
                 Assert.That(siteZones, Has.Length.EqualTo(expectedCount), site.ToString());
                 Assert.That(siteZones.Select(zone => zone.ZoneId).Distinct().ToArray(),
                     Has.Length.EqualTo(expectedCount), site.ToString());
@@ -72,7 +73,7 @@ namespace SafetyTraining.Tests.EditMode
         {
             var evidenceObjects = Object.FindObjectsByType<EvidenceObject>(FindObjectsSortMode.None);
 
-            Assert.That(evidenceObjects, Has.Length.EqualTo(31));
+            Assert.That(evidenceObjects, Has.Length.EqualTo(37));
             foreach (var site in (TrainingSiteId[])System.Enum.GetValues(typeof(TrainingSiteId)))
             {
                 var siteEvidence = evidenceObjects.Where(item => item.SiteId == site).ToArray();
@@ -90,7 +91,7 @@ namespace SafetyTraining.Tests.EditMode
             Assert.That(Object.FindFirstObjectByType<InquirySessionController>(), Is.Not.Null);
             var stations = Object.FindObjectsByType<InquiryDecisionStation>(FindObjectsSortMode.None);
 
-            Assert.That(stations, Has.Length.EqualTo(5));
+            Assert.That(stations, Has.Length.EqualTo(6));
             foreach (var station in stations)
                 Assert.That(station.GetComponent<Collider>(), Is.Not.Null, station.name);
         }
@@ -210,13 +211,13 @@ namespace SafetyTraining.Tests.EditMode
             var sites = Object.FindObjectsByType<SiteExperienceZone>(FindObjectsSortMode.None)
                 .Where(item => item.SiteId != TrainingSiteId.Construction).ToArray();
 
-            Assert.That(sites, Has.Length.EqualTo(4));
+            Assert.That(sites, Has.Length.EqualTo(5));
             foreach (var site in sites)
             {
                 var subzones = site.GetComponentsInChildren<Transform>(true)
                     .Where(item => item.name.StartsWith("Operational Subzone - ")).ToArray();
-                Assert.That(subzones, Has.Length.EqualTo(3), site.SiteId.ToString());
-                Assert.That(subzones.Select(item => item.name).Distinct().Count(), Is.EqualTo(3));
+                Assert.That(subzones, Has.Length.EqualTo(5), site.SiteId.ToString());
+                Assert.That(subzones.Select(item => item.name).Distinct().Count(), Is.EqualTo(5));
             }
         }
 

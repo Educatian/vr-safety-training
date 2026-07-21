@@ -1,0 +1,12 @@
+# ninja log v5
+111	705	8063516976094058	FramePacing/CMakeFiles/swappywrapper.dir/UnitySwappyWrapper.cpp.o	755557b89b1edd2f
+707	1298	8063516981581712	C:/Users/jewoo/Projects/vr-safety-training/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6g3j456x/obj/arm64-v8a/libswappywrapper.so	bc355e0ea2872801
+40	3136	8063517000332469	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	71422898e1969787
+54	3145	8063517000332469	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	a45ee689026e01ae
+1	3249	8063517001308075	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	ab20e1c537ed983d
+81	3282	8063517001768363	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	be8a2dec32dfecc4
+21	3442	8063517003419691	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	5da88d62565ef4d
+70	3853	8063517007476017	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	39e18cd3329a8dc9
+30	3957	8063517008549887	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	ad16b2eb52186461
+11	4266	8063517011581498	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	7d210fd4797f97bf
+4266	4427	8063517013228784	C:/Users/jewoo/Projects/vr-safety-training/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6g3j456x/obj/arm64-v8a/libgame.so	97c2322aae01b719

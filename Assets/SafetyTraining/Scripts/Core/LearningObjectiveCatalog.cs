@@ -32,7 +32,7 @@ namespace SafetyTraining.Core
             {
                 [TrainingSiteId.Construction] = new[]
                 {
-                    O("CON-01", "Diagnose site risk", "Collect and classify field evidence for fall, struck-by, excavation, access, and temporary-works hazards.", "At least three relevant observations, with distractors distinguished.", "ABET SO1; OSHA 29 CFR 1926", 3),
+                    O("CON-01", "Diagnose site risk", "Collect and classify field evidence for fall, struck-by, excavation, access, and temporary-works hazards.", "At least four relevant observations, with distractors distinguished.", "ABET SO1; OSHA 29 CFR 1926", 4),
                     O("CON-02", "Make engineering decisions", "Calculate demand/capacity or geometric compliance and select a defensible control for formwork, crane, and trench cases.", "Correct decision and calculation rationale at all three engineering stations.", "ABET SO1, SO2, SO4; 1926.651, .652, .703, .1417", 3),
                     O("CON-03", "Implement controls", "Complete hands-on control installation in the required sequence and verify the result.", "Successful physical placement steps recorded by the practical task.", "ABET SO6; OSHA 29 CFR 1926", 3),
                     O("CON-04", "Defend the safety plan", "Synthesize observations, calculations, and standards into a concise site-control recommendation.", "Evidence-gated hypothesis and final report submission.", "ABET SO3, SO4", 2)
@@ -60,6 +60,12 @@ namespace SafetyTraining.Core
                     O("ELE-01", "Identify electrical energy risk", "Collect evidence for energized sources, damaged conductors, wet interfaces, and lockout status.", "Three relevant observations with distractor discrimination.", "OSHA 1910.147, Subpart S; ABET SO1", 3),
                     O("ELE-02", "Establish safe work condition", "Complete isolation, verification, and access-control actions in sequence.", "All hands-on placement steps completed correctly.", "OSHA 1910.147, Subpart S; ABET SO2, SO6", 3),
                     O("ELE-03", "Defend the isolation plan", "Explain the selected electrical control using field evidence.", "Evidence-gated hypothesis and final report.", "ABET SO3, SO4", 2)
+                },
+                [TrainingSiteId.TowerCrane] = new[]
+                {
+                    O("TCR-01", "Diagnose lift-zone risk", "Collect evidence for fall-zone control, power line clearance, rigging condition, and wind limits around the tower crane.", "Three relevant observations with distractor discrimination.", "OSHA 1926.1408, .1413, .1425; ABET SO1", 3),
+                    O("TCR-02", "Implement lift controls", "Stage barricades, taglines, spotter post, and landing controls in the safe sequence.", "All hands-on placement steps completed correctly.", "OSHA 1926.1417, .1425; ABET SO2, SO6", 3),
+                    O("TCR-03", "Defend the lift plan", "Justify the lift decision using load chart, wind, and rigging evidence.", "Evidence-gated hypothesis and final report.", "ABET SO3, SO4", 2)
                 }
             };
 

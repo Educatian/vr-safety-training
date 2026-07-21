@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b5d80f45fb5f4418a5e84a476e517628, type: 3}
   m_Name: HighlightInteractionColor
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   m_Comments: 'For each state in the list, there are 2 values (Start and End).
 
     Default

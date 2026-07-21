@@ -42,7 +42,7 @@ namespace SafetyTraining.Tests.EditMode
         {
             var assets = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
                 .Where(item => item.name.Contains("Equipment Anchor")).ToArray();
-            Assert.That(assets, Has.Length.EqualTo(12));
+            Assert.That(assets, Has.Length.EqualTo(27));
             Assert.That(assets.All(item => item.GetComponent<LODGroup>() != null), Is.True);
         }
     }

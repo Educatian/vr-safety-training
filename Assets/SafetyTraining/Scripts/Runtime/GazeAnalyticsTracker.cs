@@ -87,8 +87,14 @@ namespace SafetyTraining.Runtime
 
         [SerializeField, Range(0.05f, 1f)] float sampleIntervalSeconds = 0.1f;
         [SerializeField, Range(0.1f, 5f)] float dwellThresholdSeconds = 0.6f;
+        [SerializeField, Range(0.1f, 5f)] float headGazeDwellThresholdSeconds = 1.0f;
         [SerializeField, Range(2f, 100f)] float maximumDistanceMeters = 35f;
         [SerializeField] LayerMask raycastLayers = ~0;
+
+        // Head-gaze is a camera-forward proxy, not measured eye gaze; it needs a stricter
+        // dwell threshold so proxy noise is not over-read as attention.
+        float ActiveDwellThreshold => activeMode == GazeTrackingMode.HeadGaze
+            ? headGazeDwellThresholdSeconds : dwellThresholdSeconds;
 
         readonly List<InputDevice> eyeDevices = new();
         readonly GazeEpisodeTracker episodeTracker = new();
@@ -165,20 +171,18 @@ namespace SafetyTraining.Runtime
 
             if (!TryGetGazeRay(activeMode, out var ray))
             {
-                Publish(episodeTracker.Complete(now, dwellThresholdSeconds), currentSite.Value);
+                Publish(episodeTracker.Complete(now, ActiveDwellThreshold), currentSite.Value);
                 return;
             }
 
-            if (Physics.Raycast(ray, out var hit, maximumDistanceMeters, raycastLayers,
-                    QueryTriggerInteraction.Collide) &&
-                TryResolveMeaningfulTarget(hit.collider, out var targetId, out var targetKind))
+            if (RaycastMeaningfulTarget(ray, out var targetId, out var targetKind, out var hitPoint))
             {
-                Publish(episodeTracker.Observe(targetId, targetKind, hit.point, now,
-                    dwellThresholdSeconds), currentSite.Value);
+                Publish(episodeTracker.Observe(targetId, targetKind, hitPoint, now,
+                    ActiveDwellThreshold), currentSite.Value);
             }
             else
             {
-                Publish(episodeTracker.Complete(now, dwellThresholdSeconds), currentSite.Value);
+                Publish(episodeTracker.Complete(now, ActiveDwellThreshold), currentSite.Value);
             }
         }
 
@@ -257,6 +261,42 @@ namespace SafetyTraining.Runtime
             return false;
         }
 
+        // Meaningful targets can themselves be trigger colliders (evidence anchors), while
+        // analytics/placement zones are meaningless triggers that used to intercept the ray
+        // and truncate dwell episodes. Scan all hits in distance order and keep the nearest
+        // one that resolves; meaningless triggers are passed through instead of ending the episode.
+        bool RaycastMeaningfulTarget(Ray ray, out string targetId, out string targetKind,
+            out Vector3 hitPoint)
+        {
+            var hits = Physics.RaycastAll(ray, maximumDistanceMeters, raycastLayers,
+                QueryTriggerInteraction.Collide);
+            var occluderDistance = float.MaxValue;
+            for (var index = 0; index < hits.Length; index++)
+            {
+                var hit = hits[index];
+                if (!hit.collider.isTrigger && hit.distance < occluderDistance &&
+                    !TryResolveMeaningfulTarget(hit.collider, out _, out _))
+                    occluderDistance = hit.distance;
+            }
+            var bestDistance = float.MaxValue;
+            targetId = string.Empty;
+            targetKind = string.Empty;
+            hitPoint = default;
+            for (var index = 0; index < hits.Length; index++)
+            {
+                var hit = hits[index];
+                if (hit.distance >= bestDistance || hit.distance > occluderDistance)
+                    continue;
+                if (!TryResolveMeaningfulTarget(hit.collider, out var candidateId, out var candidateKind))
+                    continue;
+                bestDistance = hit.distance;
+                targetId = candidateId;
+                targetKind = candidateKind;
+                hitPoint = hit.point;
+            }
+            return bestDistance < float.MaxValue;
+        }
+
         static bool TryResolveMeaningfulTarget(Collider hitCollider, out string targetId,
             out string targetKind)
         {
@@ -301,7 +341,7 @@ namespace SafetyTraining.Runtime
 
         void FlushEpisode(float now)
         {
-            var completed = episodeTracker.Complete(now, dwellThresholdSeconds);
+            var completed = episodeTracker.Complete(now, ActiveDwellThreshold);
             if (completed.HasValue && episodeSite.HasValue)
                 Publish(completed, episodeSite.Value);
         }

@@ -21,7 +21,7 @@ namespace SafetyTraining.Editor
         static Font font;
 
         public static void CreateAll(Transform construction, Transform warehouse, Transform fire,
-            Transform chemical, Transform electrical)
+            Transform chemical, Transform electrical, Transform towerCrane)
         {
             font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
             CreateObjectiveBoard(construction, TrainingSiteId.Construction);
@@ -29,6 +29,7 @@ namespace SafetyTraining.Editor
             CreateObjectiveBoard(fire, TrainingSiteId.FireResponse);
             CreateObjectiveBoard(chemical, TrainingSiteId.ChemicalProcessing);
             CreateObjectiveBoard(electrical, TrainingSiteId.ElectricalMaintenance);
+            CreateObjectiveBoard(towerCrane, TrainingSiteId.TowerCrane);
 
             var positions = new[]
             {
@@ -48,6 +49,8 @@ namespace SafetyTraining.Editor
                 CrossSiteEngineeringCatalog.ForSite(TrainingSiteId.ChemicalProcessing), new Vector3(11.35f, 0f, 0.2f));
             CreateEngineeringStation(electrical, TrainingSiteId.ElectricalMaintenance, "ELE-02",
                 CrossSiteEngineeringCatalog.ForSite(TrainingSiteId.ElectricalMaintenance), new Vector3(11.35f, 0f, 0.2f));
+            CreateEngineeringStation(towerCrane, TrainingSiteId.TowerCrane, "TCR-02",
+                CrossSiteEngineeringCatalog.ForSite(TrainingSiteId.TowerCrane), new Vector3(11.35f, 0f, 0.2f));
         }
 
         static void CreateObjectiveBoard(Transform site, TrainingSiteId siteId)
@@ -138,19 +141,19 @@ namespace SafetyTraining.Editor
             UiImage("Field Card", canvas.transform, new Vector2(-385f, 65f), new Vector2(710f, 320f), Card);
             UiText("Field Card Label", canvas.transform, "01  FIELD INPUTS", new Vector2(-385f, 190f),
                 new Vector2(620f, 34f), 23, Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiText("Field Data", canvas.transform, FormatRows(decision.LearningMaterial), new Vector2(-385f, 55f),
+            var fieldData = UiText("Field Data", canvas.transform, FormatRows(decision.LearningMaterial), new Vector2(-385f, 55f),
                 new Vector2(620f, 220f), 29, Primary, TextAnchor.UpperLeft, FontStyle.Normal);
 
             UiImage("Check Card", canvas.transform, new Vector2(385f, 65f), new Vector2(710f, 320f), Card);
             UiText("Check Card Label", canvas.transform, "02  ENGINEERING CHECK", new Vector2(385f, 190f),
                 new Vector2(620f, 34f), 23, Amber, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiText("Calculation", canvas.transform, FormatRows(decision.Calculation), new Vector2(385f, 55f),
+            var calculation = UiText("Calculation", canvas.transform, FormatRows(decision.Calculation), new Vector2(385f, 55f),
                 new Vector2(620f, 220f), 29, Primary, TextAnchor.UpperLeft, FontStyle.Normal);
 
             UiImage("Question Strip", canvas.transform, new Vector2(0f, -165f), new Vector2(1480f, 105f), Panel);
             UiText("Decision Prompt Label", canvas.transform, "03  CONTROL DECISION", new Vector2(-555f, -165f),
                 new Vector2(330f, 44f), 21, Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiText("Decision Prompt", canvas.transform, decision.Question, new Vector2(175f, -165f),
+            var questionText = UiText("Decision Prompt", canvas.transform, decision.Question, new Vector2(175f, -165f),
                 new Vector2(1030f, 72f), 27, Primary, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiImage("Standard Strip", canvas.transform, new Vector2(0f, -90f), new Vector2(1480f, 42f),
                 new Color(0.045f, 0.08f, 0.105f, 0.98f));
@@ -165,27 +168,112 @@ namespace SafetyTraining.Editor
             var station = root.AddComponent<EngineeringDecisionStation>();
             station.Configure(siteId, objectiveId, decision.Id, decision.Title, feedback);
 
+            var optionComponents = new EngineeringDecisionOption[decision.Options.Count];
+            var optionLabels = new Text[decision.Options.Count];
             for (var index = 0; index < decision.Options.Count; index++)
             {
                 var option = decision.Options[index];
                 var x = -1.18f + index * 1.18f;
                 var button = Primitive(PrimitiveType.Cube, $"Decision Option - {option.Id}", root.transform,
                     new Vector3(x, 0.72f, -0.68f), new Vector3(1.02f, 0.28f, 0.46f),
-                    option.IsCorrect ? new Color(0.07f, 0.31f, 0.25f) : new Color(0.12f, 0.18f, 0.22f));
+                    new Color(0.12f, 0.18f, 0.22f));
                 button.AddComponent<XRSimpleInteractable>();
                 button.AddComponent<InteractiveHoverFeedback>();
-                button.AddComponent<EngineeringDecisionOption>().Configure(option.Id, option.Label,
+                optionComponents[index] = button.AddComponent<EngineeringDecisionOption>();
+                optionComponents[index].Configure(option.Id, option.Label,
                     option.IsCorrect, option.Feedback, station);
                 var labelCanvas = WorldCanvas($"Option Label - {option.Id}", root.transform,
                     new Vector3(x, 0.72f, -0.925f), new Vector2(460f, 120f), 0.00215f, 18);
-                UiText("Option Text", labelCanvas.transform, option.Label.ToUpperInvariant(), Vector2.zero,
-                    new Vector2(430f, 105f), 27,
-                    option.IsCorrect ? new Color(0.66f, 1f, 0.82f) : Primary,
+                optionLabels[index] = UiText("Option Text", labelCanvas.transform,
+                    option.Label.ToUpperInvariant(), Vector2.zero,
+                    new Vector2(430f, 105f), 27, Primary,
                     TextAnchor.MiddleCenter, FontStyle.Bold);
             }
+            station.ConfigureVariantUi(fieldData, calculation, questionText, optionComponents, optionLabels);
 
             Primitive(PrimitiveType.Cube, "Station Number Rail", root.transform,
                 new Vector3(-1.88f, 1.7f, -0.15f), new Vector3(0.055f, 1.52f, 0.045f), Amber);
+            CreateConsequenceVisual(root.transform, decision.Id);
+        }
+
+        // Hidden world-scale failure preview shown when the learner commits an
+        // unsafe choice. Authored per known decision; a generic unsafe-state dome
+        // covers the rest. Colliders are stripped so the ghost never intercepts
+        // interaction or gaze rays.
+        static void CreateConsequenceVisual(Transform stationRoot, string decisionId)
+        {
+            var ghostRoot = new GameObject($"Consequence Visual - {decisionId}");
+            ghostRoot.transform.SetParent(stationRoot, false);
+            ghostRoot.transform.localPosition = new Vector3(0f, 0f, 2.4f);
+            var visual = ghostRoot.AddComponent<ConsequenceVisual>();
+            visual.Configure(decisionId);
+            var alertRed = new Color(0.62f, 0.14f, 0.1f);
+            var ghostGray = new Color(0.55f, 0.5f, 0.48f);
+
+            switch (decisionId)
+            {
+                case "formwork-capacity":
+                {
+                    var slab = GhostPrimitive(PrimitiveType.Cube, "Sagging Slab Ghost", ghostRoot.transform,
+                        new Vector3(0f, 1.1f, 0f), new Vector3(3.4f, 0.22f, 2.4f), ghostGray);
+                    slab.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+                    GhostPrimitive(PrimitiveType.Cube, "Buckled Shore A", ghostRoot.transform,
+                            new Vector3(-1.2f, 0.5f, 0f), new Vector3(0.14f, 1f, 0.14f), alertRed)
+                        .transform.localRotation = Quaternion.Euler(0f, 0f, 14f);
+                    GhostPrimitive(PrimitiveType.Cube, "Buckled Shore B", ghostRoot.transform,
+                            new Vector3(1.1f, 0.42f, 0.4f), new Vector3(0.14f, 0.85f, 0.14f), alertRed)
+                        .transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+                    GhostLabel(ghostRoot.transform, "DEMAND 19,000 LB > CAPACITY 16,000 LB",
+                        new Vector3(0f, 2.15f, 0f));
+                    break;
+                }
+                case "crane-radius":
+                {
+                    GhostPrimitive(PrimitiveType.Cylinder, "Swing Radius Disc", ghostRoot.transform,
+                        new Vector3(0f, 0.03f, 1.2f), new Vector3(7.2f, 0.015f, 7.2f),
+                        new Color(0.62f, 0.14f, 0.1f, 1f));
+                    GhostPrimitive(PrimitiveType.Cylinder, "Load Ghost", ghostRoot.transform,
+                        new Vector3(0f, 1.6f, 1.2f), new Vector3(0.8f, 0.5f, 0.8f), ghostGray);
+                    GhostLabel(ghostRoot.transform, "UNCONTROLLED SWING RADIUS  KEEP OUT",
+                        new Vector3(0f, 2.3f, 1.2f));
+                    break;
+                }
+                case "trench-system":
+                {
+                    GhostPrimitive(PrimitiveType.Cube, "Slough Wedge", ghostRoot.transform,
+                            new Vector3(-0.6f, 0.7f, 0f), new Vector3(1.9f, 1.4f, 1.6f), alertRed)
+                        .transform.localRotation = Quaternion.Euler(0f, 0f, 32f);
+                    GhostPrimitive(PrimitiveType.Capsule, "Worker Height Reference", ghostRoot.transform,
+                        new Vector3(1.1f, 0.9f, 0f), new Vector3(0.42f, 0.9f, 0.42f), ghostGray);
+                    GhostLabel(ghostRoot.transform, "6.5 FT WALL ABOVE HEAD HEIGHT  CAVE-IN RISK",
+                        new Vector3(0f, 2.25f, 0f));
+                    break;
+                }
+                default:
+                {
+                    GhostPrimitive(PrimitiveType.Sphere, "Unsafe State Dome", ghostRoot.transform,
+                        new Vector3(0f, 0.1f, 0f), new Vector3(3.4f, 1.4f, 3.4f), alertRed);
+                    GhostLabel(ghostRoot.transform, "UNSAFE STATE IF EXECUTED", new Vector3(0f, 1.9f, 0f));
+                    break;
+                }
+            }
+            ghostRoot.SetActive(false);
+        }
+
+        static GameObject GhostPrimitive(PrimitiveType type, string name, Transform parent,
+            Vector3 position, Vector3 scale, Color color)
+        {
+            var item = Primitive(type, name, parent, position, scale, color);
+            var collider = item.GetComponent<Collider>();
+            if (collider != null)
+                Object.DestroyImmediate(collider);
+            return item;
+        }
+
+        static void GhostLabel(Transform parent, string text, Vector3 position)
+        {
+            var label = SafetyScenePrimitives.Label(text, parent, position, 0.085f);
+            label.color = new Color(1f, 0.62f, 0.5f);
         }
 
         static Canvas WorldCanvas(string name, Transform parent, Vector3 localPosition,

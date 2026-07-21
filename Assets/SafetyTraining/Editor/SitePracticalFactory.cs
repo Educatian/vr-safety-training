@@ -40,7 +40,7 @@ namespace SafetyTraining.Editor
             public Vector3 DestinationRotation { get; }
         }
 
-        public static void CreateAll(Transform warehouse, Transform fire, Transform chemical, Transform electrical)
+        public static void CreateAll(Transform warehouse, Transform fire, Transform chemical, Transform electrical, Transform towerCrane)
         {
             Create(warehouse, TrainingSiteId.Warehouse,
                 "Warehouse traffic-control sequence.",
@@ -111,6 +111,24 @@ namespace SafetyTraining.Editor
                     Spec("Post arc-flash boundary notice", "clipboard_1k.fbx", 1.85f, 2.05f, 0.86f, -12f,
                         "Post the signed arc-flash boundary notice at the access point before work continues.",
                         2.75f, -0.7f, 0f)
+                });
+            Create(towerCrane, TrainingSiteId.TowerCrane,
+                "Tower crane lift-zone control sequence.",
+                "Tower crane practical complete. The lift corridor, rigging, and permit controls are staged.",
+                new[]
+                {
+                    Spec("Barricade the fall zone", "concrete_road_barrier_1k.fbx", 0.25f, 0.65f, 0.52f, 90f,
+                        "Place the barrier across the walkway under the load path.", 0.6f, -0.4f, 90f),
+                    Spec("Stage the tagline", "hand_truck_1k.fbx", 0.75f, 0.75f, 0.7f, -12f,
+                        "Bring the tagline cart to the landing edge so the load can be controlled without hands under it.",
+                        1.9f, -1.6f, 180f),
+                    Spec("Post the spotter sign", "clipboard_1k.fbx", -1.65f, 1.8f, 0.86f, 8f,
+                        "Post the dedicated-spotter assignment at the power line side of the corridor.", -2.4f, -0.9f, 0f),
+                    Spec("Set the landing pad", "plastic_crate_02_1k.fbx", -1.25f, 0.35f, 0.6f, -16f,
+                        "Place the dunnage set at the marked panel landing zone.", 2.6f, 0.9f, 0f),
+                    Spec("Deliver the lift permit", "metal_toolbox_1k.fbx", -0.95f, 2.05f, 0.7f, 6f,
+                        "Deliver the signed lift permit to the operator briefing point before the next pick.",
+                        -3.0f, 1.4f, 0f)
                 });
         }
 
@@ -263,7 +281,9 @@ namespace SafetyTraining.Editor
             clickSurface.size = new Vector3(1.4f, 0.5f, 0.12f);
             clickSurface.isTrigger = true;
             clickSurface.enabled = false;
-            var label = SafetyScenePrimitives.Label($"STEP {step}\n{title.ToUpperInvariant()}", anchor.transform,
+            // Number only: the full instruction lives in the HUD and coach feedback,
+            // so the world marker stays a compact anchor instead of a text wall.
+            var label = SafetyScenePrimitives.Label($"STEP {step}", anchor.transform,
                 Vector3.zero, 0.045f);
             label.color = new Color(1f, 0.78f, 0.18f);
         }

@@ -1,0 +1,27 @@
+{
+ "brief": "타워크레인 리깅 조립 스테이션: 마그네틱 스냅 조립(wand+데스크톱), 손상/정상 슬링 선택 측정, 인양 게이팅, 텔레메트리",
+ "created": "2026-07-21T15:37:52.829598+00:00",
+ "goals": [
+  {
+   "id": "G001",
+   "title": "R1-mechanic",
+   "objective": "AssemblyPart/AssemblySocket/RiggingAssemblyStation 런타임 (스냅·고스트·언스냅·assembly 텔레메트리·인양 게이트)",
+   "status": "in_progress",
+   "evidence": null
+  },
+  {
+   "id": "G002",
+   "title": "R2-factory",
+   "objective": "Rigging Loft에 지그+부품(정상 슬링2·손상 슬링2·태그라인) 저작+애니메이터 게이트 배선",
+   "status": "pending",
+   "evidence": null
+  },
+  {
+   "id": "G003",
+   "title": "R3-verify",
+   "objective": "EditMode 스테이션 로직 테스트+전체 그린+씬 재생성+플레이 실증 스샷",
+   "status": "pending",
+   "evidence": null
+  }
+ ]
+}

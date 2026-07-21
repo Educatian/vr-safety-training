@@ -73,22 +73,36 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
-        public void GuidedPlan_RemainsIncompleteBeforeTwentyMinutes()
+        public void GuidedPlan_RemainsIncompleteWithoutTwoCoachTurnsPerSite()
         {
-            var plan = CreateCompletedActivityPlan(239f);
+            var plan = new GuidedSessionPlan();
+            foreach (var site in (TrainingSiteId[])Enum.GetValues(typeof(TrainingSiteId)))
+            {
+                plan.Advance(site, GuidedSessionPlan.MinimumSiteSeconds);
+                plan.RecordCoachTurn(site);
+            }
 
             Assert.That(plan.IsComplete, Is.False);
-            Assert.That(plan.ElapsedSeconds, Is.EqualTo(1195f).Within(0.01f));
         }
 
         [Test]
-        public void GuidedPlan_CompletesAfterFourMinutesAndTwoCoachTurnsPerSite()
+        public void GuidedPlan_CompletesWithTwoCoachTurnsPerSiteRegardlessOfElapsedTime()
+        {
+            var plan = CreateCompletedActivityPlan(0f);
+
+            Assert.That(plan.IsComplete, Is.True);
+            Assert.That(plan.ElapsedSeconds, Is.Zero);
+            Assert.That(plan.CompletedCoachTurns, Is.EqualTo(12));
+        }
+
+        [Test]
+        public void GuidedPlan_TracksElapsedTimeForTelemetryWithoutGatingCompletion()
         {
             var plan = CreateCompletedActivityPlan(GuidedSessionPlan.MinimumSiteSeconds);
 
             Assert.That(plan.IsComplete, Is.True);
-            Assert.That(plan.ElapsedSeconds, Is.EqualTo(GuidedSessionPlan.MinimumSessionSeconds).Within(0.01f));
-            Assert.That(plan.CompletedCoachTurns, Is.EqualTo(10));
+            Assert.That(plan.ElapsedSeconds, Is.EqualTo(GuidedSessionPlan.MinimumSiteSeconds *
+                (int)System.Enum.GetValues(typeof(TrainingSiteId)).Length).Within(0.01f));
         }
 
         [Test]

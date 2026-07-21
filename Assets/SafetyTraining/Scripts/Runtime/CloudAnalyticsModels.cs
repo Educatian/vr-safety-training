@@ -59,6 +59,11 @@ namespace SafetyTraining.Runtime
         public const int GazeDwellKind = 102;
         public const int SpatialSampleKind = 103;
         public const int InteractionKind = 199;
+        public const int AssessmentKind = 200;
+
+        // Assessment events reuse the spatial queue; offsetting their sequence keeps
+        // queue file names and event ids from colliding with spatial events.
+        public const int AssessmentSequenceOffset = 1000000;
 
         public int schemaVersion = 1;
         public string eventId = string.Empty;
@@ -124,6 +129,39 @@ namespace SafetyTraining.Runtime
                 hitSiteX = source.hitSiteX,
                 hitSiteY = source.hitSiteY,
                 hitSiteZ = source.hitSiteZ
+            };
+        }
+
+        // Maps assessment evidence into the existing event columns so the collector
+        // schema stays unchanged: subjectId=criterionId (objectId fallback),
+        // targetKind=objectiveId, durationOrDistance=earnedPoints,
+        // metricKind=assessment_points. Free text is intentionally absent.
+        public static SafetyCloudEvent FromAssessment(AssessmentAnalyticsEvent source)
+        {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+            var sequence = AssessmentSequenceOffset + source.Sequence;
+            return new SafetyCloudEvent
+            {
+                eventId = source.SessionId + "-" + sequence,
+                sessionId = source.SessionId,
+                sequence = sequence,
+                timestampUtc = source.TimestampUtc,
+                kind = AssessmentKind,
+                eventType = source.EventType,
+                site = source.Site,
+                subjectId = string.IsNullOrEmpty(source.CriterionId)
+                    ? source.ObjectId : source.CriterionId,
+                outcome = string.IsNullOrEmpty(source.Outcome) && source.IsDistractor
+                    ? "distractor" : source.Outcome,
+                zoneId = source.ZoneId,
+                zoneName = source.ZoneName,
+                siteX = source.SiteX,
+                siteY = source.SiteY,
+                siteZ = source.SiteZ,
+                durationOrDistance = source.EarnedPoints,
+                metricKind = "assessment_points",
+                targetKind = source.ObjectiveId
             };
         }
 

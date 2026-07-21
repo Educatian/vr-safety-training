@@ -11,8 +11,8 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b53eb82258e249bb97cf3789c6a97dda, type: 3}
   m_Name: HighlightStrengthInteraction
-  m_EditorClassIdentifier: 
-  m_Comments: 
+  m_EditorClassIdentifier:
+  m_Comments:
   m_ReadOnly: 1
   m_Value:
     m_StateAnimationCurve:

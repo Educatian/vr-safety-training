@@ -49,6 +49,35 @@ namespace SafetyTraining.Runtime
         public int EarnedCount(string objectiveId) =>
             earnedCriteria.TryGetValue(objectiveId, out var values) ? values.Count : 0;
 
+        /// <summary>Logs the session's experimental condition assignment to telemetry.</summary>
+        public void RecordExperimentCondition(string flag, string value)
+        {
+            eventLogger ??= GetComponent<InquiryEventLogger>() ?? gameObject.AddComponent<InquiryEventLogger>();
+            eventLogger?.Record(new InquiryTelemetryEvent
+            {
+                SiteId = TrainingSiteId.Construction,
+                EventType = "experiment_condition",
+                Phase = "session",
+                ObjectId = flag,
+                Outcome = value,
+                Detail = $"{flag}={value}"
+            });
+        }
+
+        public int EarnedCriteriaMatching(string fragment) => CountMatching(earnedCriteria, fragment);
+
+        public int AttemptedCriteriaMatching(string fragment) => CountMatching(attemptedCriteria, fragment);
+
+        static int CountMatching(Dictionary<string, HashSet<string>> source, string fragment)
+        {
+            var count = 0;
+            foreach (var criteria in source.Values)
+                foreach (var criterion in criteria)
+                    if (criterion.Contains(fragment))
+                        count++;
+            return count;
+        }
+
         public string CompactSummary(TrainingSiteId site)
         {
             return string.Join("   ", LearningObjectiveCatalog.ForSite(site).Select(objective =>

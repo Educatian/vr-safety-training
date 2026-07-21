@@ -1,6 +1,6 @@
 # Current build status
 
-Updated: 2026-07-19
+Updated: 2026-07-21
 
 - Unity 6.0 LTS project scaffold: complete
 - OpenXR + XR Interaction Toolkit package manifest: complete
@@ -46,3 +46,27 @@ Updated: 2026-07-19
 ## Prototype status
 
 Feature-complete for a supervised engineering demo. Before an unsupervised learner study: run physical-headset performance/comfort testing, conduct at least five formative human pilot sessions, review accessibility, and obtain a host-site/qualified-safety-professional content review. See `docs/PILOT_VALIDATION_REPORT.md`.
+
+## 2026-07-21 update (audit-driven overhaul)
+
+- Sixth training site: Tower Crane apartment build (OSHA 1926 Subpart CC), with an
+  11-segment animated tower crane (deterministic slewing jib and traveling trolley),
+  five-story apartment frame, and three hazard / three look-alike inspection items.
+- Item bank expanded to 3+3 per site: 36 inspection items across six sites.
+- Every site gained a rear annex yard (walkable expansion, two extra analytics
+  zones per site; 49 zones total).
+- Learner-selected hypothesis plates (one evidence-consistent + two plausible foils
+  per site) now gate report submission; first-attempt markers are logged.
+- Mastery-based certification (seat-time requirement removed); score-neutral
+  recertification retrieval round after certification.
+- Delayed-feedback experimental condition (SAFETY_FEEDBACK_MODE=delayed) with
+  telemetry logging of the assigned condition.
+- Engineering stations: first-attempt scoring differentiation, consequence-preview
+  visuals on unsafe choices, and no-worked-solution transfer variants for the three
+  construction calculations.
+- Telemetry hardening: schemaVersion=2, inquiry sequence numbers, resilient CSV
+  export incl. scoring_events.csv, assessment events joined to the cloud collector
+  (kind=200, verified end-to-end against the live worker).
+- Instructor dashboard (Tools/dashboard) with BKT mastery overlay; in-world
+  session debrief board in the lobby; HUD section toggle buttons.
+- Unity EditMode tests: 191/191 passed.

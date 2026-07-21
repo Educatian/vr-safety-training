@@ -44,6 +44,16 @@ namespace SafetyTraining.Runtime
             TrySync();
         }
 
+        void OnEnable()
+        {
+            InquiryEventLogger.AssessmentRecorded += OnAssessmentRecorded;
+        }
+
+        void OnDisable()
+        {
+            InquiryEventLogger.AssessmentRecorded -= OnAssessmentRecorded;
+        }
+
         void Update()
         {
             if (!syncInProgress && Time.unscaledTime >= nextRetryAt)
@@ -64,10 +74,19 @@ namespace SafetyTraining.Runtime
 
         void OnSpatialEventRecorded(TrainingEventLogger.SpatialAnalyticsEvent spatialEvent)
         {
+            Enqueue(SafetyCloudEvent.FromSpatial(spatialEvent));
+        }
+
+        void OnAssessmentRecorded(AssessmentAnalyticsEvent assessmentEvent)
+        {
+            Enqueue(SafetyCloudEvent.FromAssessment(assessmentEvent));
+        }
+
+        void Enqueue(SafetyCloudEvent cloudEvent)
+        {
 #if !UNITY_WEBGL
             try
             {
-                var cloudEvent = SafetyCloudEvent.FromSpatial(spatialEvent);
                 var directory = QueueDirectory();
                 Directory.CreateDirectory(directory);
                 var fileName = cloudEvent.sessionId + "_" +

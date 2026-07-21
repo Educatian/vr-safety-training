@@ -13,12 +13,14 @@ namespace SafetyTraining.Runtime
         [SerializeField] Vector3 targetLocalPosition;
         [SerializeField] Vector3 targetLocalEulerAngles;
         [SerializeField, Min(0.1f)] float acceptanceRadius = 0.85f;
+        [SerializeField, Min(0.1f)] float verticalTolerance = 1.5f;
         [SerializeField] GameObject targetVisual;
 
         XRGrabInteractable grabInteractable;
         Rigidbody body;
         Vector3 startLocalPosition;
         Quaternion startLocalRotation;
+        bool startPoseCaptured;
         Plane desktopDragPlane;
         Vector3 desktopDragOffset;
         bool desktopDragging;
@@ -29,7 +31,9 @@ namespace SafetyTraining.Runtime
         public float DistanceToTarget => Vector3.Distance(
             new Vector3(transform.localPosition.x, 0f, transform.localPosition.z),
             new Vector3(targetLocalPosition.x, 0f, targetLocalPosition.z));
-        public bool IsWithinTarget => DistanceToTarget <= acceptanceRadius;
+        public float HeightAboveTarget => Mathf.Abs(transform.localPosition.y - targetLocalPosition.y);
+        public bool IsWithinTarget => DistanceToTarget <= acceptanceRadius &&
+                                      HeightAboveTarget <= verticalTolerance;
         public GameObject TargetVisual => targetVisual;
 
         void Awake()
@@ -142,10 +146,11 @@ namespace SafetyTraining.Runtime
 
         void CaptureStartPose()
         {
-            if (!configured && startLocalRotation != default)
+            if (!configured && startPoseCaptured)
                 return;
             startLocalPosition = transform.localPosition;
             startLocalRotation = transform.localRotation;
+            startPoseCaptured = true;
         }
 
         bool CanManipulate()

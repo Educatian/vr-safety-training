@@ -20,7 +20,7 @@ namespace SafetyTraining.Editor
                 throw new ArgumentException("Output directory is required.", nameof(outputDirectory));
 
             Directory.CreateDirectory(outputDirectory);
-            var entries = ReadEntries(logDirectory).ToList();
+            var entries = ReadEntries(logDirectory, out var skippedLines);
             var spatialRows = entries
                 .Where(entry => entry.HasCoordinates)
                 .OrderBy(entry => entry.TimestampUtc)
@@ -29,23 +29,32 @@ namespace SafetyTraining.Editor
                 .Where(entry => entry.Source == "inquiry")
                 .OrderBy(entry => entry.TimestampUtc)
                 .ToList();
+            var scoringRows = entries
+                .Where(entry => entry.HasScoringPayload)
+                .OrderBy(entry => entry.TimestampUtc)
+                .ToList();
             var dwellRows = BuildDwellRows(spatialRows.Where(entry => entry.Source == "spatial").ToList());
             var summaryRows = BuildRouteSummaryRows(spatialRows);
 
             var spatialPath = Path.Combine(outputDirectory, "spatial_samples.csv");
             var inquiryPath = Path.Combine(outputDirectory, "inquiry_events.csv");
+            var scoringPath = Path.Combine(outputDirectory, "scoring_events.csv");
             var dwellPath = Path.Combine(outputDirectory, "zone_dwell.csv");
             var summaryPath = Path.Combine(outputDirectory, "learner_route_summary.csv");
             AnalyticsCsv.Write(spatialPath, SpatialHeader, spatialRows.Select(ToSpatialRow));
             AnalyticsCsv.Write(inquiryPath, InquiryHeader, inquiryRows.Select(ToInquiryRow));
+            AnalyticsCsv.Write(scoringPath, ScoringHeader, scoringRows.Select(ToScoringRow));
             AnalyticsCsv.Write(dwellPath, DwellHeader, dwellRows.Select(ToDwellRow));
             AnalyticsCsv.Write(summaryPath, RouteSummaryHeader, summaryRows.Select(ToRouteSummaryRow));
             return new AnalyticsExportResult(spatialPath, inquiryPath, dwellPath, summaryPath,
-                spatialRows.Count, inquiryRows.Count, dwellRows.Count, summaryRows.Count);
+                spatialRows.Count, inquiryRows.Count, dwellRows.Count, summaryRows.Count,
+                scoringPath, scoringRows.Count, skippedLines);
         }
 
-        static IEnumerable<AnalyticsEntry> ReadEntries(string logDirectory)
+        static List<AnalyticsEntry> ReadEntries(string logDirectory, out int skippedLines)
         {
+            var entries = new List<AnalyticsEntry>();
+            skippedLines = 0;
             foreach (var path in Directory.GetFiles(logDirectory, "*.jsonl"))
             {
                 var source = Path.GetFileName(path).StartsWith("inquiry_", StringComparison.OrdinalIgnoreCase)
@@ -54,9 +63,27 @@ namespace SafetyTraining.Editor
                 {
                     if (string.IsNullOrWhiteSpace(line))
                         continue;
-                    var json = JObject.Parse(line);
-                    yield return new AnalyticsEntry
+                    var entry = TryParseEntry(line, source);
+                    if (entry == null)
                     {
+                        skippedLines++;
+                        continue;
+                    }
+                    entries.Add(entry);
+                }
+            }
+            if (skippedLines > 0)
+                Debug.LogWarning($"Safety analytics export skipped {skippedLines} malformed log line(s).");
+            return entries;
+        }
+
+        static AnalyticsEntry TryParseEntry(string line, string source)
+        {
+            try
+            {
+                var json = JObject.Parse(line);
+                return new AnalyticsEntry
+                {
                         Source = source,
                         TimestampUtc = AnalyticsCsv.ReadDate(json, "timestampUtc"),
                         SessionId = AnalyticsCsv.ReadString(json, "sessionId"),
@@ -93,9 +120,27 @@ namespace SafetyTraining.Editor
                         HitWorldZ = AnalyticsCsv.ReadFloat(json, "hitWorldZ"),
                         HitSiteX = AnalyticsCsv.ReadFloat(json, "hitSiteX"),
                         HitSiteY = AnalyticsCsv.ReadFloat(json, "hitSiteY"),
-                        HitSiteZ = AnalyticsCsv.ReadFloat(json, "hitSiteZ")
+                        HitSiteZ = AnalyticsCsv.ReadFloat(json, "hitSiteZ"),
+                        Sequence = AnalyticsCsv.ReadInteger(json, "sequence"),
+                        ScoreDelta = AnalyticsCsv.ReadInteger(json, "scoreDelta"),
+                        SiteScore = AnalyticsCsv.ReadInteger(json, "siteScore"),
+                        OverallScore = AnalyticsCsv.ReadInteger(json, "overallScore"),
+                        HazardsFound = AnalyticsCsv.ReadInteger(json, "hazardsFound"),
+                        HazardsRequired = AnalyticsCsv.ReadInteger(json, "hazardsRequired"),
+                        SiteComplete = AnalyticsCsv.ReadBoolean(json, "siteComplete"),
+                        IsHazard = AnalyticsCsv.ReadBoolean(json, "isHazard"),
+                        StepIndex = AnalyticsCsv.ReadInteger(json, "stepIndex"),
+                        TotalSteps = AnalyticsCsv.ReadInteger(json, "totalSteps"),
+                        ActionName = AnalyticsCsv.ReadString(json, "actionName"),
+                        Instruction = AnalyticsCsv.ReadString(json, "instruction"),
+                        ReleaseDistance = AnalyticsCsv.ReadFloat(json, "releaseDistance"),
+                        InputMode = AnalyticsCsv.ReadString(json, "inputMode"),
+                        HasScoringPayload = json["scoreDelta"] != null || json["stepIndex"] != null
                     };
-                }
+            }
+            catch (Exception e) when (e is Newtonsoft.Json.JsonException || e is FormatException)
+            {
+                return null;
             }
         }
 
@@ -205,6 +250,13 @@ namespace SafetyTraining.Editor
             "isDistractor", "objectiveId", "criterionId", "earnedPoints", "possiblePoints", "siteX", "siteY", "siteZ"
         };
 
+        static readonly string[] ScoringHeader =
+        {
+            "timestampUtc", "sessionId", "eventType", "site", "targetId", "isHazard", "outcome",
+            "scoreDelta", "siteScore", "overallScore", "hazardsFound", "hazardsRequired", "siteComplete",
+            "stepIndex", "totalSteps", "actionName", "instruction", "releaseDistance", "inputMode"
+        };
+
         static readonly string[] DwellHeader =
         {
             "sessionId", "site", "zoneId", "zoneName", "firstSeenUtc", "lastSeenUtc", "sampleCount",
@@ -280,6 +332,33 @@ namespace SafetyTraining.Editor
             };
         }
 
+        static string[] ToScoringRow(AnalyticsEntry entry)
+        {
+            var eventType = entry.EventType == "placement_attempt" ? "placement_attempt" : "inspection_detail";
+            return new[]
+            {
+                AnalyticsCsv.FormatDate(entry.TimestampUtc),
+                entry.SessionId,
+                eventType,
+                entry.Site,
+                entry.SubjectId,
+                entry.IsHazard ? "true" : "false",
+                entry.Outcome,
+                AnalyticsCsv.FormatInteger(entry.ScoreDelta),
+                AnalyticsCsv.FormatInteger(entry.SiteScore),
+                AnalyticsCsv.FormatInteger(entry.OverallScore),
+                AnalyticsCsv.FormatInteger(entry.HazardsFound),
+                AnalyticsCsv.FormatInteger(entry.HazardsRequired),
+                entry.SiteComplete ? "true" : "false",
+                AnalyticsCsv.FormatInteger(entry.StepIndex),
+                AnalyticsCsv.FormatInteger(entry.TotalSteps),
+                entry.ActionName,
+                entry.Instruction,
+                AnalyticsCsv.FormatFloat(entry.ReleaseDistance),
+                entry.InputMode
+            };
+        }
+
         static string[] ToDwellRow(DwellEntry entry)
         {
             return new[]
@@ -334,7 +413,8 @@ namespace SafetyTraining.Editor
             var result = AnalyticsLogExporter.ExportDirectory(logDirectory, outputDirectory);
             Debug.Log($"Safety analytics CSV export complete: spatial={result.SpatialRowCount}, " +
                       $"inquiry={result.InquiryRowCount}, dwell={result.DwellRowCount}, " +
-                      $"routeSummary={result.RouteSummaryRowCount}, output={outputDirectory}");
+                      $"routeSummary={result.RouteSummaryRowCount}, scoring={result.ScoringRowCount}, " +
+                      $"skippedLines={result.SkippedLineCount}, output={outputDirectory}");
             EditorUtility.RevealInFinder(outputDirectory);
         }
 
@@ -351,7 +431,8 @@ namespace SafetyTraining.Editor
             var result = AnalyticsLogExporter.ExportDirectory(logDirectory, outputDirectory);
             Debug.Log($"Safety analytics CSV export complete: spatial={result.SpatialRowCount}, " +
                       $"inquiry={result.InquiryRowCount}, dwell={result.DwellRowCount}, " +
-                      $"routeSummary={result.RouteSummaryRowCount}, output={outputDirectory}");
+                      $"routeSummary={result.RouteSummaryRowCount}, scoring={result.ScoringRowCount}, " +
+                      $"skippedLines={result.SkippedLineCount}, output={outputDirectory}");
         }
 
         static string ReadCommandLineValue(string key)

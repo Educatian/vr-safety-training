@@ -46,11 +46,11 @@ namespace SafetyTraining.Tests.EditMode
             EditorSceneManager.OpenScene(ScenePath);
 
             Assert.That(Object.FindObjectsByType<LearningObjectiveBoard>(FindObjectsSortMode.None),
-                Has.Length.EqualTo(5));
+                Has.Length.EqualTo(6));
             Assert.That(Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None),
-                Has.Length.EqualTo(7));
+                Has.Length.EqualTo(8));
             Assert.That(Object.FindObjectsByType<EngineeringDecisionOption>(FindObjectsSortMode.None),
-                Has.Length.EqualTo(21));
+                Has.Length.EqualTo(24));
             Assert.That(Object.FindFirstObjectByType<LearningOutcomeTracker>(), Is.Not.Null);
             Assert.That(GameObject.Find("Learning Evidence Shell"), Is.Not.Null);
         }
@@ -202,7 +202,8 @@ namespace SafetyTraining.Tests.EditMode
                 TrainingSiteId.Warehouse,
                 TrainingSiteId.FireResponse,
                 TrainingSiteId.ChemicalProcessing,
-                TrainingSiteId.ElectricalMaintenance
+                TrainingSiteId.ElectricalMaintenance,
+                TrainingSiteId.TowerCrane
             };
 
             foreach (var site in sites)
@@ -216,7 +217,7 @@ namespace SafetyTraining.Tests.EditMode
             EditorSceneManager.OpenScene(ScenePath);
             var stations = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
                 .Where(item => item.SiteId != TrainingSiteId.Construction).ToArray();
-            Assert.That(stations.Select(item => item.SiteId).Distinct().Count(), Is.EqualTo(4));
+            Assert.That(stations.Select(item => item.SiteId).Distinct().Count(), Is.EqualTo(5));
             Assert.That(stations.All(item => item.ObjectiveId.EndsWith("-02")), Is.True);
         }
     }

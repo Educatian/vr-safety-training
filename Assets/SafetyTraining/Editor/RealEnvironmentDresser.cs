@@ -17,7 +17,8 @@ namespace SafetyTraining.Editor
             Warehouse,
             FireResponse,
             ChemicalProcessing,
-            ElectricalMaintenance
+            ElectricalMaintenance,
+            TowerCrane
         }
 
         readonly struct Placement
@@ -136,6 +137,8 @@ namespace SafetyTraining.Editor
                     AddRollerDoor(site);
                     break;
                 case SiteStyle.ChemicalProcessing:
+                    break;
+                case SiteStyle.TowerCrane:
                     break;
                 case SiteStyle.ElectricalMaintenance:
                     Place(site, new Placement("utility_box_01_1k.fbx", "Utility Cabinet A",

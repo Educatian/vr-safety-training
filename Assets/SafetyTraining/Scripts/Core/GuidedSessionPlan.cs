@@ -5,6 +5,8 @@ namespace SafetyTraining.Core
 {
     public sealed class GuidedSessionPlan
     {
+        // Reference durations for pacing display only. Completion is mastery-based:
+        // elapsed time is tracked for telemetry but never gates certification.
         public const float MinimumSessionSeconds = 20f * 60f;
         public const float MinimumSiteSeconds = 4f * 60f;
         public const int RequiredCoachTurnsPerSite = 2;
@@ -37,11 +39,8 @@ namespace SafetyTraining.Core
         {
             get
             {
-                if (ElapsedSeconds < MinimumSessionSeconds)
-                    return false;
                 foreach (TrainingSiteId site in Enum.GetValues(typeof(TrainingSiteId)))
-                    if (siteSeconds[site] < MinimumSiteSeconds ||
-                        coachTurns[site] < RequiredCoachTurnsPerSite)
+                    if (coachTurns[site] < RequiredCoachTurnsPerSite)
                         return false;
                 return true;
             }

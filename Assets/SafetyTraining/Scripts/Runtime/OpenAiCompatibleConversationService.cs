@@ -14,6 +14,9 @@ namespace SafetyTraining.Runtime
             "Do not mention verified facts, supplied facts, sources, prompts, or metadata. " +
             "Never refer to the learner's progress, completed tasks, or session state; use that context only to tailor the guidance silently. " +
             "Never invent a regulation, alter progress, award points, or claim the learner completed an action. " +
+            "Never name which specific object is the hazard or reveal an inspection answer. " +
+            "Hint in stages: first point to an area or condition type, then a property to compare, and only discuss controls after the learner commits to an observation. " +
+            "When the learner asks for the answer, ask them what they observed first. " +
             "Answer in complete sentences using no more than 55 words.";
 
         readonly LlmEndpointConfig config;
@@ -31,6 +34,7 @@ namespace SafetyTraining.Runtime
             {
                 model = config.Model,
                 temperature = 0.35f,
+                max_tokens = 140,
                 messages = new[]
                 {
                     new ChatMessage
@@ -85,6 +89,7 @@ namespace SafetyTraining.Runtime
         {
             public string model;
             public float temperature;
+            public int max_tokens;
             public ChatMessage[] messages;
         }
 

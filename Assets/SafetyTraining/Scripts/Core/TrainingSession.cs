@@ -9,7 +9,8 @@ namespace SafetyTraining.Core
         Warehouse,
         FireResponse,
         ChemicalProcessing,
-        ElectricalMaintenance
+        ElectricalMaintenance,
+        TowerCrane
     }
 
     public enum InspectionOutcome
@@ -64,6 +65,7 @@ namespace SafetyTraining.Core
             new Dictionary<string, InspectionTargetSpec>(StringComparer.Ordinal);
         readonly HashSet<string> inspectedTargets = new HashSet<string>(StringComparer.Ordinal);
         readonly HashSet<string> identifiedHazards = new HashSet<string>(StringComparer.Ordinal);
+        readonly List<string> falsePositiveTargets = new List<string>();
 
         public TrainingSession(TrainingSiteId siteId, IEnumerable<InspectionTargetSpec> targetSpecs)
         {
@@ -88,6 +90,17 @@ namespace SafetyTraining.Core
         public int FalsePositives { get; private set; }
         public int InspectedCount => inspectedTargets.Count;
         public bool IsComplete => HazardsFound == HazardsRequired;
+        public IReadOnlyList<string> FalsePositiveTargetIds => falsePositiveTargets;
+
+        public IEnumerable<string> HazardTargetIds
+        {
+            get
+            {
+                foreach (var target in targets.Values)
+                    if (target.IsHazard)
+                        yield return target.Id;
+            }
+        }
 
         public InspectionResult Inspect(string targetId)
         {
@@ -104,6 +117,7 @@ namespace SafetyTraining.Core
             }
 
             FalsePositives++;
+            falsePositiveTargets.Add(targetId);
             Score -= SafeObjectPenalty;
             return Result(InspectionOutcome.SafeObjectSelected, -SafeObjectPenalty);
         }

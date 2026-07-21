@@ -25,6 +25,7 @@ namespace SafetyTraining.Runtime
             SafetyTraining.Core.TrainingSiteId.FireResponse => "Fire Response",
             SafetyTraining.Core.TrainingSiteId.ChemicalProcessing => "Chemical Processing",
             SafetyTraining.Core.TrainingSiteId.ElectricalMaintenance => "Electrical Maintenance",
+            SafetyTraining.Core.TrainingSiteId.TowerCrane => "Tower Crane",
             _ => siteId.ToString()
         };
 

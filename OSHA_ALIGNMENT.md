@@ -22,3 +22,14 @@ Every inspectable condition has an `OshaScenarioCatalog` entry with a current 29
 Before release, an EHS reviewer must check each scenario against the active federal standard, any applicable State Plan, task-specific employer procedures, and actual worksite conditions. An OSHA or scenario-content change requires a new review date and approval. The app must not present an in-app score as regulatory certification.
 
 Official sources: [29 CFR Part 1926](https://www.osha.gov/laws-regs/regulations/standardnumber/1926/), [Fall protection](https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926SubpartM), [Material storage](https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.250), [Fire protection](https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.150), [Hazard communication](https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.59), and [Lockout and tagging of circuits](https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.417).
+
+## 2026-07-21 additions
+
+The item bank now covers three hazards and three controlled look-alikes per site
+(36 items). New citations in the scenario catalog: 1926.1053 (ladders), 1926.34 /
+1926.150 (fire doors and egress), 1926.152 (flammable storage segregation),
+1926.1408 (power line safety), 1926.1413 (rigging inspection), 1926.1417 (crane
+operations incl. wind limits), and 1926.1425 (fall zones) for the Tower Crane
+apartment-build module. The general-industry references retained by the warehouse,
+fire, chemical, and electrical modules mean the campus is a mixed-jurisdiction
+training environment; module briefs state training alignment, not certification.

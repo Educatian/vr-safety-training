@@ -89,12 +89,12 @@ namespace SafetyTraining.Runtime
             };
         }
 
-        public void CollectEvidence(EvidenceObject evidence)
+        public bool CollectEvidence(EvidenceObject evidence)
         {
             var golden = ConstructionGoldenModuleController.Instance;
             if (evidence.SiteId == TrainingSiteId.Construction && golden != null &&
                 !golden.TryCollectEvidence(evidence.EvidenceId, !evidence.IsDistractor))
-                return;
+                return false;
 
             if (!collectedEvidence.TryGetValue(evidence.SiteId, out var items))
             {
@@ -122,24 +122,35 @@ namespace SafetyTraining.Runtime
             TrainingCoordinator.Instance?.SetContextFeedback(
                 $"{evidence.Title}\nRelevant evidence: {EvidenceCount(evidence.SiteId)}. " +
                 $"Comparison samples: {DistractorCount(evidence.SiteId)}. {evidence.Observation}");
-            NotifyCoach(evidence, EvidenceCount(evidence.SiteId), DistractorCount(evidence.SiteId));
+            NotifyCoach(evidence, EvidenceCount(evidence.SiteId), DistractorCount(evidence.SiteId),
+                RequiredEvidenceFor(evidence.SiteId));
+            return true;
         }
 
-        public void SelectHypothesis(TrainingSiteId site, string hypothesis)
+        public static int RequiredEvidenceFor(TrainingSiteId site)
+        {
+            return site == TrainingSiteId.Construction
+                ? ConstructionGoldenModuleProgress.RequiredRelevantEvidence
+                : DefaultMinimumEvidenceForReport;
+        }
+
+        public void SelectHypothesis(TrainingSiteId site, string hypothesis, bool learnerAuthored = true)
         {
             hypotheses[site] = hypothesis;
-            Record(site, "hypothesis_selected", "hypothesis", string.Empty, hypothesis, false);
+            var detail = learnerAuthored ? hypothesis : $"[preset-statement] {hypothesis}";
+            Record(site, "hypothesis_selected", "hypothesis", string.Empty, detail, false);
             var objectives = LearningObjectiveCatalog.ForSite(site);
             LearningOutcomeTracker.Instance?.Record(site, objectives[objectives.Count - 1].Id,
-                "hypothesis", !string.IsNullOrWhiteSpace(hypothesis), hypothesis);
+                "hypothesis", !string.IsNullOrWhiteSpace(hypothesis), detail);
         }
 
-        public void SubmitFinalExplanation(TrainingSiteId site, string explanation)
+        public void SubmitFinalExplanation(TrainingSiteId site, string explanation, bool learnerAuthored = true)
         {
-            Record(site, "final_explanation_submitted", "report", string.Empty, explanation, false);
+            var detail = learnerAuthored ? explanation : $"[preset-statement] {explanation}";
+            Record(site, "final_explanation_submitted", "report", string.Empty, detail, false);
             var objectives = LearningObjectiveCatalog.ForSite(site);
             LearningOutcomeTracker.Instance?.Record(site, objectives[objectives.Count - 1].Id,
-                "final_report", !string.IsNullOrWhiteSpace(explanation), explanation);
+                "final_report", !string.IsNullOrWhiteSpace(explanation), detail);
         }
 
         public void BlockReportSubmission(TrainingSiteId site, int minimumEvidenceRequired, string hypothesis)
@@ -172,7 +183,8 @@ namespace SafetyTraining.Runtime
             });
         }
 
-        static void NotifyCoach(EvidenceObject evidence, int evidenceCount, int distractorCount)
+        static void NotifyCoach(EvidenceObject evidence, int evidenceCount, int distractorCount,
+            int requiredEvidence)
         {
             foreach (var coach in Object.FindObjectsByType<NpcConversationAgent>(FindObjectsSortMode.None))
             {
@@ -186,7 +198,7 @@ namespace SafetyTraining.Runtime
                     : "Good catch. Connect this observation to the safest control before you submit.";
                 talk.PresentCoachFeedback(
                     $"{tone}\n{evidence.Title}: {evidence.HazardType}. " +
-                    $"Relevant evidence {evidenceCount}/3, comparison samples {distractorCount}.");
+                    $"Relevant evidence {evidenceCount}/{requiredEvidence}, comparison samples {distractorCount}.");
                 return;
             }
         }

@@ -12,7 +12,7 @@ Civil/construction engineering learning objectives, assessment evidence, and the
 | --- | --- |
 | ![Diagnostic engineering decision feedback](docs/images/construction-formwork-diagnostic.png) | ![Verified formwork decision and learning evidence HUD](docs/images/construction-formwork-verified.png) |
 
-Unity 6 + OpenXR prototype for exploring multiple safety-training sites and talking with Microsoft Rocketbox NPCs. The experience contains five workplace zones in one continuous campus:
+Unity 6 + OpenXR prototype for exploring multiple safety-training sites and talking with Microsoft Rocketbox NPCs. The experience contains six workplace zones in one continuous campus, each extended with a walkable rear annex yard:
 
 ![Chemical hands-on safety training with PPE and mission HUD](docs/images/chemical-hands-on-ppe.png)
 
@@ -44,9 +44,10 @@ The assessment engine owns hazards, action order, completion, and scoring. The N
 - Warehouse: spill and vehicle-route hazards
 - Fire response: extinguisher access and evacuation hazards
 - Chemical processing: solvent storage, labeling, and eyewash access
-- Electrical maintenance: energized-panel lockout and protected cable crossings
+- Electrical maintenance: energized-panel lockout, protected cable crossings, and damaged flexible cords
+- Tower crane apartment build: fall-zone control, power line clearance, and rigging condition under an animated fixed tower crane (slewing jib and traveling trolley)
 
-Each site contains two real hazards and two controlled look-alikes. Nothing is labeled or colored as a hazard before inspection. A correct identification earns 100 points; the first selection of a safe condition costs 25 points; repeats do not change the score. The deterministic training engine owns completion and scoring. The language model only produces grounded NPC coaching, so a model response cannot change the correct answer or score.
+Each site contains three real hazards and three controlled look-alikes (36 inspection items in total). Nothing is labeled or colored as a hazard before inspection. A correct identification earns 100 points; the first selection of a safe condition costs 25 points; repeats do not change the score. The deterministic training engine owns completion and scoring. Certification is mastery-based (hazards, hands-on practicals, and coach interaction), not seat time. After certification, a score-neutral recertification round re-presents any misjudged look-alikes for explicit hazard/controlled reclassification. Setting the environment variable `SAFETY_FEEDBACK_MODE=delayed` withholds verdicts and the score readout until each site debrief (the experimental condition is logged to telemetry). The language model only produces grounded NPC coaching, so a model response cannot change the correct answer or score.
 
 Five bright route lanes and portal pads move the learner across a continuous walkable ground plane; each site can also be entered directly through its portal. A startup grounding guard prevents the XR rig from dropping before locomotion is initialized. Each Rocketbox coach cycles through inspection guidance, progress-aware hints, control explanations, and a score-neutral debrief. Inspection events are written as JSONL under Unity's persistent data folder without learner identity or raw conversation text.
 

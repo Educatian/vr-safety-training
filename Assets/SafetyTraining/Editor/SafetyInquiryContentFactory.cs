@@ -47,15 +47,15 @@ namespace SafetyTraining.Editor
             collider.isTrigger = true;
             anchor.AddComponent<XRSimpleInteractable>();
             anchor.AddComponent<InteractiveHoverFeedback>();
-            anchor.AddComponent<EvidenceObject>().Configure(siteId, spec.Id, spec.Title,
+            var evidence = anchor.AddComponent<EvidenceObject>();
+            evidence.Configure(siteId, spec.Id, spec.Title,
                 spec.HazardType, spec.Note, spec.IsDistractor);
             SafetyWorldAssetPainter.AddModel(anchor.transform, spec.Title, spec.Asset,
                 Vector3.zero, 1.35f, Vector3.zero);
             var label = SafetyScenePrimitives.Label(LabelFor(spec.Title), anchor.transform,
                 new Vector3(0f, 1.1f, 0f), 0.07f);
-            label.color = spec.IsDistractor
-                ? new Color(0.78f, 0.8f, 0.84f)
-                : new Color(0.55f, 0.94f, 1f);
+            label.color = new Color(0.72f, 0.88f, 0.96f);
+            evidence.SetHoverLabel(label.gameObject);
         }
 
         static void AddDecisionStation(Transform site, TrainingSiteId siteId)
@@ -68,14 +68,145 @@ namespace SafetyTraining.Editor
             var requiredEvidence = siteId == TrainingSiteId.Construction
                 ? ConstructionGoldenModuleProgress.RequiredRelevantEvidence
                 : InquirySessionController.DefaultMinimumEvidenceForReport;
-            station.AddComponent<InquiryDecisionStation>().Configure(siteId,
+            var decisionStation = station.AddComponent<InquiryDecisionStation>();
+            decisionStation.Configure(siteId,
                 HypothesisFor(siteId), ExplanationFor(siteId), requiredEvidence);
             var labelText = siteId == TrainingSiteId.Construction
                 ? "FINAL REPORT (MISSION GATED)"
-                : "SUBMIT REPORT (3+ EVIDENCE)";
+                : "SUBMIT REPORT (EVIDENCE + HYPOTHESIS)";
             var label = SafetyScenePrimitives.Label(labelText, site,
                 new Vector3(5.2f, 1.45f, -6.72f), 0.105f);
             label.color = new Color(0.7f, 0.92f, 1f);
+            AddHypothesisOptions(site, siteId, decisionStation);
+        }
+
+        static void AddHypothesisOptions(Transform site, TrainingSiteId siteId,
+            InquiryDecisionStation station)
+        {
+            var statements = HypothesisOptionsFor(siteId);
+            // Rotate which plate holds the evidence-consistent statement so its
+            // position cannot be memorized across sites.
+            var correctSlot = (int)siteId % statements.Length;
+            var header = SafetyScenePrimitives.Label("SELECT ONE HYPOTHESIS", site,
+                new Vector3(5.2f, 2.6f, -6.72f), 0.085f);
+            header.color = new Color(0.72f, 0.88f, 0.96f);
+            for (var slot = 0; slot < statements.Length; slot++)
+            {
+                var statementIndex = (slot - correctSlot + statements.Length) % statements.Length;
+                var statement = statements[statementIndex];
+                var plate = SafetyScenePrimitives.Primitive(PrimitiveType.Cube,
+                    $"Hypothesis Option {(char)('A' + slot)}", site,
+                    new Vector3(5.2f, 2.2f - slot * 0.42f, -6.85f),
+                    new Vector3(2.6f, 0.36f, 0.1f), new Color(0.09f, 0.13f, 0.18f));
+                plate.AddComponent<XRSimpleInteractable>();
+                plate.AddComponent<InteractiveHoverFeedback>();
+                plate.AddComponent<HypothesisOption>().Configure(station,
+                    $"{siteId.ToString().ToLowerInvariant()}-hypothesis-{(char)('a' + slot)}",
+                    statement.Text, statement.EvidenceConsistent);
+                var plateLabel = SafetyScenePrimitives.Label(statement.Short, site,
+                    new Vector3(5.2f, 2.2f - slot * 0.42f, -6.78f), 0.052f);
+                plateLabel.color = new Color(0.72f, 0.88f, 0.96f);
+            }
+        }
+
+        readonly struct HypothesisStatement
+        {
+            public HypothesisStatement(string shortText, string text, bool evidenceConsistent)
+            {
+                Short = shortText;
+                Text = text;
+                EvidenceConsistent = evidenceConsistent;
+            }
+
+            public string Short { get; }
+            public string Text { get; }
+            public bool EvidenceConsistent { get; }
+        }
+
+        static HypothesisStatement[] HypothesisOptionsFor(TrainingSiteId siteId)
+        {
+            return siteId switch
+            {
+                TrainingSiteId.Construction => new[]
+                {
+                    new HypothesisStatement("ACCESS + SUSPENDED LOAD RISK",
+                        HypothesisFor(siteId), true),
+                    new HypothesisStatement("WORKER INATTENTION ROOT CAUSE",
+                        "Worker inattention is the root cause; a toolbox talk resolves the site risks.", false),
+                    new HypothesisStatement("SITE IS ROUTINE / COMPLIANT",
+                        "The flagged conditions are routine construction activity and need no new controls.", false)
+                },
+                TrainingSiteId.Warehouse => new[]
+                {
+                    new HypothesisStatement("ROUTE CONFLICT + UNSTABLE STORAGE",
+                        HypothesisFor(siteId), true),
+                    new HypothesisStatement("LIGHTING IS PRIMARY DRIVER",
+                        "Lighting quality is the primary driver of material-handling incidents here.", false),
+                    new HypothesisStatement("FORKLIFT SPEED ALONE",
+                        "Forklift speed alone explains the risk; storage practices are acceptable.", false)
+                },
+                TrainingSiteId.FireResponse => new[]
+                {
+                    new HypothesisStatement("BLOCKED EGRESS + EXTINGUISHER ACCESS",
+                        HypothesisFor(siteId), true),
+                    new HypothesisStatement("ALARM AUDIBILITY ONLY",
+                        "Alarm audibility is the only deficiency; egress routes are serviceable.", false),
+                    new HypothesisStatement("INTERIOR ATTACK IS SAFE",
+                        "The scene supports immediate interior attack; evacuation is unnecessary.", false)
+                },
+                TrainingSiteId.ChemicalProcessing => new[]
+                {
+                    new HypothesisStatement("HAZCOM + EXPOSURE PATH DECIDE",
+                        HypothesisFor(siteId), true),
+                    new HypothesisStatement("ONE ABSORBENT FITS ALL",
+                        "All containers behave alike, so a single absorbent response fits any spill.", false),
+                    new HypothesisStatement("VENTILATION ALONE CONTROLS",
+                        "Ventilation alone controls the exposure; labeling gaps are cosmetic.", false)
+                },
+                TrainingSiteId.TowerCrane => new[]
+                {
+                    new HypothesisStatement("FALL ZONE + RIGGING GOVERN",
+                        HypothesisFor(siteId), true),
+                    new HypothesisStatement("OPERATOR SKILL DECIDES",
+                        "Operator skill alone determines lift safety; ground controls are secondary.", false),
+                    new HypothesisStatement("WIND IS NEGLIGIBLE (FIXED CRANE)",
+                        "Wind is negligible for a fixed tower crane; lifts can continue in gusts.", false)
+                },
+                _ => new[]
+                {
+                    new HypothesisStatement("ISOLATE ENERGY + VERIFY LOTO",
+                        HypothesisFor(siteId), true),
+                    new HypothesisStatement("GLOVES MAKE IT SAFE",
+                        "PPE gloves alone make the panel work safe to proceed.", false),
+                    new HypothesisStatement("VISUAL CHECK IS SUFFICIENT",
+                        "The cables are de-energized by default; visual inspection is sufficient.", false)
+                }
+            };
+        }
+
+        static EvidenceSpec[] TowerCraneSpecs()
+        {
+            return new[]
+            {
+                Spec("load-chart-posting", "Load chart posting", "Struck-by",
+                    "The posted chart shows 6,500 lb at 60 ft; today's panel picks are logged at 7,000 lb gross.",
+                    "clipboard_1k.fbx", new Vector3(-5.2f, 0f, -2.4f)),
+                Spec("wind-log", "Anemometer log", "Weather",
+                    "The wind log shows gusts rising past the manufacturer's 20 mph operating limit.",
+                    "clipboard_1k.fbx", new Vector3(-5.2f, 0f, 2.8f)),
+                Spec("tagline-station", "Tagline station", "Material handling",
+                    "Taglines are staged but unused; recent loads were steadied by hand at the landing edge.",
+                    "hand_truck_1k.fbx", new Vector3(5.2f, 0f, 2.6f)),
+                Spec("assembly-notice", "Assembly zone notice", "Struck-by",
+                    "The erection contractor's notice marks the mast bolt-check due before the next climb.",
+                    "clipboard_1k.fbx", new Vector3(5.2f, 0f, -2.6f)),
+                Spec("crew-lunch-cooler", "Crew lunch cooler", "Distractor",
+                    "A crew cooler stored outside the lift corridor; it does not change the lift decision.",
+                    "plastic_crate_02_1k.fbx", new Vector3(-2.2f, 0f, -5.2f), true),
+                Spec("lift-permit-log", "Lift permit log", "Struck-by",
+                    "The permit log shows today's panel picks signed without a fall-zone verification entry.",
+                    "clipboard_1k.fbx", new Vector3(2.4f, 0f, -5.4f))
+            };
         }
 
         static string LabelFor(string title)
@@ -96,6 +227,7 @@ namespace SafetyTraining.Editor
                 TrainingSiteId.FireResponse => "Blocked egress and extinguisher access control the emergency decision.",
                 TrainingSiteId.ChemicalProcessing => "HazCom evidence and exposure path determine the spill response.",
                 TrainingSiteId.ElectricalMaintenance => "Energized-source control and LOTO verification are required first.",
+                TrainingSiteId.TowerCrane => "Fall-zone control and rigging condition govern whether the lift proceeds.",
                 _ => "Collected evidence identifies the safest corrective action."
             };
         }
@@ -109,6 +241,7 @@ namespace SafetyTraining.Editor
                 TrainingSiteId.FireResponse => "Controls should keep exits and extinguishers clear before close approach.",
                 TrainingSiteId.ChemicalProcessing => "Controls should quarantine unknown chemicals and stage spill response safely.",
                 TrainingSiteId.ElectricalMaintenance => "Controls should isolate energy, verify absence of voltage, and remove damaged equipment.",
+                TrainingSiteId.TowerCrane => "Controls should barricade the fall zone, verify rigging, and hold lifts beyond wind limits.",
                 _ => "Controls should match the observed evidence."
             };
         }
@@ -120,6 +253,7 @@ namespace SafetyTraining.Editor
                 TrainingSiteId.Construction => ConstructionSpecs(),
                 TrainingSiteId.Warehouse => WarehouseSpecs(),
                 TrainingSiteId.FireResponse => FireSpecs(),
+                TrainingSiteId.TowerCrane => TowerCraneSpecs(),
                 TrainingSiteId.ChemicalProcessing => ChemicalSpecs(),
                 TrainingSiteId.ElectricalMaintenance => ElectricalSpecs(),
                 _ => new EvidenceSpec[0]
