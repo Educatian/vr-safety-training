@@ -17,6 +17,9 @@ namespace SafetyTraining.Runtime
         CancellationTokenSource lifetime;
         IConversationService fallback;
         readonly List<string> transcript = new List<string>();
+        // Shared across coaches: one endpoint failure switches the whole session
+        // to the instant scripted fallback (fresh installs have no local model).
+        static bool endpointUnavailable;
 
         public string LastReply { get; private set; } = "Ask me about this training site.";
         public SafetyTraining.Core.TrainingSiteId SiteId => siteId;
@@ -62,7 +65,10 @@ namespace SafetyTraining.Runtime
 
             try
             {
-                var service = useLanguageModel && endpointConfig != null
+                // Circuit breaker: once the endpoint fails (no local model on a fresh
+                // install), stay on the instant scripted fallback for the rest of the
+                // session instead of waiting out the HTTP timeout on every question.
+                var service = useLanguageModel && endpointConfig != null && !endpointUnavailable
                     ? new OpenAiCompatibleConversationService(endpointConfig)
                     : fallback;
                 LastReply = (await service.ReplyAsync(request, lifetime.Token)).Text;
@@ -73,6 +79,11 @@ namespace SafetyTraining.Runtime
             }
             catch (Exception) when (!lifetime.IsCancellationRequested)
             {
+                if (!endpointUnavailable)
+                {
+                    endpointUnavailable = true;
+                    Debug.LogWarning("LLM coach endpoint unavailable; using scripted coaching for this session.");
+                }
                 LastReply = (await fallback.ReplyAsync(request, lifetime.Token)).Text;
             }
 

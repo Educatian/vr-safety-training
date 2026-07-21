@@ -15,4 +15,4 @@ MonoBehaviour:
   endpoint: http://localhost:11434/v1/chat/completions
   model: hermes3:8b
   apiKeyEnvironmentVariable:
-  timeoutSeconds: 20
+  timeoutSeconds: 8
