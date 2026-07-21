@@ -13,9 +13,9 @@ The command-line override `-experienceMode ivr` is available for QA. `-experienc
 
 ## Standalone Quest APK
 
-- Output: `Builds/MetaQuest/VR-Safety-Training-QuestPro-EyeGaze-2026-07-20.apk`
-- Validated size: 94,940,032 bytes (94.9 MB decimal)
-- SHA-256: `25B5027F4691C5790D04F2805302223E44FCA435B343C4B935605E3BE074B892`
+- Output: `Builds/MetaQuest/VR-Safety-Training-QuestPro-EyeGaze-Cloud-2026-07-20.apk`
+- Validated size: 94,964,688 bytes (95.0 MB decimal)
+- SHA-256: `92E04AB99D6907A26D606888E227A0551047353738D228FE81806BE2626E904A`
 - Application ID: `com.educatian.vrsafetytraining`
 - Runtime: OpenXR with Meta Quest Support, Touch profiles, and optional `XR_EXT_eye_gaze_interaction`
 - Build: Android ARM64, IL2CPP, minimum API 29
@@ -53,3 +53,8 @@ No Quest was connected over ADB during this validation, so physical Quest Pro pe
 6. Five supervised formative learners before any unsupervised study.
 
 This APK is an engineering pilot. It is not OSHA certification, proof of training efficacy, or a substitute for site-specific procedures and qualified-person instruction.
+
+
+## Cloud analytics
+
+The integrated Quest build uses a local-first queue and the live Cloudflare Worker documented in [CLOUD_ANALYTICS.md](CLOUD_ANALYTICS.md). Quest Pro events are labeled `eye_gaze`; Quest 2/3/3S events are labeled `head_gaze_fallback`. No raw eye image, pupil measurement, Meta identity, device serial, or continuous head quaternion is uploaded.

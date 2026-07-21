@@ -101,6 +101,7 @@ namespace SafetyTraining.Runtime
             eventLogger = GetComponent<TrainingEventLogger>() ?? gameObject.AddComponent<TrainingEventLogger>();
             if (GetComponent<GazeAnalyticsTracker>() == null)
                 gameObject.AddComponent<GazeAnalyticsTracker>();
+            CloudAnalyticsUploader.EnsureOn(gameObject, eventLogger);
             learningOutcomes = GetComponent<LearningOutcomeTracker>() ?? gameObject.AddComponent<LearningOutcomeTracker>();
             BuildSessions();
             practicals = new PracticalProgressRegistry();

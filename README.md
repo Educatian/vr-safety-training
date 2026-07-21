@@ -60,7 +60,9 @@ The lobby includes a `DESKTOP / IVR` experience toggle. On Windows, IVR starts w
 
 ![Desktop and IVR mode selection in the isolated training hub](docs/images/pilot-quest-toggle-hub.jpg)
 
-The validated standalone APK is at `Builds/MetaQuest/VR-Safety-Training-QuestPro-EyeGaze-2026-07-20.apk` (94.9 MB). Quest Pro automatically uses OpenXR eye gaze when the learner grants access; Quest 3 and 3S automatically use head-gaze fallback in the same APK. See [Meta Quest deployment and QA](docs/META_QUEST.md) for installation, privacy-minimized gaze analytics, and the remaining physical-headset checks.
+The validated standalone APK is at `Builds/MetaQuest/VR-Safety-Training-QuestPro-EyeGaze-Cloud-2026-07-20.apk` (95.0 MB). Quest Pro automatically uses OpenXR eye gaze when the learner grants access; Quest 3 and 3S automatically use head-gaze fallback in the same APK. See [Meta Quest deployment and QA](docs/META_QUEST.md) for installation, privacy-minimized gaze analytics, and the remaining physical-headset checks.
+
+Cloud analytics are local-first and connected to the live Cloudflare research collector. Pseudonymous spatial, interaction, `eye_gaze`, and `head_gaze_fallback` events retry from an on-device queue and are stored in D1 without embedding Cloudflare credentials in the APK. See [Cloudflare analytics connection](docs/CLOUD_ANALYTICS.md).
 
 ## Construction practical
 
@@ -92,7 +94,7 @@ Click any Rocketbox coach to open the live chat panel. Students can type a quest
 - OpenXR Standalone Project Validation: 0 outstanding issues
 - OpenXR Meta Quest Android Project Validation: 0 outstanding issues
 - Windows standalone build: succeeded at `Builds/Windows/VR-Safety-Training.exe` (163 MB folder)
-- Meta Quest standalone APK: succeeded at `Builds/MetaQuest/VR-Safety-Training-QuestPro-EyeGaze-2026-07-20.apk` (94.9 MB, ARM64, APK Signature v2)
+- Meta Quest standalone APK: succeeded at `Builds/MetaQuest/VR-Safety-Training-QuestPro-EyeGaze-Cloud-2026-07-20.apk` (95.0 MB, ARM64, APK Signature v2)
 - Five-site capture tour: hub, overview, real-prop, NPC idle/walk/dialogue, and settled frames generated
 - Automated demo pilot: 1,200 simulated seconds, 31 analytics zones, 20 inspections, 31 evidence interactions, 25 practical successes, and analysis-ready CSV/JSONL export
 - Physical-headset usability and frame-timing validation: still required before an unsupervised learner study

@@ -18,6 +18,9 @@ namespace SafetyTraining.Runtime
         float activeZoneStartedAt;
         Vector3 lastSpatialSamplePosition;
         bool hasSpatialSamplePosition;
+        int spatialSequence;
+
+        public event Action<SpatialAnalyticsEvent> SpatialEventRecorded;
 
         void Update()
         {
@@ -186,10 +189,11 @@ namespace SafetyTraining.Runtime
             var hit = hitPosition ?? Vector3.zero;
             var localHit = hitPosition.HasValue
                 ? hit - (siteZone != null ? siteZone.transform.position : Vector3.zero) : Vector3.zero;
-            var entry = new SpatialEvent
+            var entry = new SpatialAnalyticsEvent
             {
                 timestampUtc = DateTime.UtcNow.ToString("O"),
                 sessionId = sessionId,
+                sequence = spatialSequence++,
                 eventType = eventType,
                 site = siteId.ToString(),
                 subjectId = subjectId ?? string.Empty,
@@ -214,6 +218,7 @@ namespace SafetyTraining.Runtime
                 hitSiteZ = localHit.z
             };
             File.AppendAllText(logPath, JsonConvert.SerializeObject(entry) + Environment.NewLine);
+            SpatialEventRecorded?.Invoke(entry);
         }
 
         static SiteExperienceZone SiteExperienceZoneFor(TrainingSiteId siteId)
@@ -267,10 +272,11 @@ namespace SafetyTraining.Runtime
         }
 
         [Serializable]
-        sealed class SpatialEvent
+        public sealed class SpatialAnalyticsEvent
         {
             public string timestampUtc = string.Empty;
             public string sessionId = string.Empty;
+            public int sequence;
             public string eventType = string.Empty;
             public string site = string.Empty;
             public string subjectId = string.Empty;

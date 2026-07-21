@@ -206,7 +206,7 @@ namespace SafetyTraining.Runtime
             var director = FindFirstObjectByType<SiteExperienceDirector>();
             if (director != null)
                 director.enabled = false;
-            var coordinator = TrainingCoordinator.Instance ?? FindFirstObjectByType<TrainingCoordinator>();
+            var coordinator = FindFirstObjectByType<TrainingCoordinator>() ?? TrainingCoordinator.Instance;
             coordinator?.EnterSite(siteId);
             ShowCaptureHud();
         }
