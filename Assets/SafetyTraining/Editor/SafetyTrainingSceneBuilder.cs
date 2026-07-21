@@ -398,7 +398,29 @@ namespace SafetyTraining.Editor
                 light.shadows = LightShadows.Soft;
             }
             CreateSessionDebriefBoard(root);
+            CreateMovementHeatmapBoard(root);
             return root;
+        }
+
+        static void CreateMovementHeatmapBoard(Transform lobby)
+        {
+            var board = new GameObject("Movement Heatmap Board").transform;
+            board.SetParent(lobby, false);
+            board.localPosition = new Vector3(-6.45f, 2.05f, -0.35f);
+            board.localRotation = Quaternion.Euler(0f, -90f, 0f);
+
+            var backing = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Heatmap Board Backing",
+                board, Vector3.zero, new Vector3(4.6f, 2.6f, 0.1f), new Color(0.03f, 0.055f, 0.075f));
+            Object.DestroyImmediate(backing.GetComponent<Collider>());
+            var frame = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Heatmap Board Frame",
+                board, new Vector3(0f, 1.36f, 0f), new Vector3(4.6f, 0.07f, 0.12f),
+                new Color(0.216f, 0.839f, 0.753f));
+            Object.DestroyImmediate(frame.GetComponent<Collider>());
+            var heading = SafetyScenePrimitives.Label("MOVEMENT HEATMAP", board,
+                new Vector3(0f, 1.1f, -0.08f), 0.11f);
+            heading.fontStyle = FontStyle.Bold;
+            heading.color = new Color(0.216f, 0.839f, 0.753f);
+            board.gameObject.AddComponent<SpatialHeatmapBoard>().Configure(heading);
         }
 
         static void CreateSessionDebriefBoard(Transform lobby)
@@ -409,19 +431,19 @@ namespace SafetyTraining.Editor
             board.localRotation = Quaternion.Euler(0f, -90f, 0f);
 
             var backing = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Debrief Board Backing",
-                board, Vector3.zero, new Vector3(4.6f, 2.15f, 0.1f), new Color(0.03f, 0.055f, 0.075f));
+                board, Vector3.zero, new Vector3(4.6f, 2.6f, 0.1f), new Color(0.03f, 0.055f, 0.075f));
             Object.DestroyImmediate(backing.GetComponent<Collider>());
             var frame = SafetyScenePrimitives.Primitive(PrimitiveType.Cube, "Debrief Board Frame",
-                board, new Vector3(0f, 1.14f, 0f), new Vector3(4.6f, 0.07f, 0.12f),
+                board, new Vector3(0f, 1.36f, 0f), new Vector3(4.6f, 0.07f, 0.12f),
                 new Color(0.216f, 0.839f, 0.753f));
             Object.DestroyImmediate(frame.GetComponent<Collider>());
 
             var heading = SafetyScenePrimitives.Label("SESSION DEBRIEF", board,
-                new Vector3(0f, 0.86f, -0.08f), 0.11f);
+                new Vector3(0f, 1.1f, -0.08f), 0.11f);
             heading.fontStyle = FontStyle.Bold;
             heading.color = new Color(0.216f, 0.839f, 0.753f);
             var stats = SafetyScenePrimitives.Label("SESSION DEBRIEF\nINITIALIZING", board,
-                new Vector3(0f, 0.12f, -0.08f), 0.075f);
+                new Vector3(0f, 0.45f, -0.08f), 0.07f);
             stats.alignment = TextAlignment.Center;
             stats.anchor = TextAnchor.MiddleCenter;
             stats.lineSpacing = 1.35f;

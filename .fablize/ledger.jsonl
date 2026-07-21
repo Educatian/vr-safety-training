@@ -66,3 +66,10 @@
 {"ts": "2026-07-21T16:03:18.866680+00:00", "event": "checkpoint", "id": "G003", "status": "complete", "evidence": "리깅 테스트 5종 포함 EditMode 196/196 PASS(시야 프롭 이동 1건 수리), 커밋 19b597b 푸쉬 완료", "verify_cmd": "tests-run + git push", "verify_evidence": "Passed 196/196; 836ca06..19b597b pushed"}
 {"ts": "2026-07-21T16:06:31.331269+00:00", "event": "plan_created", "brief": "조립 확장 3종(가드레일 CON-03, LOTO ELE-02, 쇼어프레임 CON-02 물리 transfer)+BKT 런타임 이식+검증+커밋", "count": 4}
 {"ts": "2026-07-21T16:06:31.446322+00:00", "event": "story_started", "id": "G001", "title": "B1-generalize"}
+{"ts": "2026-07-21T16:14:47.434886+00:00", "event": "checkpoint", "id": "G001", "status": "complete", "evidence": "AssemblyStationController 일반화(stationId·prereq 게이트·minimum-count·가변 보상, 리깅 이관), AssemblySocket prereq API", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T16:14:47.554677+00:00", "event": "story_started", "id": "G002", "title": "B2-stations"}
+{"ts": "2026-07-21T16:14:47.683113+00:00", "event": "checkpoint", "id": "G002", "status": "complete", "evidence": "3 스테이션 저작(가드레일 4소켓·LOTO 3소켓 순서게이트·쇼어 6베이/5완료), 실측 stations=4 parts=20", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T16:14:47.814961+00:00", "event": "story_started", "id": "G003", "title": "B3-bkt"}
+{"ts": "2026-07-21T16:14:47.942709+00:00", "event": "checkpoint", "id": "G003", "status": "complete", "evidence": "Core BktModel(온라인 사후확률)+트래커 통합+디브리프 보드 BKT MASTERY 라인+BktModelTests 3종", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T16:14:48.183002+00:00", "event": "story_started", "id": "G004", "title": "B4-verify"}
+{"ts": "2026-07-21T16:14:48.311917+00:00", "event": "checkpoint", "id": "G004", "status": "complete", "evidence": "EditMode 201/201 PASS, 커밋 0411e29 푸쉬(Everything up-to-date 확인)", "verify_cmd": "tests-run + git push", "verify_evidence": "Passed 201/201; 0411e29 pushed"}

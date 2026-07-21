@@ -75,6 +75,15 @@ namespace SafetyTraining.Runtime
         public float MasteryEstimate(string objectiveId) =>
             masteryModels.TryGetValue(objectiveId, out var model) ? (float)model.Mastery : -1f;
 
+        /// <summary>Fills the buffer with (objectiveId, P(L)) pairs, sorted by id.</summary>
+        public void CollectMasteryEstimates(List<KeyValuePair<string, float>> buffer)
+        {
+            buffer.Clear();
+            foreach (var pair in masteryModels)
+                buffer.Add(new KeyValuePair<string, float>(pair.Key, (float)pair.Value.Mastery));
+            buffer.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+        }
+
         /// <summary>Mean BKT mastery across all observed objectives; -1 if none yet.</summary>
         public float MeanMastery(out int objectiveCount)
         {

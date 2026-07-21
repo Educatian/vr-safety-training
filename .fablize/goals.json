@@ -6,29 +6,29 @@
    "id": "G001",
    "title": "B1-generalize",
    "objective": "AssemblyStationController로 일반화(stationId·prerequisite 순서 게이트·minimum-count 완료 모드·가변 보상/피드백), 리깅 이관",
-   "status": "in_progress",
-   "evidence": null
+   "status": "complete",
+   "evidence": "AssemblyStationController 일반화(stationId·prereq 게이트·minimum-count·가변 보상, 리깅 이관), AssemblySocket prereq API"
   },
   {
    "id": "G002",
    "title": "B2-stations",
    "objective": "가드레일(포스트2+레일2+굽은포스트 decoy)·LOTO(hasp→lock→tag 순서)·쇼어프레임(6베이 중 5=용량충족) 팩토리 저작",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "3 스테이션 저작(가드레일 4소켓·LOTO 3소켓 순서게이트·쇼어 6베이/5완료), 실측 stations=4 parts=20"
   },
   {
    "id": "G003",
    "title": "B3-bkt",
    "objective": "Core BktModel(온라인 사후확률)+LearningOutcomeTracker 통합+디브리프 보드 mastery 표시+단위테스트",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "Core BktModel(온라인 사후확률)+트래커 통합+디브리프 보드 BKT MASTERY 라인+BktModelTests 3종"
   },
   {
    "id": "G004",
    "title": "B4-verify",
    "objective": "테스트 신스펙+전체 그린+씬 재생성+커밋/푸쉬",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "EditMode 201/201 PASS, 커밋 0411e29 푸쉬(Everything up-to-date 확인)"
   }
  ]
 }

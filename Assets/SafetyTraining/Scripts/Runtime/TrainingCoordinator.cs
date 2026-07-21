@@ -138,6 +138,8 @@ namespace SafetyTraining.Runtime
                 gameObject.AddComponent<GazeAnalyticsTracker>();
             if (GetComponent<RetrievalRoundController>() == null)
                 gameObject.AddComponent<RetrievalRoundController>();
+            if (GetComponent<SpatialHeatmapAccumulator>() == null)
+                gameObject.AddComponent<SpatialHeatmapAccumulator>();
             CloudAnalyticsUploader.EnsureOn(gameObject, eventLogger);
             learningOutcomes = GetComponent<LearningOutcomeTracker>() ?? gameObject.AddComponent<LearningOutcomeTracker>();
             learningOutcomes.RecordExperimentCondition("feedback_mode", ExperimentConditions.Token);
@@ -166,6 +168,16 @@ namespace SafetyTraining.Runtime
             LastFeedback = FormatFeedback(target, result);
             HudFeedback = FormatHudFeedback(target, result);
             eventLogger.Record(target, result, OverallScore);
+            // Hazard-recognition observations feed the assessment stream (and the
+            // online BKT posterior) without touching the deterministic score, which
+            // TrainingSession already owns.
+            if (result.Outcome == InspectionOutcome.CorrectHazard ||
+                result.Outcome == InspectionOutcome.SafeObjectSelected)
+                learningOutcomes?.Record(target.SiteId,
+                    LearningObjectiveCatalog.ObjectiveAt(target.SiteId, 0).Id,
+                    $"inspection:{target.TargetId}",
+                    result.Outcome == InspectionOutcome.CorrectHazard,
+                    $"outcome={result.Outcome} hazard={target.IsHazard}", 0);
             InspectionCompleted?.Invoke(target.SiteId, result);
             return result;
         }
