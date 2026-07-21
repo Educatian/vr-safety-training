@@ -32,6 +32,14 @@ namespace SafetyTraining.Editor
         public float SiteZ;
         public float DurationOrDistance;
         public string MetricKind = string.Empty;
+        public string GazeMode = string.Empty;
+        public string TargetKind = string.Empty;
+        public float HitWorldX;
+        public float HitWorldY;
+        public float HitWorldZ;
+        public float HitSiteX;
+        public float HitSiteY;
+        public float HitSiteZ;
 
         public bool HasCoordinates =>
             Math.Abs(WorldX) > float.Epsilon ||
@@ -44,7 +52,8 @@ namespace SafetyTraining.Editor
             EventType == "site_exit" ||
             EventType == "zone_enter" ||
             EventType == "zone_exit" ||
-            EventType == "spatial_sample";
+            EventType == "spatial_sample" ||
+            EventType.StartsWith("gaze_", StringComparison.Ordinal);
     }
 
     internal sealed class DwellEntry

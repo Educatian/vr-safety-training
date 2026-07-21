@@ -87,6 +87,7 @@ namespace SafetyTraining.Editor
             Enable<MetaQuestTouchPlusControllerProfile>(settings);
             Enable<HTCViveControllerProfile>(settings);
             Enable<ValveIndexControllerProfile>(settings);
+            Enable<EyeGazeInteraction>(settings);
             EditorUtility.SetDirty(settings);
         }
 

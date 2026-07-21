@@ -99,6 +99,8 @@ namespace SafetyTraining.Runtime
 
             Instance = this;
             eventLogger = GetComponent<TrainingEventLogger>() ?? gameObject.AddComponent<TrainingEventLogger>();
+            if (GetComponent<GazeAnalyticsTracker>() == null)
+                gameObject.AddComponent<GazeAnalyticsTracker>();
             learningOutcomes = GetComponent<LearningOutcomeTracker>() ?? gameObject.AddComponent<LearningOutcomeTracker>();
             BuildSessions();
             practicals = new PracticalProgressRegistry();

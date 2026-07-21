@@ -117,6 +117,23 @@ namespace SafetyTraining.Runtime
                 AppendSpatialEvent("coach_turn", siteId, "safety_coach", null, 0f, "instant");
         }
 
+        public void RecordGazeMode(TrainingSiteId siteId, string gazeMode, string deviceName)
+        {
+            if (!IsVisualCaptureRun())
+                AppendSpatialEvent("gaze_mode_changed", siteId, "gaze_tracking", deviceName, 0f,
+                    "instant", gazeMode);
+        }
+
+        public void RecordGazeEpisode(TrainingSiteId siteId, string targetId, string targetKind,
+            string gazeMode, float durationSeconds, Vector3 hitPosition, bool isDwell)
+        {
+            if (IsVisualCaptureRun())
+                return;
+            AppendSpatialEvent(isDwell ? "gaze_target_dwell" : "gaze_target_glance", siteId,
+                targetId, gazeMode, durationSeconds, "duration_seconds", gazeMode, targetKind,
+                hitPosition);
+        }
+
         void RecordSiteTransition(TrainingSiteId? currentSite)
         {
             if (activeSite.HasValue)
@@ -155,7 +172,8 @@ namespace SafetyTraining.Runtime
         }
 
         void AppendSpatialEvent(string eventType, TrainingSiteId siteId, string subjectId,
-            string outcome, float durationOrDistance, string metricKind)
+            string outcome, float durationOrDistance, string metricKind, string gazeMode = "",
+            string targetKind = "", Vector3? hitPosition = null)
         {
             EnsureLogPath();
             var viewer = Camera.main;
@@ -165,6 +183,9 @@ namespace SafetyTraining.Runtime
             var analyticsZone = SpatialAnalyticsZone.FindContaining(siteId, viewer.transform.position);
             var localPosition = viewer.transform.position - (siteZone != null
                 ? siteZone.transform.position : Vector3.zero);
+            var hit = hitPosition ?? Vector3.zero;
+            var localHit = hitPosition.HasValue
+                ? hit - (siteZone != null ? siteZone.transform.position : Vector3.zero) : Vector3.zero;
             var entry = new SpatialEvent
             {
                 timestampUtc = DateTime.UtcNow.ToString("O"),
@@ -182,7 +203,15 @@ namespace SafetyTraining.Runtime
                 siteY = localPosition.y,
                 siteZ = localPosition.z,
                 durationOrDistance = durationOrDistance,
-                metricKind = metricKind
+                metricKind = metricKind,
+                gazeMode = gazeMode,
+                targetKind = targetKind,
+                hitWorldX = hit.x,
+                hitWorldY = hit.y,
+                hitWorldZ = hit.z,
+                hitSiteX = localHit.x,
+                hitSiteY = localHit.y,
+                hitSiteZ = localHit.z
             };
             File.AppendAllText(logPath, JsonConvert.SerializeObject(entry) + Environment.NewLine);
         }
@@ -256,6 +285,14 @@ namespace SafetyTraining.Runtime
             public float siteZ;
             public float durationOrDistance;
             public string metricKind = string.Empty;
+            public string gazeMode = string.Empty;
+            public string targetKind = string.Empty;
+            public float hitWorldX;
+            public float hitWorldY;
+            public float hitWorldZ;
+            public float hitSiteX;
+            public float hitSiteY;
+            public float hitSiteZ;
         }
     }
 }

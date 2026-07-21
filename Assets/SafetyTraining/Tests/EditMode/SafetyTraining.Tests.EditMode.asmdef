@@ -6,6 +6,7 @@
     "SafetyTraining.Editor",
     "SafetyTraining.Runtime",
     "Unity.XR.Interaction.Toolkit",
+    "Unity.XR.OpenXR",
     "Unity.TextMeshPro"
   ],
   "includePlatforms": [

@@ -51,6 +51,7 @@ namespace SafetyTraining.Editor
             coordinator.AddComponent<LearningOutcomeTracker>();
             coordinator.AddComponent<InquirySessionController>();
             coordinator.AddComponent<SiteExperienceDirector>();
+            coordinator.AddComponent<GazeAnalyticsTracker>();
             var isolation = coordinator.AddComponent<SiteIsolationController>();
             CreateHud();
             var portalRoot = CreateSitePortals();

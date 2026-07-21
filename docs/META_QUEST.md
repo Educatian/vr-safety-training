@@ -13,18 +13,27 @@ The command-line override `-experienceMode ivr` is available for QA. `-experienc
 
 ## Standalone Quest APK
 
-- Output: `Builds/MetaQuest/VR-Safety-Training-Quest.apk`
-- Validated size: 93,629,988 bytes (93.6 MB decimal)
+- Output: `Builds/MetaQuest/VR-Safety-Training-QuestPro-EyeGaze-2026-07-20.apk`
+- Validated size: 94,940,032 bytes (94.9 MB decimal)
+- SHA-256: `25B5027F4691C5790D04F2805302223E44FCA435B343C4B935605E3BE074B892`
 - Application ID: `com.educatian.vrsafetytraining`
-- Runtime: OpenXR with Meta Quest Support and Oculus/Meta Quest Touch profiles
+- Runtime: OpenXR with Meta Quest Support, Touch profiles, and optional `XR_EXT_eye_gaze_interaction`
 - Build: Android ARM64, IL2CPP, minimum API 29
 - Graphics: Vulkan with OpenGLES3 fallback
 
 Install the APK through Meta Quest Developer Hub or `adb install -r` on a developer-mode headset. Android starts directly in IVR; Desktop mode is intentionally unavailable there.
 
+## Quest Pro eye tracking and fallback
+
+On Quest Pro, enable eye tracking in the headset settings, complete calibration, and grant the app eye-tracking access when prompted. The runtime detects the OpenXR eye-gaze device and uses its tracked pose. If an eye device exists but momentarily loses a valid pose, sampling pauses instead of mixing head direction into the eye-gaze record.
+
+The same APK supports Quest 3 and Quest 3S. Eye-tracking hardware is declared optional in the final Android manifest, so those headsets automatically use camera-forward head gaze. Each work-site visit records the active mode as `eye_gaze` or `head_gaze_fallback`.
+
+Analytics are privacy-minimized. The app does not store eye images, pupil data, or raw biometric streams. It records meaningful target IDs, glance-versus-dwell duration, gaze mode, learner position, and target hit coordinates in the existing session JSONL. CSV export adds `gazeMode`, `targetKind`, and world/site-local hit coordinates for target attention and spatial heatmap analysis.
+
 ## Completed engineering gates
 
-- Unity EditMode tests: 124/124 passed
+- Unity EditMode tests: 179/179 passed
 - Windows OpenXR Project Validation: 0 issues
 - Meta Quest Android OpenXR Project Validation: 0 issues
 - Clean Windows player build: passed
@@ -34,12 +43,13 @@ Install the APK through Meta Quest Developer Hub or `adb install -r` on a develo
 
 ## Physical-headset pilot gates
 
-The build has not yet been installed on a physical Quest in this validation environment. Before learner deployment, verify:
+No Quest was connected over ADB during this validation, so physical Quest Pro permission, calibration, and eye-pose behavior remain hardware gates. Before learner deployment, verify:
 
 1. Touch ray, direct grab, drag, release, portal selection, and NPC chat input.
 2. Stable 72 Hz or higher frame timing at each site's heaviest view, with thermal and memory sampling.
 3. Guardian/floor calibration, standing and seated reach, snap-turn/locomotion comfort, dominant-hand use, and UI legibility.
 4. NPC/world collision containment and no wall penetration during long follow loops.
-5. Five supervised formative learners before any unsupervised study.
+5. On Quest Pro, confirm the OS consent prompt, calibrated eye-pose targeting, gaze loss/recovery, and exported `eye_gaze` dwell events; on Quest 3/3S, confirm `head_gaze_fallback` events.
+6. Five supervised formative learners before any unsupervised study.
 
 This APK is an engineering pilot. It is not OSHA certification, proof of training efficacy, or a substitute for site-specific procedures and qualified-person instruction.

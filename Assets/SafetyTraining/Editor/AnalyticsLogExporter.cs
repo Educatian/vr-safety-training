@@ -85,7 +85,15 @@ namespace SafetyTraining.Editor
                         SiteY = AnalyticsCsv.ReadFloat(json, "siteY"),
                         SiteZ = AnalyticsCsv.ReadFloat(json, "siteZ"),
                         DurationOrDistance = AnalyticsCsv.ReadFloat(json, "durationOrDistance"),
-                        MetricKind = AnalyticsCsv.ReadString(json, "metricKind")
+                        MetricKind = AnalyticsCsv.ReadString(json, "metricKind"),
+                        GazeMode = AnalyticsCsv.ReadString(json, "gazeMode"),
+                        TargetKind = AnalyticsCsv.ReadString(json, "targetKind"),
+                        HitWorldX = AnalyticsCsv.ReadFloat(json, "hitWorldX"),
+                        HitWorldY = AnalyticsCsv.ReadFloat(json, "hitWorldY"),
+                        HitWorldZ = AnalyticsCsv.ReadFloat(json, "hitWorldZ"),
+                        HitSiteX = AnalyticsCsv.ReadFloat(json, "hitSiteX"),
+                        HitSiteY = AnalyticsCsv.ReadFloat(json, "hitSiteY"),
+                        HitSiteZ = AnalyticsCsv.ReadFloat(json, "hitSiteZ")
                     };
                 }
             }
@@ -186,7 +194,8 @@ namespace SafetyTraining.Editor
         static readonly string[] SpatialHeader =
         {
             "timestampUtc", "sessionId", "source", "eventType", "site", "zoneId", "zoneName", "subjectId",
-            "outcome", "worldX", "worldY", "worldZ", "siteX", "siteY", "siteZ", "durationOrDistance", "metricKind"
+            "outcome", "worldX", "worldY", "worldZ", "siteX", "siteY", "siteZ", "durationOrDistance", "metricKind",
+            "gazeMode", "targetKind", "hitWorldX", "hitWorldY", "hitWorldZ", "hitSiteX", "hitSiteY", "hitSiteZ"
         };
 
         static readonly string[] InquiryHeader =
@@ -230,7 +239,15 @@ namespace SafetyTraining.Editor
                 AnalyticsCsv.FormatFloat(entry.SiteY),
                 AnalyticsCsv.FormatFloat(entry.SiteZ),
                 AnalyticsCsv.FormatFloat(entry.DurationOrDistance),
-                entry.MetricKind
+                entry.MetricKind,
+                entry.GazeMode,
+                entry.TargetKind,
+                AnalyticsCsv.FormatFloat(entry.HitWorldX),
+                AnalyticsCsv.FormatFloat(entry.HitWorldY),
+                AnalyticsCsv.FormatFloat(entry.HitWorldZ),
+                AnalyticsCsv.FormatFloat(entry.HitSiteX),
+                AnalyticsCsv.FormatFloat(entry.HitSiteY),
+                AnalyticsCsv.FormatFloat(entry.HitSiteZ)
             };
         }
 
