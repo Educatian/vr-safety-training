@@ -16,7 +16,7 @@ namespace SafetyTraining.Runtime
         [SerializeField] string partId = "part";
         [SerializeField] string category = "sling";
         [SerializeField] bool serviceable = true;
-        [SerializeField] RiggingAssemblyStation station;
+        [SerializeField] AssemblyStationController station;
 
         XRGrabInteractable grabInteractable;
         Rigidbody body;
@@ -32,7 +32,7 @@ namespace SafetyTraining.Runtime
         public bool IsServiceable => serviceable;
         public AssemblySocket CurrentSocket { get; private set; }
 
-        public void Configure(RiggingAssemblyStation owner, string id, string partCategory,
+        public void Configure(AssemblyStationController owner, string id, string partCategory,
             bool isServiceable)
         {
             station = owner;

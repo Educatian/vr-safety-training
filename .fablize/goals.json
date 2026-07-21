@@ -1,25 +1,32 @@
 {
- "brief": "타워크레인 리깅 조립 스테이션: 마그네틱 스냅 조립(wand+데스크톱), 손상/정상 슬링 선택 측정, 인양 게이팅, 텔레메트리",
- "created": "2026-07-21T15:37:52.829598+00:00",
+ "brief": "조립 확장 3종(가드레일 CON-03, LOTO ELE-02, 쇼어프레임 CON-02 물리 transfer)+BKT 런타임 이식+검증+커밋",
+ "created": "2026-07-21T16:06:31.331269+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "R1-mechanic",
-   "objective": "AssemblyPart/AssemblySocket/RiggingAssemblyStation 런타임 (스냅·고스트·언스냅·assembly 텔레메트리·인양 게이트)",
+   "title": "B1-generalize",
+   "objective": "AssemblyStationController로 일반화(stationId·prerequisite 순서 게이트·minimum-count 완료 모드·가변 보상/피드백), 리깅 이관",
    "status": "in_progress",
    "evidence": null
   },
   {
    "id": "G002",
-   "title": "R2-factory",
-   "objective": "Rigging Loft에 지그+부품(정상 슬링2·손상 슬링2·태그라인) 저작+애니메이터 게이트 배선",
+   "title": "B2-stations",
+   "objective": "가드레일(포스트2+레일2+굽은포스트 decoy)·LOTO(hasp→lock→tag 순서)·쇼어프레임(6베이 중 5=용량충족) 팩토리 저작",
    "status": "pending",
    "evidence": null
   },
   {
    "id": "G003",
-   "title": "R3-verify",
-   "objective": "EditMode 스테이션 로직 테스트+전체 그린+씬 재생성+플레이 실증 스샷",
+   "title": "B3-bkt",
+   "objective": "Core BktModel(온라인 사후확률)+LearningOutcomeTracker 통합+디브리프 보드 mastery 표시+단위테스트",
+   "status": "pending",
+   "evidence": null
+  },
+  {
+   "id": "G004",
+   "title": "B4-verify",
+   "objective": "테스트 신스펙+전체 그린+씬 재생성+커밋/푸쉬",
    "status": "pending",
    "evidence": null
   }

@@ -70,9 +70,14 @@ namespace SafetyTraining.Runtime
                 $"EVIDENCE {relevant} RELEVANT / {lookAlikes} LOOK-ALIKE   PRECISION {precision}");
             builder.AppendLine(
                 $"FIRST-ATTEMPT MARKS {firstAttempt}   DECISION STATIONS {decisionsAttempted}");
-            builder.Append(
+            builder.AppendLine(
                 $"COACH TURNS {coordinator.CompletedCoachTurns}   " +
                 $"PROGRESS {Mathf.RoundToInt(coordinator.GuidedProgress01 * 100f)}%");
+            var objectiveCount = 0;
+            var mastery = outcomes != null ? outcomes.MeanMastery(out objectiveCount) : -1f;
+            builder.Append(mastery < 0f
+                ? "BKT MASTERY --"
+                : $"BKT MASTERY {Mathf.RoundToInt(mastery * 100f)}%  ({objectiveCount} OBJECTIVES)");
             return builder.ToString();
         }
     }

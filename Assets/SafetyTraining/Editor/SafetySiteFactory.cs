@@ -56,6 +56,8 @@ namespace SafetyTraining.Editor
                 "Secured access ladder", "The ladder is complete, footed on a firm surface, and tied off at the top.",
                 "Inspect it before each shift and keep the tie-off intact.");
             CreateConstructionHandsOn(root);
+            GuardrailAssembly(root);
+            ShoreFrameAssembly(root);
             return root;
         }
 
@@ -484,6 +486,7 @@ namespace SafetyTraining.Editor
             SafetyScenePrimitives.Target(elevatedCord, TrainingSiteId.ElectricalMaintenance, "elevated-cord", false,
                 "Elevated intact cord", "The identical cord is intact and routed on hooks above the walking surface.",
                 "Keep the cord elevated and inspect the jacket before each use.");
+            LotoAssembly(root);
             return root;
         }
 
@@ -591,8 +594,11 @@ namespace SafetyTraining.Editor
             var stationRoot = new GameObject("Rigging Assembly Station").transform;
             stationRoot.SetParent(root, false);
             stationRoot.localPosition = new Vector3(7.5f, 0f, 7.6f);
-            var station = stationRoot.gameObject.AddComponent<RiggingAssemblyStation>();
-            station.Configure(TrainingSiteId.TowerCrane, "TCR-02", craneAnimator);
+            var station = stationRoot.gameObject.AddComponent<AssemblyStationController>();
+            station.Configure(TrainingSiteId.TowerCrane, "TCR-02", "rigging", 0, 25,
+                "Lift authorized\nRigging verified with inspected components. The trolley may travel.",
+                "Clean rig. Tagged slings, tagline on, load path controlled - that is how a lift starts.",
+                craneAnimator);
 
             foreach (var x in new[] { -1.1f, 1.1f })
             {
@@ -630,8 +636,110 @@ namespace SafetyTraining.Editor
             partsLabel.color = new Color(0.72f, 0.88f, 0.96f);
         }
 
-        static void CreateAssemblySocket(RiggingAssemblyStation station, Transform parent,
-            string id, string category, Vector3 localPosition)
+        // Guardrail kit assembly (annex laydown yard): posts must be seated before
+        // either rail will accept - the 1926.502 build order becomes the mechanic.
+        static void GuardrailAssembly(Transform root)
+        {
+            var stationRoot = new GameObject("Guardrail Assembly Station").transform;
+            stationRoot.SetParent(root, false);
+            stationRoot.localPosition = new Vector3(-7f, 0f, 15.6f);
+            var station = stationRoot.gameObject.AddComponent<AssemblyStationController>();
+            station.Configure(TrainingSiteId.Construction, "CON-03", "guardrail", 0, 25,
+                "Guardrail complete\nPosts, top rail, and mid rail are seated in a compliant sequence.",
+                "Posts first, then rails - that is a 1926.502 guardrail done right.", null);
+            DecorativePrimitive(PrimitiveType.Cube, "Guardrail Base Curb", stationRoot,
+                new Vector3(0f, 0.08f, 0f), new Vector3(2.8f, 0.16f, 0.4f), Concrete);
+            var label = SafetyScenePrimitives.Label("BUILD THE GUARDRAIL\nPOSTS FIRST, THEN RAILS", stationRoot,
+                new Vector3(0f, 1.9f, -0.3f), 0.065f);
+            label.color = new Color(0.72f, 0.88f, 0.96f);
+
+            CreateAssemblySocket(station, stationRoot, "post-left", "post",
+                new Vector3(-1f, 0.7f, 0f));
+            CreateAssemblySocket(station, stationRoot, "post-right", "post",
+                new Vector3(1f, 0.7f, 0f));
+            CreateAssemblySocket(station, stationRoot, "top-rail", "rail-top",
+                new Vector3(0f, 1.35f, 0f), "post", 2);
+            CreateAssemblySocket(station, stationRoot, "mid-rail", "rail-mid",
+                new Vector3(0f, 0.85f, 0f), "post", 2);
+
+            CreateAssemblyPart(station, stationRoot, "post-a", "post", true,
+                new Vector3(-2.2f, 0.35f, -1.4f), SafetyYellow);
+            CreateAssemblyPart(station, stationRoot, "post-b", "post", true,
+                new Vector3(-1.5f, 0.35f, -1.7f), SafetyYellow);
+            CreateAssemblyPart(station, stationRoot, "bent-post", "post", false,
+                new Vector3(-0.6f, 0.35f, -1.9f), new Color(0.62f, 0.5f, 0.14f));
+            CreateAssemblyPart(station, stationRoot, "top-rail-section", "rail-top", true,
+                new Vector3(1.1f, 0.35f, -1.7f), new Color(0.94f, 0.94f, 0.88f));
+            CreateAssemblyPart(station, stationRoot, "mid-rail-section", "rail-mid", true,
+                new Vector3(1.9f, 0.35f, -1.4f), new Color(0.82f, 0.82f, 0.76f));
+        }
+
+        // Shore frame capacity assembly (annex drill yard): the physical version of
+        // the formwork calculation - seat frames until rated capacity covers the
+        // documented demand (5 x 4,500 lb >= 19,000 lb).
+        static void ShoreFrameAssembly(Transform root)
+        {
+            var stationRoot = new GameObject("Shore Frame Assembly Station").transform;
+            stationRoot.SetParent(root, false);
+            stationRoot.localPosition = new Vector3(7f, 0f, 15.6f);
+            var station = stationRoot.gameObject.AddComponent<AssemblyStationController>();
+            station.Configure(TrainingSiteId.Construction, "CON-02", "shore-frames", 5, 25,
+                "Capacity verified\n5 x 4,500 lb = 22,500 lb rated support covers the 19,000 lb demand.",
+                "You proved the number with your hands: capacity above demand before any pour.", null);
+            DecorativePrimitive(PrimitiveType.Cube, "Mock Slab Soffit", stationRoot,
+                new Vector3(0f, 1.75f, 0f), new Vector3(3.4f, 0.14f, 1.6f), Concrete);
+            var label = SafetyScenePrimitives.Label(
+                "SHORE THE POUR\nDEMAND 19,000 LB  FRAMES 4,500 LB EACH", stationRoot,
+                new Vector3(0f, 2.25f, -0.85f), 0.06f);
+            label.color = new Color(0.72f, 0.88f, 0.96f);
+
+            for (var bay = 0; bay < 6; bay++)
+                CreateAssemblySocket(station, stationRoot, $"shore-bay-{bay + 1}", "shore",
+                    new Vector3(-1.25f + bay * 0.5f, 0.85f, 0f));
+            for (var frame = 0; frame < 6; frame++)
+                CreateAssemblyPart(station, stationRoot, $"shore-frame-{frame + 1}", "shore", true,
+                    new Vector3(-1.5f + frame * 0.6f, 0.35f, -1.7f), Steel);
+        }
+
+        // Lockout/tagout assembly (annex laydown yard): hasp, then lock, then tag -
+        // the 1926.417 sequence enforced by socket prerequisites, with an expired
+        // tag as the serviceability foil.
+        static void LotoAssembly(Transform root)
+        {
+            var stationRoot = new GameObject("LOTO Assembly Station").transform;
+            stationRoot.SetParent(root, false);
+            stationRoot.localPosition = new Vector3(-7f, 0f, 15.6f);
+            var station = stationRoot.gameObject.AddComponent<AssemblyStationController>();
+            station.Configure(TrainingSiteId.ElectricalMaintenance, "ELE-02", "loto", 0, 25,
+                "Isolation secured\nHasp, personal lock, and current danger tag are applied in sequence.",
+                "Hasp, lock, tag - your energy control is on and documented.", null);
+            DecorativePrimitive(PrimitiveType.Cube, "Mock Disconnect Switch", stationRoot,
+                new Vector3(0f, 1.15f, 0.1f), new Vector3(0.9f, 1.3f, 0.3f),
+                new Color(0.31f, 0.36f, 0.43f));
+            var label = SafetyScenePrimitives.Label("APPLY LOCKOUT\nHASP > LOCK > TAG", stationRoot,
+                new Vector3(0f, 2.05f, -0.15f), 0.065f);
+            label.color = new Color(0.72f, 0.88f, 0.96f);
+
+            CreateAssemblySocket(station, stationRoot, "hasp-point", "hasp",
+                new Vector3(0f, 1.05f, -0.15f));
+            CreateAssemblySocket(station, stationRoot, "lock-point", "lock",
+                new Vector3(0f, 0.75f, -0.2f), "hasp", 1);
+            CreateAssemblySocket(station, stationRoot, "tag-point", "tag",
+                new Vector3(0.35f, 0.75f, -0.2f), "lock", 1);
+
+            CreateAssemblyPart(station, stationRoot, "group-hasp", "hasp", true,
+                new Vector3(-1.6f, 0.35f, -1.3f), Steel);
+            CreateAssemblyPart(station, stationRoot, "personal-lock", "lock", true,
+                new Vector3(-0.9f, 0.35f, -1.6f), new Color(0.85f, 0.12f, 0.1f));
+            CreateAssemblyPart(station, stationRoot, "danger-tag", "tag", true,
+                new Vector3(0.9f, 0.35f, -1.6f), SafetyYellow);
+            CreateAssemblyPart(station, stationRoot, "expired-tag", "tag", false,
+                new Vector3(1.6f, 0.35f, -1.3f), new Color(0.6f, 0.58f, 0.5f));
+        }
+
+        static void CreateAssemblySocket(AssemblyStationController station, Transform parent,
+            string id, string category, Vector3 localPosition,
+            string prerequisiteCategory = null, int prerequisiteCount = 0)
         {
             var socketObject = new GameObject($"Assembly Socket - {id}");
             socketObject.transform.SetParent(parent, false);
@@ -642,10 +750,12 @@ namespace SafetyTraining.Editor
             Object.DestroyImmediate(marker.GetComponent<Collider>());
             var socket = socketObject.AddComponent<AssemblySocket>();
             socket.Configure(id, category, 0.55f);
+            if (!string.IsNullOrEmpty(prerequisiteCategory))
+                socket.RequirePrerequisite(prerequisiteCategory, prerequisiteCount);
             station.RegisterSocket(socket);
         }
 
-        static void CreateAssemblyPart(RiggingAssemblyStation station, Transform parent,
+        static void CreateAssemblyPart(AssemblyStationController station, Transform parent,
             string id, string category, bool serviceable, Vector3 localPosition, Color color)
         {
             var part = SafetyScenePrimitives.Primitive(PrimitiveType.Cylinder, $"Assembly Part - {id}",

@@ -17,23 +17,64 @@ namespace SafetyTraining.Tests.EditMode
             EditorSceneManager.OpenScene(ScenePath);
         }
 
-        static RiggingAssemblyStation Station() =>
-            Object.FindFirstObjectByType<RiggingAssemblyStation>(FindObjectsInactive.Include);
+        static AssemblyStationController Station(string stationId = "rigging") =>
+            Object.FindObjectsByType<AssemblyStationController>(FindObjectsInactive.Include,
+                    FindObjectsSortMode.None)
+                .Single(item => item.StationId == stationId);
 
         static AssemblyPart Part(string id) =>
             Object.FindObjectsByType<AssemblyPart>(FindObjectsInactive.Include, FindObjectsSortMode.None)
                 .Single(item => item.PartId == id);
 
         [Test]
-        public void Scene_ContainsRiggingStationWithThreeSocketsAndFiveParts()
+        public void Scene_ContainsFourAssemblyStationsWithExpectedInventory()
         {
-            var station = Station();
-            Assert.That(station, Is.Not.Null);
-            Assert.That(station.Sockets.Count, Is.EqualTo(3));
+            var stations = Object.FindObjectsByType<AssemblyStationController>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Assert.That(stations.Select(item => item.StationId).ToArray(),
+                Is.EquivalentTo(new[] { "rigging", "guardrail", "shore-frames", "loto" }));
+            Assert.That(Station("rigging").Sockets.Count, Is.EqualTo(3));
+            Assert.That(Station("guardrail").Sockets.Count, Is.EqualTo(4));
+            Assert.That(Station("shore-frames").Sockets.Count, Is.EqualTo(6));
+            Assert.That(Station("loto").Sockets.Count, Is.EqualTo(3));
             var parts = Object.FindObjectsByType<AssemblyPart>(FindObjectsInactive.Include,
                 FindObjectsSortMode.None);
-            Assert.That(parts, Has.Length.EqualTo(5));
-            Assert.That(parts.Count(part => part.IsServiceable), Is.EqualTo(3));
+            Assert.That(parts, Has.Length.EqualTo(20));
+            Assert.That(parts.Count(part => !part.IsServiceable), Is.EqualTo(4));
+        }
+
+        [Test]
+        public void GuardrailSocket_RejectsRailUntilBothPostsAreSeated()
+        {
+            var station = Station("guardrail");
+            var topRail = Part("top-rail-section");
+            var railSocket = station.Sockets.Single(socket => socket.SocketId == "top-rail");
+            topRail.transform.position = railSocket.AttachPosition;
+            Assert.That(station.TrySnap(topRail, "Test", out _), Is.False);
+
+            var postA = Part("post-a");
+            postA.transform.position = station.Sockets.Single(s => s.SocketId == "post-left").AttachPosition;
+            station.TrySnap(postA, "Test", out _);
+            var postB = Part("post-b");
+            postB.transform.position = station.Sockets.Single(s => s.SocketId == "post-right").AttachPosition;
+            station.TrySnap(postB, "Test", out _);
+
+            topRail.transform.position = railSocket.AttachPosition;
+            Assert.That(station.TrySnap(topRail, "Test", out var seated), Is.True);
+            Assert.That(seated.SocketId, Is.EqualTo("top-rail"));
+        }
+
+        [Test]
+        public void ShoreFrames_CompleteAtFiveOfSixBays()
+        {
+            var station = Station("shore-frames");
+            for (var index = 1; index <= 5; index++)
+            {
+                var frame = Part($"shore-frame-{index}");
+                frame.transform.position = station.Sockets[index - 1].AttachPosition;
+                Assert.That(station.TrySnap(frame, "Test", out _), Is.True, $"frame {index}");
+            }
+            Assert.That(station.IsComplete, Is.True);
         }
 
         [Test]

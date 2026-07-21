@@ -59,3 +59,10 @@
 {"ts": "2026-07-21T15:03:20.804092+00:00", "event": "checkpoint", "id": "G005", "status": "complete", "evidence": "씬 재생성+저장, 실측 zones=49(전용 6+annex 2), 크레인 스샷 캡처", "verify_cmd": "script-execute Build+counts", "verify_evidence": "targets=36 zones=49 portals=12"}
 {"ts": "2026-07-21T15:37:52.831123+00:00", "event": "plan_created", "brief": "타워크레인 리깅 조립 스테이션: 마그네틱 스냅 조립(wand+데스크톱), 손상/정상 슬링 선택 측정, 인양 게이팅, 텔레메트리", "count": 3}
 {"ts": "2026-07-21T15:37:52.964776+00:00", "event": "story_started", "id": "G001", "title": "R1-mechanic"}
+{"ts": "2026-07-21T16:03:18.403121+00:00", "event": "checkpoint", "id": "G001", "status": "complete", "evidence": "AssemblyPart/AssemblySocket/RiggingAssemblyStation 3파일(직렬화 버그: 단일파일 3클래스→파일명 매칭 분리+sockets SerializeField), 고스트·언스냅·assembly:* 텔레메트리·인양 게이트(TowerCraneAnimator.SetLiftAuthorized)", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T16:03:18.521886+00:00", "event": "story_started", "id": "G002", "title": "R2-factory"}
+{"ts": "2026-07-21T16:03:18.642143+00:00", "event": "checkpoint", "id": "G002", "status": "complete", "evidence": "Rigging Loft 지그(스프레더바+소켓3)+부품5(태그2·손상2·태그라인), 저장·재로드 후 station/sockets/parts 유지 실증", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T16:03:18.756187+00:00", "event": "story_started", "id": "G003", "title": "R3-verify"}
+{"ts": "2026-07-21T16:03:18.866680+00:00", "event": "checkpoint", "id": "G003", "status": "complete", "evidence": "리깅 테스트 5종 포함 EditMode 196/196 PASS(시야 프롭 이동 1건 수리), 커밋 19b597b 푸쉬 완료", "verify_cmd": "tests-run + git push", "verify_evidence": "Passed 196/196; 836ca06..19b597b pushed"}
+{"ts": "2026-07-21T16:06:31.331269+00:00", "event": "plan_created", "brief": "조립 확장 3종(가드레일 CON-03, LOTO ELE-02, 쇼어프레임 CON-02 물리 transfer)+BKT 런타임 이식+검증+커밋", "count": 4}
+{"ts": "2026-07-21T16:06:31.446322+00:00", "event": "story_started", "id": "G001", "title": "B1-generalize"}

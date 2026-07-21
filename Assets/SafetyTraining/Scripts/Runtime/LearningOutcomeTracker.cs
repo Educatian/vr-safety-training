@@ -10,6 +10,7 @@ namespace SafetyTraining.Runtime
     {
         readonly Dictionary<string, HashSet<string>> earnedCriteria = new();
         readonly Dictionary<string, HashSet<string>> attemptedCriteria = new();
+        readonly Dictionary<string, BktModel> masteryModels = new();
         InquiryEventLogger eventLogger;
 
         public static LearningOutcomeTracker Instance { get; private set; }
@@ -31,6 +32,12 @@ namespace SafetyTraining.Runtime
             eventLogger ??= GetComponent<InquiryEventLogger>() ?? gameObject.AddComponent<InquiryEventLogger>();
             Get(attemptedCriteria, objectiveId).Add(criterionId);
             if (accepted) Get(earnedCriteria, objectiveId).Add(criterionId);
+            if (!masteryModels.TryGetValue(objectiveId, out var model))
+            {
+                model = new BktModel();
+                masteryModels.Add(objectiveId, model);
+            }
+            model.Observe(accepted);
             eventLogger?.Record(new InquiryTelemetryEvent
             {
                 SiteId = site,
@@ -62,6 +69,22 @@ namespace SafetyTraining.Runtime
                 Outcome = value,
                 Detail = $"{flag}={value}"
             });
+        }
+
+        /// <summary>Online BKT posterior P(L) for one objective; -1 if unobserved.</summary>
+        public float MasteryEstimate(string objectiveId) =>
+            masteryModels.TryGetValue(objectiveId, out var model) ? (float)model.Mastery : -1f;
+
+        /// <summary>Mean BKT mastery across all observed objectives; -1 if none yet.</summary>
+        public float MeanMastery(out int objectiveCount)
+        {
+            objectiveCount = masteryModels.Count;
+            if (objectiveCount == 0)
+                return -1f;
+            var total = 0.0;
+            foreach (var model in masteryModels.Values)
+                total += model.Mastery;
+            return (float)(total / objectiveCount);
         }
 
         public int EarnedCriteriaMatching(string fragment) => CountMatching(earnedCriteria, fragment);
