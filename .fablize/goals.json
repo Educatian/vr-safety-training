@@ -1,34 +1,48 @@
 {
- "brief": "조립 확장 3종(가드레일 CON-03, LOTO ELE-02, 쇼어프레임 CON-02 물리 transfer)+BKT 런타임 이식+검증+커밋",
- "created": "2026-07-21T16:06:31.331269+00:00",
+ "brief": "학생 유저테스팅 피드백 부분해결/미해결 5건 전면 수리",
+ "created": "2026-07-21T21:05:06.842236+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "B1-generalize",
-   "objective": "AssemblyStationController로 일반화(stationId·prerequisite 순서 게이트·minimum-count 완료 모드·가변 보상/피드백), 리깅 이관",
+   "title": "pause-menu",
+   "objective": "ESC 일시정지 메뉴(재개/종료/조작안내)와 데스크톱 종료 경로 구현",
    "status": "complete",
-   "evidence": "AssemblyStationController 일반화(stationId·prereq 게이트·minimum-count·가변 보상, 리깅 이관), AssemblySocket prereq API"
+   "evidence": "PauseMenuController+PauseMenuBuilder(ESC 토글, RESUME/QUIT, 잠금블록), 계약테스트 Scene_HasPauseMenuWithResumeAndQuitThatStartsHidden PASS (205/205)"
   },
   {
    "id": "G002",
-   "title": "B2-stations",
-   "objective": "가드레일(포스트2+레일2+굽은포스트 decoy)·LOTO(hasp→lock→tag 순서)·쇼어프레임(6베이 중 5=용량충족) 팩토리 저작",
+   "title": "entry-gates",
+   "objective": "6개 사이트 입구 도어 갭 12개 봉인(게이트 패널+콜라이더)과 밀폐 계약테스트",
    "status": "complete",
-   "evidence": "3 스테이션 저작(가드레일 4소켓·LOTO 3소켓 순서게이트·쇼어 6베이/5완료), 실측 stations=4 parts=20"
+   "evidence": "CreateEntryGates 12게이트 생성 확인, Scene_SiteEntryDoorwaysAreSealedAgainstWalkingIntoTheVoid 6사이트 레이캐스트 PASS"
   },
   {
    "id": "G003",
-   "title": "B3-bkt",
-   "objective": "Core BktModel(온라인 사후확률)+LearningOutcomeTracker 통합+디브리프 보드 mastery 표시+단위테스트",
+   "title": "chat-scroll",
+   "objective": "챗 트랜스크립트 ScrollRect 스크롤백+고정 폰트 크기+히스토리 버퍼 확대",
    "status": "complete",
-   "evidence": "Core BktModel(온라인 사후확률)+트래커 통합+디브리프 보드 BKT MASTERY 라인+BktModelTests 3종"
+   "evidence": "ScrollRect+RectMask2D+ContentSizeFitter+고정18pt+히스토리 6000자/24턴 복원, Scene_ChatTranscriptScrollsFullHistoryAtFixedReadableSize PASS"
   },
   {
    "id": "G004",
-   "title": "B4-verify",
-   "objective": "테스트 신스펙+전체 그린+씬 재생성+커밋/푸쉬",
+   "title": "proximity-labels",
+   "objective": "사이트 프롭 상시 라벨 근접 표시 전환(ProximityLabel)",
    "status": "complete",
-   "evidence": "EditMode 201/201 PASS, 커밋 0411e29 푸쉬(Everything up-to-date 확인)"
+   "evidence": "ProximityLabel 194개 부착(8m, size<0.1만), Scene_SmallPropLabelsShowOnlyOnApproachWhileTitlesStayVisible PASS"
+  },
+  {
+   "id": "G005",
+   "title": "font-upgrade",
+   "objective": "오픈소스 폰트 임베드 및 챗/HUD/월드라벨 적용",
+   "status": "complete",
+   "evidence": "Inter-Regular/SemiBold(OFL)+라이선스 임베드, 챗/HUD바디/스테이션HMI/월드라벨 적용, 폰트 계약 Inter 갱신 PASS"
+  },
+  {
+   "id": "G006",
+   "title": "verify-build",
+   "objective": "전체 테스트+렌더 검증 스샷+Quest/Windows 재빌드+바탕화면 설치파일 갱신+커밋푸쉬",
+   "status": "pending",
+   "evidence": null
   }
  ]
 }

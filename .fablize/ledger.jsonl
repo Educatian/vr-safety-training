@@ -73,3 +73,14 @@
 {"ts": "2026-07-21T16:14:47.942709+00:00", "event": "checkpoint", "id": "G003", "status": "complete", "evidence": "Core BktModel(온라인 사후확률)+트래커 통합+디브리프 보드 BKT MASTERY 라인+BktModelTests 3종", "verify_cmd": "", "verify_evidence": ""}
 {"ts": "2026-07-21T16:14:48.183002+00:00", "event": "story_started", "id": "G004", "title": "B4-verify"}
 {"ts": "2026-07-21T16:14:48.311917+00:00", "event": "checkpoint", "id": "G004", "status": "complete", "evidence": "EditMode 201/201 PASS, 커밋 0411e29 푸쉬(Everything up-to-date 확인)", "verify_cmd": "tests-run + git push", "verify_evidence": "Passed 201/201; 0411e29 pushed"}
+{"ts": "2026-07-21T21:05:06.842739+00:00", "event": "plan_created", "brief": "학생 유저테스팅 피드백 부분해결/미해결 5건 전면 수리", "count": 6}
+{"ts": "2026-07-21T21:18:31.865540+00:00", "event": "story_started", "id": "G001", "title": "pause-menu"}
+{"ts": "2026-07-21T21:18:31.988369+00:00", "event": "checkpoint", "id": "G001", "status": "complete", "evidence": "PauseMenuController+PauseMenuBuilder(ESC 토글, RESUME/QUIT, 잠금블록), 계약테스트 Scene_HasPauseMenuWithResumeAndQuitThatStartsHidden PASS (205/205)", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T21:18:32.108522+00:00", "event": "story_started", "id": "G002", "title": "entry-gates"}
+{"ts": "2026-07-21T21:18:32.230279+00:00", "event": "checkpoint", "id": "G002", "status": "complete", "evidence": "CreateEntryGates 12게이트 생성 확인, Scene_SiteEntryDoorwaysAreSealedAgainstWalkingIntoTheVoid 6사이트 레이캐스트 PASS", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T21:18:32.350328+00:00", "event": "story_started", "id": "G003", "title": "chat-scroll"}
+{"ts": "2026-07-21T21:18:32.471350+00:00", "event": "checkpoint", "id": "G003", "status": "complete", "evidence": "ScrollRect+RectMask2D+ContentSizeFitter+고정18pt+히스토리 6000자/24턴 복원, Scene_ChatTranscriptScrollsFullHistoryAtFixedReadableSize PASS", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T21:18:32.593136+00:00", "event": "story_started", "id": "G004", "title": "proximity-labels"}
+{"ts": "2026-07-21T21:18:32.713340+00:00", "event": "checkpoint", "id": "G004", "status": "complete", "evidence": "ProximityLabel 194개 부착(8m, size<0.1만), Scene_SmallPropLabelsShowOnlyOnApproachWhileTitlesStayVisible PASS", "verify_cmd": "", "verify_evidence": ""}
+{"ts": "2026-07-21T21:18:32.836850+00:00", "event": "story_started", "id": "G005", "title": "font-upgrade"}
+{"ts": "2026-07-21T21:18:32.958239+00:00", "event": "checkpoint", "id": "G005", "status": "complete", "evidence": "Inter-Regular/SemiBold(OFL)+라이선스 임베드, 챗/HUD바디/스테이션HMI/월드라벨 적용, 폰트 계약 Inter 갱신 PASS", "verify_cmd": "", "verify_evidence": ""}

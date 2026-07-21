@@ -12,6 +12,7 @@ namespace SafetyTraining.Runtime
             public GameObject Panel;
             public Text Title;
             public Text Transcript;
+            public ScrollRect TranscriptScroll;
             public InputField Input;
             public Text SendLabel;
             public Button SendButton;
@@ -23,6 +24,7 @@ namespace SafetyTraining.Runtime
         [SerializeField] GameObject panel;
         [SerializeField] Text title;
         [SerializeField] Text transcript;
+        [SerializeField] ScrollRect transcriptScroll;
         [SerializeField] InputField input;
         [SerializeField] Text sendLabel;
         [SerializeField] Button sendButton;
@@ -33,10 +35,12 @@ namespace SafetyTraining.Runtime
         Coroutine refresh;
         bool controlsBound;
 
-        const int MaxTranscriptChars = 1400;
+        const int MaxTranscriptChars = 6000;
 
         public bool IsVisible => panel != null && panel.activeSelf;
         public bool IsOpenFor(NpcConversationAgent agent) => activeAgent == agent && IsVisible;
+        // Frame stamp letting the pause menu skip an ESC press this panel consumed.
+        public int EscapeHandledFrame { get; private set; } = -1;
 
         void Awake()
         {
@@ -48,7 +52,10 @@ namespace SafetyTraining.Runtime
         void Update()
         {
             if (IsVisible && Input.GetKeyDown(KeyCode.Escape))
+            {
+                EscapeHandledFrame = Time.frameCount;
                 Close();
+            }
         }
 
         void OnDestroy()
@@ -63,6 +70,7 @@ namespace SafetyTraining.Runtime
             panel = bindings.Panel;
             title = bindings.Title;
             transcript = bindings.Transcript;
+            transcriptScroll = bindings.TranscriptScroll;
             input = bindings.Input;
             sendLabel = bindings.SendLabel;
             sendButton = bindings.SendButton;
@@ -74,10 +82,16 @@ namespace SafetyTraining.Runtime
             activeAgent = agent;
             var conciseSiteName = agent.SiteName.Split(' ')[0].ToUpperInvariant();
             title.text = $"{conciseSiteName} SAFETY COACH";
+            // Restore this coach's earlier exchanges so reopening the chat keeps
+            // prior suggestions reachable through the scrollback.
+            var history = agent.TranscriptLog;
             conversationLog = $"{agent.SiteName} coach ready.\nAsk about the visible condition, risk, or required control.";
+            if (!string.IsNullOrEmpty(history))
+                conversationLog = $"{conversationLog}\n\n{history}";
             transcript.text = conversationLog;
             lastReply = agent.LastReply;
             SetVisible(true);
+            ScrollToLatest();
             input.Select();
             input.ActivateInputField();
             if (refresh != null)
@@ -119,6 +133,7 @@ namespace SafetyTraining.Runtime
             input.text = string.Empty;
             AppendToLog($"You: {message}");
             transcript.text = $"{conversationLog}\n\nCoach is responding...";
+            ScrollToLatest();
             activeAgent.Ask(message);
         }
 
@@ -131,11 +146,20 @@ namespace SafetyTraining.Runtime
                     lastReply = activeAgent.LastReply;
                     AppendToLog($"Coach: {lastReply}");
                     transcript.text = conversationLog;
+                    ScrollToLatest();
                     input.Select();
                     input.ActivateInputField();
                 }
                 yield return null;
             }
+        }
+
+        void ScrollToLatest()
+        {
+            if (transcriptScroll == null)
+                return;
+            Canvas.ForceUpdateCanvases();
+            transcriptScroll.verticalNormalizedPosition = 0f;
         }
 
         void AppendToLog(string line)

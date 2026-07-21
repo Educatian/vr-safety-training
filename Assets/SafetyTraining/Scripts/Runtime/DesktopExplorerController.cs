@@ -163,12 +163,12 @@ namespace SafetyTraining.Runtime
 
         static bool ShouldBlockWorldPointer(bool chatVisible, bool pointerOverUi)
         {
-            return chatVisible || pointerOverUi;
+            return chatVisible || pointerOverUi || PauseMenuController.VisibleNow;
         }
 
         static bool ShouldBlockLocomotion(bool chatVisible, bool textEntryFocused)
         {
-            return chatVisible || textEntryFocused;
+            return chatVisible || textEntryFocused || PauseMenuController.VisibleNow;
         }
 
         void HandleActiveDesktopDrag(Ray pointerRay, bool buttonHeld)

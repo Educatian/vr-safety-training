@@ -131,9 +131,28 @@ namespace SafetyTraining.Editor
             foreach (var agent in Object.FindObjectsByType<NpcConversationAgent>(FindObjectsSortMode.None))
                 agent.ConfigureEndpoint(config);
 
+            ApplyProximityLabels(new[] { construction, warehouse, fire, chemical, electrical, towerCrane });
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             Selection.activeObject = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
+        }
+
+        // Small prop labels only read close-up anyway; showing them within 8m
+        // keeps dense areas (e.g. the cement laydown) from stacking a dozen
+        // texts at once. Wayfinding titles (characterSize >= 0.1) stay always-on,
+        // and evidence hover labels keep their own hover-driven visibility.
+        static void ApplyProximityLabels(Transform[] sites)
+        {
+            foreach (var site in sites)
+            foreach (var label in site.GetComponentsInChildren<TextMesh>(true))
+            {
+                if (label.characterSize >= 0.1f ||
+                    label.GetComponentInParent<EvidenceObject>() != null ||
+                    label.GetComponent<ProximityLabel>() != null)
+                    continue;
+                label.gameObject.AddComponent<ProximityLabel>().Configure(8f);
+            }
         }
 
         [MenuItem("Safety Training/Open Prototype Scene")]
@@ -593,6 +612,7 @@ namespace SafetyTraining.Editor
                 : Object.FindFirstObjectByType<Camera>();
             ProfessionalHudBuilder.Create(viewer);
             ProfessionalChatBuilder.Create(viewer);
+            PauseMenuBuilder.Create();
         }
 
         static LlmEndpointConfig LoadOrCreateEndpointConfig()

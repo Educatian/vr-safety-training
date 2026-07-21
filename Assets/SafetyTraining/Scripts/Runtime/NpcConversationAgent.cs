@@ -22,6 +22,7 @@ namespace SafetyTraining.Runtime
         static bool endpointUnavailable;
 
         public string LastReply { get; private set; } = "Ask me about this training site.";
+        public string TranscriptLog => string.Join("\n\n", transcript);
         public SafetyTraining.Core.TrainingSiteId SiteId => siteId;
         public string SiteName => siteId switch
         {
@@ -60,7 +61,11 @@ namespace SafetyTraining.Runtime
                 safetyFacts = $"{verifiedSafetyFacts} {OshaScenarioCatalog.GetSiteCoachBrief(siteId)}",
                 progress = BuildSituationContext(Camera.main != null
                     ? Camera.main.transform.position : transform.position),
-                transcript = string.Join("\n", transcript)
+                // Prompt context stays short (last 8 lines); the fuller list is
+                // kept for the chat panel's scrollback history.
+                transcript = string.Join("\n",
+                    transcript.GetRange(Mathf.Max(0, transcript.Count - 8),
+                        Mathf.Min(8, transcript.Count)))
             };
 
             try
@@ -89,8 +94,8 @@ namespace SafetyTraining.Runtime
 
             transcript.Add($"Learner: {learnerMessage}");
             transcript.Add($"Coach: {LastReply}");
-            if (transcript.Count > 8)
-                transcript.RemoveRange(0, transcript.Count - 8);
+            if (transcript.Count > 24)
+                transcript.RemoveRange(0, transcript.Count - 24);
         }
 
         public void Configure(SafetyTraining.Core.TrainingSiteId trainingSite, string role, string facts)
@@ -109,8 +114,8 @@ namespace SafetyTraining.Runtime
         {
             LastReply = message;
             transcript.Add($"Coach: {message}");
-            if (transcript.Count > 8)
-                transcript.RemoveRange(0, transcript.Count - 8);
+            if (transcript.Count > 24)
+                transcript.RemoveRange(0, transcript.Count - 24);
         }
 
         public string BuildSituationContext(Vector3 learnerPosition)

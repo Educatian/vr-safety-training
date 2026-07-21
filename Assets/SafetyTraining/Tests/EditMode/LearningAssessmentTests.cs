@@ -134,7 +134,7 @@ namespace SafetyTraining.Tests.EditMode
                         $"{canvas.name}/{text.name} exceeds the left canvas edge.");
                     Assert.That(max.x, Is.LessThanOrEqualTo(half.x),
                         $"{canvas.name}/{text.name} exceeds the right canvas edge.");
-                    Assert.That(text.font.name, Does.Contain("LiberationSans"),
+                    Assert.That(text.font.name, Does.Contain("Inter").Or.Contain("LiberationSans"),
                         $"{canvas.name}/{text.name} must use the readable body typeface.");
                 }
             }

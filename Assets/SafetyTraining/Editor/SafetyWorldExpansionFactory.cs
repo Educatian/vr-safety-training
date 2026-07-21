@@ -91,6 +91,8 @@ namespace SafetyTraining.Editor
                 new Vector3(11.2f, 4.2f, 0.25f));
             SetCollider(site, "Isolation Collider Entry Center", new Vector3(0f, 2.1f, -13.15f),
                 new Vector3(5.1f, 4.2f, 0.25f));
+            CreateEntryGates(site);
+            CreatePerimeterHoarding(site, sideCenterZ, sideSpan);
 
             SafetyWorldAssetPainter.AddModel(site, "North Chainlink Perimeter", "modular_chainlink_fence_1k.fbx",
                 new Vector3(-7.5f, 0f, 21.4f), 8.5f, new Vector3(0f, 90f, 0f));
@@ -159,6 +161,44 @@ namespace SafetyTraining.Editor
             var collider = zone.AddComponent<BoxCollider>();
             collider.size = size;
             zone.AddComponent<SpatialAnalyticsZone>().Configure(siteId, id, title);
+        }
+
+        // The world expansion enlarged the walkable envelope to +-15m but left the
+        // opaque hoarding at the original compact perimeter, so the outer edge was
+        // invisible colliders with a bare skybox horizon behind them - the
+        // "cliff-like edges" testers flagged in HMD. Wrap the true boundary in the
+        // same corrugated hoarding so every site edge reads as a closed jobsite.
+        static void CreatePerimeterHoarding(Transform site, float sideCenterZ, float sideSpan)
+        {
+            RealEnvironmentDresser.CreateCorrugatedHoarding(site, "Expansion Hoarding Entry",
+                new Vector3(0f, 0f, -13.32f), 30.7f, 4.2f, 0f);
+            RealEnvironmentDresser.CreateCorrugatedHoarding(site, "Expansion Hoarding Rear",
+                new Vector3(0f, 0f, sideCenterZ + sideSpan / 2f + 0.17f), 30.7f, 4.2f, 180f);
+            RealEnvironmentDresser.CreateCorrugatedHoarding(site, "Expansion Hoarding Left",
+                new Vector3(-15.32f, 0f, sideCenterZ), sideSpan + 0.4f, 4.2f, 90f);
+            RealEnvironmentDresser.CreateCorrugatedHoarding(site, "Expansion Hoarding Right",
+                new Vector3(15.32f, 0f, sideCenterZ), sideSpan + 0.4f, 4.2f, -90f);
+        }
+
+        // The entry wall segments leave two 1.25m doorway openings that let the
+        // learner walk (and see) straight out into the void beyond the site slab.
+        // Seal both with solid gate panels: matching metal sheet, hazard stripe,
+        // and a full-height collider.
+        static void CreateEntryGates(Transform site)
+        {
+            foreach (var x in new[] { -3.175f, 3.175f })
+            {
+                var suffix = x < 0f ? "Left" : "Right";
+                var gate = SafetyScenePrimitives.Primitive(PrimitiveType.Cube,
+                    $"Entry Gate {suffix}", site,
+                    new Vector3(x, 2.1f, -13.15f), new Vector3(1.35f, 4.2f, 0.22f), Color.white);
+                gate.GetComponent<Renderer>().sharedMaterial = RealEnvironmentMaterials.MetalSheet;
+                var stripe = SafetyScenePrimitives.Primitive(PrimitiveType.Cube,
+                    $"Entry Gate Stripe {suffix}", site,
+                    new Vector3(x, 1.05f, -13.02f), new Vector3(1.35f, 0.14f, 0.03f),
+                    new Color(0.98f, 0.68f, 0.08f));
+                Object.DestroyImmediate(stripe.GetComponent<Collider>());
+            }
         }
 
         static void SetCollider(Transform site, string name, Vector3 center, Vector3 size)

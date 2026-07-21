@@ -23,7 +23,7 @@ namespace SafetyTraining.Editor
         {
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(PanelPath);
             var displayFont = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
-            var bodyFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var bodyFont = SafetyUiFonts.Body;
             var material = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
 
             var eventSystemObject = new GameObject("UI Event System");
@@ -65,14 +65,32 @@ namespace SafetyTraining.Editor
             Image("Chat Accent", panel.transform, null, material, Accent,
                 new Vector2(28f, -80f), new Vector2(464f, 3f), new Vector2(0f, 1f));
 
-            var transcript = Text("Coach Response", panel.transform,
-                "Ask the mentor about visible hazards, controls, or your progress.", bodyFont, 22, Primary,
-                new Vector2(28f, -96f), new Vector2(464f, 108f), TextAnchor.UpperLeft,
+            // Scrollable transcript: full conversation history stays reachable
+            // with the mouse wheel (or XR ray drag) instead of shrinking away.
+            var scrollObject = new GameObject("Chat Scroll View");
+            scrollObject.transform.SetParent(panel.transform, false);
+            var scrollRect = scrollObject.AddComponent<RectTransform>();
+            scrollRect.anchorMin = new Vector2(0f, 1f);
+            scrollRect.anchorMax = new Vector2(0f, 1f);
+            scrollRect.pivot = new Vector2(0f, 1f);
+            scrollRect.anchoredPosition = new Vector2(28f, -96f);
+            scrollRect.sizeDelta = new Vector2(464f, 108f);
+            scrollObject.AddComponent<RectMask2D>();
+            var scroll = scrollObject.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 22f;
+
+            var transcript = Text("Coach Response", scrollObject.transform,
+                "Ask the mentor about visible hazards, controls, or your progress.", bodyFont, 18, Primary,
+                Vector2.zero, new Vector2(464f, 108f), TextAnchor.UpperLeft,
                 new Vector2(0f, 1f));
-            transcript.lineSpacing = 1.08f;
-            transcript.resizeTextForBestFit = true;
-            transcript.resizeTextMinSize = 15;
-            transcript.resizeTextMaxSize = 22;
+            transcript.lineSpacing = 1.12f;
+            transcript.verticalOverflow = VerticalWrapMode.Overflow;
+            var fitter = transcript.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            scroll.content = transcript.rectTransform;
 
             var inputObject = new GameObject("Chat Input");
             inputObject.transform.SetParent(panel.transform, false);
@@ -154,6 +172,7 @@ namespace SafetyTraining.Editor
                 Panel = panel.gameObject,
                 Title = title,
                 Transcript = transcript,
+                TranscriptScroll = scroll,
                 Input = input,
                 SendLabel = send,
                 SendButton = button,

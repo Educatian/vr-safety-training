@@ -30,6 +30,7 @@ namespace SafetyTraining.Editor
             var iconSprite = AssetDatabase.LoadAssetAtPath<Sprite>(IconPath);
             var barSprite = AssetDatabase.LoadAssetAtPath<Sprite>(BarPath);
             var font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
+            var bodyFont = SafetyUiFonts.Body;
             uiMaterial = LoadOrCreateUiMaterial();
 
             var root = new GameObject("Training HUD");
@@ -65,7 +66,7 @@ namespace SafetyTraining.Editor
             Text("Learning Evidence Label", evidenceShell.transform, "LEARNING EVIDENCE", font, 14, Muted,
                 new Vector2(28f, -11f), new Vector2(470f, 20f), TextAnchor.UpperLeft);
             var objectives = Text("Learning Evidence", evidenceShell.transform,
-                "APPROACH A WORK ZONE TO LOAD OBJECTIVES", font, 17, Primary,
+                "APPROACH A WORK ZONE TO LOAD OBJECTIVES", bodyFont, 16, Primary,
                 new Vector2(28f, -34f), new Vector2(485f, 28f), TextAnchor.UpperLeft);
 
             var feedbackShell = Shell("Feedback Shell", root.transform, panelSprite,
@@ -75,7 +76,7 @@ namespace SafetyTraining.Editor
             var state = Text("State Label", feedbackShell.transform, "MISSION BRIEF", font, 16, Accent,
                 new Vector2(74f, -17f), new Vector2(260f, 22f), TextAnchor.UpperLeft);
             var feedback = Text("Feedback", feedbackShell.transform,
-                "Inspect each site. Select only conditions you believe are hazardous.", font, 21, Primary,
+                "Inspect each site. Select only conditions you believe are hazardous.", bodyFont, 19, Primary,
                 new Vector2(74f, -42f), new Vector2(710f, 58f), TextAnchor.UpperLeft);
 
             Image("Progress Track", feedbackShell.transform, null, Raised,

@@ -178,7 +178,7 @@ namespace SafetyTraining.Editor
                 new Vector3(3.55f, 4.2f, 0.25f));
         }
 
-        static void CreateCorrugatedHoarding(Transform parent, string name, Vector3 localPosition,
+        public static void CreateCorrugatedHoarding(Transform parent, string name, Vector3 localPosition,
             float width, float height, float yaw)
         {
             const float corrugationWidth = 0.18f;

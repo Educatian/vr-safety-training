@@ -39,6 +39,12 @@ namespace SafetyTraining.Editor
             mesh.anchor = TextAnchor.MiddleCenter;
             mesh.alignment = TextAlignment.Center;
             mesh.color = Color.white;
+            var bodyFont = SafetyUiFonts.Body;
+            if (bodyFont != null && bodyFont.dynamic)
+            {
+                mesh.font = bodyFont;
+                label.GetComponent<MeshRenderer>().sharedMaterial = bodyFont.material;
+            }
             return mesh;
         }
 

@@ -23,7 +23,7 @@ namespace SafetyTraining.Editor
         public static void CreateAll(Transform construction, Transform warehouse, Transform fire,
             Transform chemical, Transform electrical, Transform towerCrane)
         {
-            font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
+            font = SafetyUiFonts.Body;
             CreateObjectiveBoard(construction, TrainingSiteId.Construction);
             CreateObjectiveBoard(warehouse, TrainingSiteId.Warehouse);
             CreateObjectiveBoard(fire, TrainingSiteId.FireResponse);

@@ -269,15 +269,24 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
-        public void Scene_ChatTranscriptFitsLongCoachResponsesWithoutTruncation()
+        public void Scene_ChatTranscriptScrollsFullHistoryAtFixedReadableSize()
         {
             var chat = Object.FindFirstObjectByType<NpcChatPanel>();
-            var transcript = chat.transform.Find("NPC Chat Panel/Coach Response").GetComponent<Text>();
+            var scrollView = chat.transform.Find("NPC Chat Panel/Chat Scroll View");
+            Assert.That(scrollView, Is.Not.Null);
+            var scroll = scrollView.GetComponent<ScrollRect>();
+            var transcript = scrollView.Find("Coach Response").GetComponent<Text>();
 
-            Assert.That(transcript.resizeTextForBestFit, Is.True);
-            Assert.That(transcript.resizeTextMinSize, Is.LessThanOrEqualTo(18));
-            Assert.That(transcript.resizeTextMaxSize, Is.EqualTo(22));
-            Assert.That(transcript.verticalOverflow, Is.EqualTo(VerticalWrapMode.Truncate));
+            Assert.That(scroll, Is.Not.Null);
+            Assert.That(scroll.vertical, Is.True);
+            Assert.That(scroll.content, Is.EqualTo(transcript.rectTransform));
+            Assert.That(scrollView.GetComponent<RectMask2D>(), Is.Not.Null);
+            Assert.That(transcript.resizeTextForBestFit, Is.False,
+                "History must keep a fixed readable size and scroll instead of shrinking.");
+            Assert.That(transcript.fontSize, Is.InRange(16, 20));
+            Assert.That(transcript.verticalOverflow, Is.EqualTo(VerticalWrapMode.Overflow));
+            Assert.That(transcript.GetComponent<ContentSizeFitter>()?.verticalFit,
+                Is.EqualTo(ContentSizeFitter.FitMode.PreferredSize));
         }
 
         [Test]
@@ -740,6 +749,66 @@ namespace SafetyTraining.Tests.EditMode
             Assert.That(lobby.transform.Cast<Transform>().Count(child => child.name.StartsWith("Lobby Ceiling Bay")),
                 Is.EqualTo(5));
             Assert.That(lobby.GetComponentsInChildren<Collider>(true).Length, Is.GreaterThanOrEqualTo(24));
+        }
+
+        [Test]
+        public void Scene_HasPauseMenuWithResumeAndQuitThatStartsHidden()
+        {
+            var menu = Object.FindFirstObjectByType<PauseMenuController>(FindObjectsInactive.Include);
+
+            Assert.That(menu, Is.Not.Null);
+            Assert.That(menu.IsVisible, Is.False, "Pause menu must start hidden.");
+            var canvas = menu.GetComponent<Canvas>();
+            Assert.That(canvas.renderMode, Is.EqualTo(RenderMode.ScreenSpaceOverlay));
+            Assert.That(canvas.sortingOrder, Is.GreaterThan(100),
+                "Pause menu must layer above the chat panel.");
+            Assert.That(menu.transform.Find("Pause Dim/Pause Panel/Resume Button")?.GetComponent<Button>(),
+                Is.Not.Null);
+            Assert.That(menu.transform.Find("Pause Dim/Pause Panel/Quit Button")?.GetComponent<Button>(),
+                Is.Not.Null);
+        }
+
+        [Test]
+        public void Scene_SiteEntryDoorwaysAreSealedAgainstWalkingIntoTheVoid()
+        {
+            var centers = Object.FindObjectsByType<BoxCollider>(FindObjectsSortMode.None)
+                .Where(item => item.name == "Isolation Collider Entry Center").ToArray();
+            Assert.That(centers, Has.Length.EqualTo(6));
+
+            foreach (var center in centers)
+            {
+                var site = center.transform;
+                while (site.parent != null)
+                    site = site.parent;
+                foreach (var gapX in new[] { -3.175f, 3.175f })
+                {
+                    var origin = center.transform.position + new Vector3(gapX, -0.9f, 1.5f);
+                    Assert.That(Physics.Raycast(origin, Vector3.back, 3f,
+                            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore),
+                        Is.True,
+                        $"{site.name}: entry doorway at local x={gapX} must be sealed.");
+                }
+                Assert.That(site.Find("Entry Gate Left"), Is.Not.Null, site.name);
+                Assert.That(site.Find("Entry Gate Right"), Is.Not.Null, site.name);
+            }
+        }
+
+        [Test]
+        public void Scene_SmallPropLabelsShowOnlyOnApproachWhileTitlesStayVisible()
+        {
+            var proximityLabels = Object.FindObjectsByType<ProximityLabel>(FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+            Assert.That(proximityLabels.Length, Is.GreaterThanOrEqualTo(30),
+                "Site prop labels must be proximity-gated.");
+
+            foreach (var label in Object.FindObjectsByType<TextMesh>(FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (label.characterSize < 0.1f || label.GetComponent<ProximityLabel>() == null)
+                    continue;
+                Assert.Fail($"Wayfinding label '{label.name}' (size {label.characterSize}) " +
+                            "must stay always-on.");
+            }
         }
 
         [Test]
