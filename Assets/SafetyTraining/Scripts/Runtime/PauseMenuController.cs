@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR.Interaction.Toolkit.UI;
 
 namespace SafetyTraining.Runtime
 {
@@ -13,6 +14,7 @@ namespace SafetyTraining.Runtime
         public struct Bindings
         {
             public GameObject Panel;
+            public Button MenuButton;
             public Button ResumeButton;
             public Button QuitButton;
         }
@@ -21,6 +23,7 @@ namespace SafetyTraining.Runtime
         public static bool VisibleNow => Instance != null && Instance.IsVisible;
 
         [SerializeField] GameObject panel;
+        [SerializeField] Button menuButton;
         [SerializeField] Button resumeButton;
         [SerializeField] Button quitButton;
         bool controlsBound;
@@ -30,8 +33,40 @@ namespace SafetyTraining.Runtime
         void Awake()
         {
             Instance = this;
+            EnsureSideMenuButton();
             BindControls();
             SetVisible(false);
+        }
+
+        void EnsureSideMenuButton()
+        {
+            if (GetComponent<TrackedDeviceGraphicRaycaster>() == null)
+                gameObject.AddComponent<TrackedDeviceGraphicRaycaster>();
+            if (menuButton != null)
+                return;
+            var existing = transform.Find("Side Menu Button")?.GetComponent<Button>();
+            if (existing != null)
+            {
+                menuButton = existing;
+                return;
+            }
+            if (resumeButton == null)
+                return;
+
+            var clone = Instantiate(resumeButton.gameObject, transform);
+            clone.name = "Side Menu Button";
+            clone.SetActive(true);
+            menuButton = clone.GetComponent<Button>();
+            var rect = clone.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1f, 0.5f);
+            rect.anchoredPosition = new Vector2(-18f, 0f);
+            rect.sizeDelta = new Vector2(110f, 48f);
+            var label = clone.GetComponentInChildren<Text>(true);
+            if (label != null)
+            {
+                label.text = "MENU";
+                label.rectTransform.sizeDelta = rect.sizeDelta;
+            }
         }
 
         void OnDestroy()
@@ -58,6 +93,11 @@ namespace SafetyTraining.Runtime
             SetVisible(false);
         }
 
+        public void ToggleMenu()
+        {
+            SetVisible(!IsVisible);
+        }
+
         public void Quit()
         {
             Application.Quit();
@@ -66,6 +106,7 @@ namespace SafetyTraining.Runtime
         public void Configure(Bindings bindings)
         {
             panel = bindings.Panel;
+            menuButton = bindings.MenuButton;
             resumeButton = bindings.ResumeButton;
             quitButton = bindings.QuitButton;
             controlsBound = false;
@@ -74,8 +115,9 @@ namespace SafetyTraining.Runtime
 
         void BindControls()
         {
-            if (controlsBound || resumeButton == null || quitButton == null)
+            if (controlsBound || menuButton == null || resumeButton == null || quitButton == null)
                 return;
+            menuButton.onClick.AddListener(ToggleMenu);
             resumeButton.onClick.AddListener(Resume);
             quitButton.onClick.AddListener(Quit);
             controlsBound = true;
@@ -85,6 +127,7 @@ namespace SafetyTraining.Runtime
         {
             if (!controlsBound)
                 return;
+            menuButton.onClick.RemoveListener(ToggleMenu);
             resumeButton.onClick.RemoveListener(Resume);
             quitButton.onClick.RemoveListener(Quit);
             controlsBound = false;

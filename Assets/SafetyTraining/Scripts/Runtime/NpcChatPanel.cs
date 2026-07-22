@@ -45,8 +45,66 @@ namespace SafetyTraining.Runtime
         void Awake()
         {
             Instance = this;
+            EnsureHistoryScrollAffordance();
             BindControls();
             SetVisible(false);
+        }
+
+        void EnsureHistoryScrollAffordance()
+        {
+            if (transcriptScroll == null || transcriptScroll.verticalScrollbar != null)
+                return;
+            var viewport = transcriptScroll.GetComponent<RectTransform>();
+            if (viewport == null || viewport.parent == null)
+                return;
+            var parent = viewport.parent;
+            var existing = parent.Find("History Scrollbar")?.GetComponent<Scrollbar>();
+            if (existing != null)
+            {
+                transcriptScroll.verticalScrollbar = existing;
+                return;
+            }
+
+            var panelImage = parent.GetComponent<Image>();
+            var trackObject = new GameObject("History Scrollbar", typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image), typeof(Scrollbar));
+            trackObject.transform.SetParent(parent, false);
+            var trackRect = trackObject.GetComponent<RectTransform>();
+            trackRect.anchorMin = trackRect.anchorMax = trackRect.pivot = new Vector2(0f, 1f);
+            trackRect.anchoredPosition = new Vector2(480f, -96f);
+            trackRect.sizeDelta = new Vector2(12f, 108f);
+            var trackImage = trackObject.GetComponent<Image>();
+            trackImage.sprite = panelImage != null ? panelImage.sprite : null;
+            trackImage.material = panelImage != null ? panelImage.material : null;
+            trackImage.type = Image.Type.Sliced;
+            trackImage.color = new Color(0.063f, 0.11f, 0.153f, 1f);
+
+            var handleObject = new GameObject("Handle", typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image));
+            handleObject.transform.SetParent(trackObject.transform, false);
+            var handleRect = handleObject.GetComponent<RectTransform>();
+            handleRect.anchorMin = handleRect.anchorMax = handleRect.pivot = new Vector2(0.5f, 1f);
+            handleRect.anchoredPosition = new Vector2(0f, -2f);
+            handleRect.sizeDelta = new Vector2(10f, 42f);
+            var handleImage = handleObject.GetComponent<Image>();
+            handleImage.sprite = trackImage.sprite;
+            handleImage.material = trackImage.material;
+            handleImage.type = Image.Type.Sliced;
+            handleImage.color = new Color(0.216f, 0.839f, 0.753f, 1f);
+
+            var scrollbar = trackObject.GetComponent<Scrollbar>();
+            scrollbar.targetGraphic = handleImage;
+            scrollbar.handleRect = handleRect;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            transcriptScroll.viewport = viewport;
+            transcriptScroll.verticalScrollbar = scrollbar;
+            transcriptScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+            transcriptScroll.verticalScrollbarSpacing = 4f;
+            if (transcript != null)
+                transcript.rectTransform.sizeDelta = new Vector2(444f, transcript.rectTransform.sizeDelta.y);
+            var status = parent.Find("Coach Status")?.GetComponent<Text>();
+            if (status != null)
+                status.text = "HISTORY  /  MOUSE WHEEL OR XR DRAG TO REVIEW";
         }
 
         void Update()

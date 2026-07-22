@@ -134,6 +134,11 @@ namespace SafetyTraining.Runtime
                     candidate.GetComponentInParent<InspectionTarget>() == null &&
                     candidate.GetComponentInParent<ConstructionActionInteractable>() == null &&
                     candidate.GetComponentInParent<SitePracticalAction>() == null &&
+                    candidate.GetComponentInParent<EngineeringDecisionOption>() == null &&
+                    candidate.GetComponentInParent<HypothesisOption>() == null &&
+                    candidate.GetComponentInParent<InquiryDecisionStation>() == null &&
+                    candidate.GetComponentInParent<EvidenceObject>() == null &&
+                    candidate.GetComponentInParent<LearningObjectiveBoard>() == null &&
                     candidate.GetComponentInParent<NpcTalkInteractable>() == null)
                     continue;
                 target = candidate;
@@ -215,6 +220,38 @@ namespace SafetyTraining.Runtime
                 inspection.Inspect();
                 return;
             }
+
+            var engineeringOption = target.GetComponentInParent<EngineeringDecisionOption>();
+            if (engineeringOption != null)
+            {
+                engineeringOption.Select();
+                return;
+            }
+
+            var hypothesisOption = target.GetComponentInParent<HypothesisOption>();
+            if (hypothesisOption != null)
+            {
+                hypothesisOption.Select();
+                return;
+            }
+
+            var evidence = target.GetComponentInParent<EvidenceObject>();
+            if (evidence != null)
+            {
+                evidence.Collect();
+                return;
+            }
+
+            var report = target.GetComponentInParent<InquiryDecisionStation>();
+            if (report != null)
+            {
+                report.Submit();
+                return;
+            }
+
+            var objectives = target.GetComponentInParent<LearningObjectiveBoard>();
+            if (objectives != null)
+                objectives.NextPage();
 
         }
 

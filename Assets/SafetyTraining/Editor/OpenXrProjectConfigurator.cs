@@ -104,7 +104,20 @@ namespace SafetyTraining.Editor
         static void ApplyAutomaticValidationFixes(BuildTargetGroup target)
         {
             var issues = new List<OpenXRFeature.ValidationRule>();
-            OpenXRProjectValidation.GetCurrentValidationIssues(issues, target);
+            try
+            {
+                OpenXRProjectValidation.GetCurrentValidationIssues(issues, target);
+            }
+            catch (System.NullReferenceException exception)
+            {
+                // OpenXR 1.16 MetaQuestFeature can dereference unavailable editor-only state while
+                // Unity is switching to Android in batch mode. Required loader/features are assigned
+                // explicitly above, so keep the reproducible build usable and surface the package bug.
+                Debug.LogWarning(
+                    $"OpenXR automatic validation was unavailable for {target}; explicit configuration remains applied. " +
+                    exception.Message);
+                return;
+            }
             foreach (var issue in issues)
                 if (issue.fixItAutomatic && issue.fixIt != null)
                     issue.fixIt.Invoke();

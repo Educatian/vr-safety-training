@@ -24,9 +24,6 @@ namespace SafetyTraining.Runtime
         int nextPrompt;
         bool conversationStarted;
         Coroutine dismissal;
-        string[] replyPages;
-        int pageIndex;
-        float nextPageAt;
         InteractiveHoverFeedback hoverFeedback;
 
         public bool ConversationActive => conversationStarted;
@@ -71,15 +68,7 @@ namespace SafetyTraining.Runtime
             if (displayedReply != agent.LastReply)
             {
                 displayedReply = agent.LastReply;
-                replyPages = Paginate(displayedReply, 30, 3);
-                pageIndex = 0;
-                ShowPage();
-            }
-            else if (replyPages != null && pageIndex + 1 < replyPages.Length &&
-                     Time.unscaledTime >= nextPageAt)
-            {
-                pageIndex++;
-                ShowPage();
+                speechBubble.Show(BuildBubblePreview(displayedReply), 0, 1);
             }
         }
 
@@ -167,7 +156,6 @@ namespace SafetyTraining.Runtime
             if (siteTitle != null)
                 siteTitle.gameObject.SetActive(true);
             conversationStarted = false;
-            replyPages = null;
             var ownsCurrentChat = NpcChatPanel.Instance?.IsOpenFor(agent) ?? false;
             if (ownsCurrentChat)
             {
@@ -176,61 +164,21 @@ namespace SafetyTraining.Runtime
             }
         }
 
-        void ShowPage()
+        public static string BuildBubblePreview(string value, int maximumCharacters = 280)
         {
-            if (replyPages == null || replyPages.Length == 0)
-                return;
-            speechBubble.Show(replyPages[pageIndex], pageIndex, replyPages.Length);
-            nextPageAt = Time.unscaledTime + 5f;
-        }
+            if (string.IsNullOrWhiteSpace(value))
+                return "Ask me about the condition, risk, or safest control.";
+            var normalized = value.Trim();
+            if (normalized.Length <= maximumCharacters)
+                return normalized;
 
-        static string[] Paginate(string value, int width, int linesPerPage)
-        {
-            var words = value.Split(' ');
-            var lines = new System.Collections.Generic.List<string>();
-            var line = new System.Text.StringBuilder();
-            var lineLength = 0;
-            foreach (var word in words)
-            {
-                if (lineLength > 0 && lineLength + word.Length + 1 > width)
-                {
-                    lines.Add(line.ToString());
-                    line.Clear();
-                    lineLength = 0;
-                }
-                if (lineLength > 0)
-                {
-                    line.Append(' ');
-                    lineLength++;
-                }
-                line.Append(word);
-                lineLength += word.Length;
-            }
-            if (line.Length > 0)
-                lines.Add(line.ToString());
-
-            var pages = new System.Collections.Generic.List<string>();
-            for (var index = 0; index < lines.Count;)
-            {
-                var count = Mathf.Min(linesPerPage, lines.Count - index);
-                if (index + count < lines.Count)
-                {
-                    for (var candidate = count - 1; candidate >= 2; candidate--)
-                    {
-                        var finalCharacter = lines[index + candidate - 1].TrimEnd();
-                        if (finalCharacter.EndsWith(".") || finalCharacter.EndsWith("!") ||
-                            finalCharacter.EndsWith("?"))
-                        {
-                            count = candidate;
-                            break;
-                        }
-                    }
-                }
-
-                pages.Add(string.Join("\n", lines.GetRange(index, count)));
-                index += count;
-            }
-            return pages.ToArray();
+            var cut = normalized.LastIndexOfAny(new[] { '.', '!', '?' },
+                Mathf.Min(maximumCharacters, normalized.Length - 1));
+            if (cut < maximumCharacters / 2)
+                cut = normalized.LastIndexOf(' ', maximumCharacters);
+            if (cut < 0)
+                cut = maximumCharacters;
+            return normalized[..(cut + 1)].TrimEnd() + "\nOpen coach chat for the full response and history.";
         }
     }
 }

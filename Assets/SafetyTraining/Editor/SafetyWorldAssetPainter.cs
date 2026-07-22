@@ -106,8 +106,45 @@ namespace SafetyTraining.Editor
             foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
                 Object.DestroyImmediate(collider);
             FitLargestDimension(instance, parent, size);
+            AddOptimizedSolidCollider(instance, name);
             ConfigureLod(instance);
             return instance;
+        }
+
+        static void AddOptimizedSolidCollider(GameObject instance, string displayName)
+        {
+            // Low-cost box proxies keep large jobsite props physically credible
+            // without restoring expensive imported mesh colliders. Open-frame
+            // structures remain collider-free so intended circulation stays open.
+            var solidKeywords = new[]
+            {
+                "barrier", "cement", "crate", "pallet", "toolbox", "cart",
+                "generator", "drum", "utility box", "ladder", "formwork",
+                "material", "chainlink", "perimeter", "gate", "door",
+                "cabinet", "hand truck", "delivery stack", "panel row"
+            };
+            if (!solidKeywords.Any(keyword =>
+                    displayName.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0))
+                return;
+
+            var renderers = instance.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer.enabled && renderer.GetComponent<TextMesh>() == null).ToArray();
+            if (renderers.Length == 0)
+                return;
+            var worldBounds = renderers[0].bounds;
+            foreach (var renderer in renderers.Skip(1))
+                worldBounds.Encapsulate(renderer.bounds);
+
+            var localBounds = new Bounds(instance.transform.InverseTransformPoint(worldBounds.center), Vector3.zero);
+            foreach (var x in new[] { worldBounds.min.x, worldBounds.max.x })
+            foreach (var y in new[] { worldBounds.min.y, worldBounds.max.y })
+            foreach (var z in new[] { worldBounds.min.z, worldBounds.max.z })
+                localBounds.Encapsulate(instance.transform.InverseTransformPoint(new Vector3(x, y, z)));
+
+            var collider = instance.AddComponent<BoxCollider>();
+            collider.center = localBounds.center;
+            collider.size = localBounds.size + Vector3.one * 0.04f;
+            collider.isTrigger = false;
         }
 
         static void ConfigureLod(GameObject instance)

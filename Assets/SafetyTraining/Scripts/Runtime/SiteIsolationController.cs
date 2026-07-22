@@ -41,6 +41,74 @@ namespace SafetyTraining.Runtime
         void Awake()
         {
             Instance = this;
+            EnsureSolidPropColliders();
+        }
+
+        public int EnsureSolidPropColliders()
+        {
+            if (sites == null)
+                return 0;
+            var added = 0;
+            var solidKeywords = new[]
+            {
+                "barrier", "cement", "crate", "pallet", "toolbox", "cart",
+                "generator", "drum", "utility box", "ladder", "formwork",
+                "material", "chainlink", "perimeter", "gate", "door",
+                "cabinet", "hand truck", "delivery stack", "panel row"
+            };
+            foreach (var site in sites)
+            {
+                if (site == null)
+                    continue;
+                foreach (var candidate in site.GetComponentsInChildren<Transform>(true))
+                {
+                    if (!candidate.name.StartsWith("WorldExpansion - RealAsset -") ||
+                        candidate.GetComponent<BoxCollider>() != null)
+                        continue;
+                    var lowerName = candidate.name.ToLowerInvariant();
+                    var shouldBlock = false;
+                    foreach (var keyword in solidKeywords)
+                    {
+                        if (!lowerName.Contains(keyword))
+                            continue;
+                        shouldBlock = true;
+                        break;
+                    }
+                    if (!shouldBlock)
+                        continue;
+
+                    var renderers = candidate.GetComponentsInChildren<Renderer>(true);
+                    Bounds? worldBounds = null;
+                    foreach (var renderer in renderers)
+                    {
+                        if (!renderer.enabled || renderer.GetComponent<TextMesh>() != null)
+                            continue;
+                        worldBounds = worldBounds.HasValue
+                            ? Encapsulate(worldBounds.Value, renderer.bounds)
+                            : renderer.bounds;
+                    }
+                    if (!worldBounds.HasValue)
+                        continue;
+                    var bounds = worldBounds.Value;
+                    var localBounds = new Bounds(candidate.InverseTransformPoint(bounds.center), Vector3.zero);
+                    foreach (var x in new[] { bounds.min.x, bounds.max.x })
+                    foreach (var y in new[] { bounds.min.y, bounds.max.y })
+                    foreach (var z in new[] { bounds.min.z, bounds.max.z })
+                        localBounds.Encapsulate(candidate.InverseTransformPoint(new Vector3(x, y, z)));
+                    var collider = candidate.gameObject.AddComponent<BoxCollider>();
+                    collider.center = localBounds.center;
+                    collider.size = localBounds.size + Vector3.one * 0.04f;
+                    collider.isTrigger = false;
+                    added++;
+                }
+            }
+            return added;
+        }
+
+        static Bounds Encapsulate(Bounds value, Bounds addition)
+        {
+            value.Encapsulate(addition);
+            return value;
         }
 
         void Start()

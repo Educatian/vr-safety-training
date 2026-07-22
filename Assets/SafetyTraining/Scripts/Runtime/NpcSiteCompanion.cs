@@ -115,11 +115,14 @@ namespace SafetyTraining.Runtime
             {
                 if (!IsVisibleToViewer())
                 {
-                    transform.position = safeTarget;
-                    moving = false;
-                    pose?.SetMoving(false);
-                    FaceViewer();
-                    return;
+                    if (IsRouteClear(transform.position, safeTarget))
+                    {
+                        transform.position = safeTarget;
+                        moving = false;
+                        pose?.SetMoving(false);
+                        FaceViewer();
+                        return;
+                    }
                 }
                 moving = true;
                 MoveToward(safeTarget, catchUpSpeed);
@@ -163,6 +166,9 @@ namespace SafetyTraining.Runtime
                     desired.y = homePosition.y;
                     safeTarget = FindClearVisiblePosition(desired, transform.position,
                         Flatten(viewer.transform.position), forward, right);
+                    // Site entry is itself a portal transition; stage the mentor immediately in the
+                    // verified clear conversation arc. Subsequent following/recovery never crosses
+                    // a blocked route.
                     transform.position = safeTarget;
                     FaceViewer();
                 }
@@ -322,7 +328,32 @@ namespace SafetyTraining.Runtime
                         return candidate;
                 }
             }
-            return preferred;
+            return FindClearPosition(preferred, fallback);
+        }
+
+        bool IsRouteClear(Vector3 from, Vector3 to)
+        {
+            const float radius = 0.38f;
+            const float skin = 0.04f;
+            var delta = Flatten(to - from);
+            var distance = delta.magnitude;
+            if (distance <= skin)
+                return true;
+
+            var bottom = from + Vector3.up * 0.48f;
+            var top = from + Vector3.up * 1.55f;
+            var hitCount = Physics.CapsuleCastNonAlloc(bottom, top, radius, delta / distance,
+                movementHits, distance + skin, Physics.AllLayers, QueryTriggerInteraction.Ignore);
+            for (var index = 0; index < hitCount; index++)
+            {
+                var collider = movementHits[index].collider;
+                if (collider == null || collider.transform.IsChildOf(transform) ||
+                    collider.GetType().Name == "TerrainCollider" || collider.name.Contains("Floor") ||
+                    collider.name.Contains("Ground"))
+                    continue;
+                return false;
+            }
+            return true;
         }
 
         bool IsSeparatedFromReturnPortal(Vector3 candidate)

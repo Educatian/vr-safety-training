@@ -276,6 +276,8 @@ namespace SafetyTraining.Tests.EditMode
             Assert.That(scrollView, Is.Not.Null);
             var scroll = scrollView.GetComponent<ScrollRect>();
             var transcript = scrollView.Find("Coach Response").GetComponent<Text>();
+            typeof(NpcChatPanel).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(chat, null);
 
             Assert.That(scroll, Is.Not.Null);
             Assert.That(scroll.vertical, Is.True);
@@ -287,6 +289,23 @@ namespace SafetyTraining.Tests.EditMode
             Assert.That(transcript.verticalOverflow, Is.EqualTo(VerticalWrapMode.Overflow));
             Assert.That(transcript.GetComponent<ContentSizeFitter>()?.verticalFit,
                 Is.EqualTo(ContentSizeFitter.FitMode.PreferredSize));
+            var historyScrollbar = chat.transform.Find("NPC Chat Panel/History Scrollbar")
+                ?.GetComponent<Scrollbar>();
+            Assert.That(historyScrollbar, Is.Not.Null,
+                "Conversation history needs an explicit visible scroll affordance for desktop and XR users.");
+            Assert.That(scroll.verticalScrollbar, Is.EqualTo(historyScrollbar));
+        }
+
+        [Test]
+        public void CoachBubble_UsesOneConcisePreviewInsteadOfTimedFourteenPagePlayback()
+        {
+            var source = string.Join(" ", Enumerable.Repeat(
+                "Inspect the visible condition, compare the risk, and verify the engineered control.", 20));
+            var preview = NpcTalkInteractable.BuildBubblePreview(source);
+
+            Assert.That(preview.Length, Is.LessThan(source.Length));
+            Assert.That(preview, Does.Contain("full response and history"));
+            Assert.That(preview, Does.Not.Contain("1 /"));
         }
 
         [Test]
@@ -579,6 +598,32 @@ namespace SafetyTraining.Tests.EditMode
         }
 
         [Test]
+        public void SafeProceduralGaitAdvancesDuringRuntimeEvenWithAnimatorControllerPresent()
+        {
+            var pose = Object.FindFirstObjectByType<NpcRelaxedPose>();
+            var awake = typeof(NpcRelaxedPose).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic);
+            var lateUpdate = typeof(NpcRelaxedPose).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
+            var phase = typeof(NpcRelaxedPose).GetField("previewMovementPhase",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var leg = typeof(NpcRelaxedPose).GetField("leftUpperLeg",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(awake, Is.Not.Null);
+            Assert.That(lateUpdate, Is.Not.Null);
+            awake.Invoke(pose, null);
+            pose.SetMoving(true);
+            phase.SetValue(pose, 0.18f);
+            lateUpdate.Invoke(pose, null);
+            var first = ((Transform)leg.GetValue(pose)).localRotation;
+            phase.SetValue(pose, 0.68f);
+            lateUpdate.Invoke(pose, null);
+            var second = ((Transform)leg.GetValue(pose)).localRotation;
+
+            Assert.That(Quaternion.Angle(first, second), Is.GreaterThan(20f),
+                "A moving coach must visibly step instead of sliding with a frozen lower body.");
+            pose.SetMoving(false);
+        }
+
+        [Test]
         public void SafeProceduralGaitProvidesDistinctNaturalPhases()
         {
             var legField = typeof(NpcRelaxedPose)
@@ -755,6 +800,8 @@ namespace SafetyTraining.Tests.EditMode
         public void Scene_HasPauseMenuWithResumeAndQuitThatStartsHidden()
         {
             var menu = Object.FindFirstObjectByType<PauseMenuController>(FindObjectsInactive.Include);
+            typeof(PauseMenuController).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(menu, null);
 
             Assert.That(menu, Is.Not.Null);
             Assert.That(menu.IsVisible, Is.False, "Pause menu must start hidden.");
@@ -766,6 +813,76 @@ namespace SafetyTraining.Tests.EditMode
                 Is.Not.Null);
             Assert.That(menu.transform.Find("Pause Dim/Pause Panel/Quit Button")?.GetComponent<Button>(),
                 Is.Not.Null);
+            Assert.That(menu.transform.Find("Side Menu Button")?.GetComponent<Button>(), Is.Not.Null,
+                "Users need a visible side menu in addition to the ESC shortcut.");
+            Assert.That(menu.GetComponent<TrackedDeviceGraphicRaycaster>(), Is.Not.Null,
+                "The side menu must accept Quest controller rays.");
+        }
+
+        [Test]
+        public void NpcCompanionRouteCheckRejectsTravelThroughSolidWalls()
+        {
+            var companion = Object.FindFirstObjectByType<NpcSiteCompanion>();
+            var routeMethod = typeof(NpcSiteCompanion)
+                .GetMethod("IsRouteClear", BindingFlags.Instance | BindingFlags.NonPublic);
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.name = "Tutor Route Regression Wall";
+            wall.transform.SetPositionAndRotation(new Vector3(1000f, 1f, 1000f), Quaternion.identity);
+            wall.transform.localScale = new Vector3(6f, 2f, 0.3f);
+            Physics.SyncTransforms();
+
+            try
+            {
+                Assert.That(routeMethod, Is.Not.Null);
+                Assert.That((bool)routeMethod.Invoke(companion, new object[]
+                {
+                    new Vector3(1000f, 0f, 998f), new Vector3(1000f, 0f, 1002f)
+                }), Is.False, "The tutor must never select a follow target through a solid wall.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(wall);
+            }
+        }
+
+        [Test]
+        public void Scene_SiteBoundariesAndLargeMaterialPropsUseSolidOptimizedColliders()
+        {
+            var isolation = Object.FindFirstObjectByType<SiteIsolationController>();
+            isolation.EnsureSolidPropColliders();
+            var boundaries = Object.FindObjectsByType<BoxCollider>(FindObjectsSortMode.None)
+                .Where(item => item.name.StartsWith("Isolation Collider")).ToArray();
+            Assert.That(boundaries, Has.Length.GreaterThanOrEqualTo(36));
+            Assert.That(boundaries.All(item => item.enabled && !item.isTrigger), Is.True);
+            var rig = GameObject.Find("XR Origin (Safety Training)").GetComponent<CharacterController>();
+            Assert.That(rig.detectCollisions, Is.True);
+
+            var solidMaterials = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
+                .Where(item => item.name.StartsWith("WorldExpansion - RealAsset -") &&
+                    (item.name.Contains("Cement") || item.name.Contains("Barrier") ||
+                     item.name.Contains("Crate") || item.name.Contains("Pallet"))).ToArray();
+            Assert.That(solidMaterials, Has.Length.GreaterThanOrEqualTo(10));
+            Assert.That(solidMaterials.All(item => item.GetComponent<BoxCollider>() != null &&
+                !item.GetComponent<BoxCollider>().isTrigger), Is.True,
+                "Cement, bricks/crates, pallets, and barriers must block both learner and coach movement.");
+        }
+
+        [Test]
+        public void DesktopCenterRayActivation_SubmitsEngineeringDecisionOption()
+        {
+            var station = Object.FindObjectsByType<EngineeringDecisionStation>(FindObjectsSortMode.None)
+                .First(item => item.SiteId != TrainingSiteId.Construction && !item.IsSolved);
+            var option = station.GetComponentsInChildren<EngineeringDecisionOption>(true)
+                .First(item => item.IsCorrect);
+            var explorer = Object.FindFirstObjectByType<DesktopExplorerController>();
+            var activate = typeof(DesktopExplorerController).GetMethod("ActivateTarget",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(activate, Is.Not.Null);
+
+            activate.Invoke(explorer, new object[] { option.transform });
+
+            Assert.That(station.IsSolved, Is.True,
+                "A desktop click found by the center ray must execute the engineering option.");
         }
 
         [Test]

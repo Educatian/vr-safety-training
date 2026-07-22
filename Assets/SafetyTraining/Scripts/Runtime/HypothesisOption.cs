@@ -65,10 +65,11 @@ namespace SafetyTraining.Runtime
         void OnMouseDown()
         {
             if (DesktopPointerInputGate.CanUseWorldPointer)
-                station?.ChooseHypothesis(this);
+                Select();
         }
 
-        void OnSelected(SelectEnterEventArgs _) => station?.ChooseHypothesis(this);
+        public void Select() => station?.ChooseHypothesis(this);
+        void OnSelected(SelectEnterEventArgs _) => Select();
         void OnHoverEntered(HoverEnterEventArgs _) => hoverFeedback?.SetHovered(true);
         void OnHoverExited(HoverExitEventArgs _) => hoverFeedback?.SetHovered(false);
     }

@@ -2,6 +2,7 @@ using SafetyTraining.Runtime;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR.Interaction.Toolkit.UI;
 
 namespace SafetyTraining.Editor
 {
@@ -34,6 +35,17 @@ namespace SafetyTraining.Editor
             scaler.referenceResolution = new Vector2(1200f, 700f);
             scaler.matchWidthOrHeight = 0.5f;
             canvasObject.AddComponent<GraphicRaycaster>();
+            canvasObject.AddComponent<TrackedDeviceGraphicRaycaster>();
+
+            var menu = MenuButton("Side Menu Button", canvasObject.transform, sprite, material, Field,
+                Vector2.zero, "MENU", displayFont, Primary);
+            var menuRect = menu.GetComponent<RectTransform>();
+            menuRect.anchorMin = menuRect.anchorMax = menuRect.pivot = new Vector2(1f, 0.5f);
+            menuRect.anchoredPosition = new Vector2(-18f, 0f);
+            menuRect.sizeDelta = new Vector2(110f, 48f);
+            var menuLabel = menu.transform.Find("Side Menu Button Label")?.GetComponent<RectTransform>();
+            if (menuLabel != null)
+                menuLabel.sizeDelta = menuRect.sizeDelta;
 
             var dimObject = new GameObject("Pause Dim");
             dimObject.transform.SetParent(canvasObject.transform, false);
@@ -76,6 +88,7 @@ namespace SafetyTraining.Editor
             controller.Configure(new PauseMenuController.Bindings
             {
                 Panel = dimObject,
+                MenuButton = menu,
                 ResumeButton = resume,
                 QuitButton = quit
             });

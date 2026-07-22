@@ -59,7 +59,7 @@ namespace SafetyTraining.Editor
             title.resizeTextMinSize = 16;
             title.resizeTextMaxSize = 22;
             title.horizontalOverflow = HorizontalWrapMode.Overflow;
-            Text("Coach Status", panel.transform, "LIVE  /  ASK ABOUT THE CONDITION, RISK, OR CONTROL", displayFont,
+            Text("Coach Status", panel.transform, "HISTORY  /  MOUSE WHEEL OR XR DRAG TO REVIEW", displayFont,
                 13, Muted, new Vector2(28f, -54f), new Vector2(454f, 20f), TextAnchor.UpperLeft,
                 new Vector2(0f, 1f));
             Image("Chat Accent", panel.transform, null, material, Accent,
@@ -81,16 +81,29 @@ namespace SafetyTraining.Editor
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 22f;
+            scroll.viewport = scrollRect;
 
             var transcript = Text("Coach Response", scrollObject.transform,
                 "Ask the mentor about visible hazards, controls, or your progress.", bodyFont, 18, Primary,
-                Vector2.zero, new Vector2(464f, 108f), TextAnchor.UpperLeft,
+                Vector2.zero, new Vector2(444f, 108f), TextAnchor.UpperLeft,
                 new Vector2(0f, 1f));
             transcript.lineSpacing = 1.12f;
             transcript.verticalOverflow = VerticalWrapMode.Overflow;
             var fitter = transcript.gameObject.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             scroll.content = transcript.rectTransform;
+
+            var scrollbarTrack = Image("History Scrollbar", panel.transform, sprite, material, Field,
+                new Vector2(480f, -96f), new Vector2(12f, 108f), new Vector2(0f, 1f));
+            var scrollbarHandle = Image("Handle", scrollbarTrack.transform, sprite, material, Accent,
+                new Vector2(0f, -2f), new Vector2(10f, 42f), new Vector2(0.5f, 1f));
+            var historyScrollbar = scrollbarTrack.gameObject.AddComponent<Scrollbar>();
+            historyScrollbar.targetGraphic = scrollbarHandle;
+            historyScrollbar.handleRect = scrollbarHandle.rectTransform;
+            historyScrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scroll.verticalScrollbar = historyScrollbar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+            scroll.verticalScrollbarSpacing = 4f;
 
             var inputObject = new GameObject("Chat Input");
             inputObject.transform.SetParent(panel.transform, false);

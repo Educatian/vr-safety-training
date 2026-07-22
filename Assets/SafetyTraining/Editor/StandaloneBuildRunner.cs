@@ -12,6 +12,10 @@ namespace SafetyTraining.Editor
         [MenuItem("Safety Training/Build Windows Training App")]
         public static void BuildWindows()
         {
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 &&
+                !EditorUserBuildSettings.SwitchActiveBuildTarget(
+                    BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows64))
+                throw new InvalidOperationException("Unity could not switch to the Windows build target.");
             var outputDirectory = Path.GetFullPath(Path.Combine("Builds", "Windows"));
             Directory.CreateDirectory(outputDirectory);
             var outputPath = Path.Combine(outputDirectory, "VR-Safety-Training.exe");
@@ -39,6 +43,12 @@ namespace SafetyTraining.Editor
             if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
                 throw new InvalidOperationException(
                     "Meta Quest build requires Unity Android Build Support, Android SDK/NDK Tools, and OpenJDK.");
+            // Meta Quest validation rules query Android-specific OpenXR state. Running them while
+            // Standalone is still the active target can throw inside the OpenXR package before the
+            // build pipeline gets a chance to switch targets.
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
+                !EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android))
+                throw new InvalidOperationException("Unity could not switch to the Android build target.");
             if (!OpenXrProjectConfigurator.ConfigureAndroid())
                 throw new InvalidOperationException("Meta Quest OpenXR configuration failed.");
 

@@ -76,7 +76,11 @@ namespace SafetyTraining.Runtime
 
             if (genericRig)
                 ApplyGenericIdle(Time.time);
-            if (!hasLocomotionController)
+            // Rocketbox rigs intentionally stay on the deformation-safe procedural
+            // gait until each imported clip is validated. Keep driving that gait at
+            // runtime even when an Animator Controller is present; previously this
+            // branch only ran in preview tests, so coaches translated with frozen legs.
+            if (!hasLocomotionController || !useAuthoredWalk)
                 ApplyWalkCycle(Time.time, previewMovementPhase >= 0f);
 
             var activeConversation = GetComponent<NpcTalkInteractable>()?.ConversationActive == true;
