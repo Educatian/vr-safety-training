@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using SafetyTraining.Core;
 using UnityEngine;
 
@@ -15,6 +16,7 @@ namespace SafetyTraining.Runtime
         [SerializeField] bool useLanguageModel = true;
 
         CancellationTokenSource lifetime;
+        CancellationTokenSource pendingReply;
         IConversationService fallback;
         readonly List<string> transcript = new List<string>();
         // Shared across coaches: one endpoint failure switches the whole session
@@ -22,6 +24,7 @@ namespace SafetyTraining.Runtime
         static bool endpointUnavailable;
 
         public string LastReply { get; private set; } = "Ask me about this training site.";
+        public bool IsResponding { get; private set; }
         public string TranscriptLog => string.Join("\n\n", transcript);
         public SafetyTraining.Core.TrainingSiteId SiteId => siteId;
         public string SiteName => siteId switch
@@ -41,11 +44,17 @@ namespace SafetyTraining.Runtime
 
         void OnDestroy()
         {
+            CancelPendingReply();
             lifetime.Cancel();
             lifetime.Dispose();
         }
 
         public async void Ask(string learnerMessage)
+        {
+            await AskAsync(learnerMessage);
+        }
+
+        public async Task<string> AskAsync(string learnerMessage)
         {
             var golden = siteId == TrainingSiteId.Construction
                 ? ConstructionGoldenModuleController.Instance
@@ -53,6 +62,9 @@ namespace SafetyTraining.Runtime
             if (golden != null && golden.CanDebriefCoach)
                 golden.TryCoachExplanation(learnerMessage);
             TrainingCoordinator.Instance?.RecordCoachTurn(siteId);
+            CancelPendingReply();
+            pendingReply = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+            var token = pendingReply.Token;
             var request = new ConversationRequest
             {
                 siteName = siteId.ToString(),
@@ -70,17 +82,21 @@ namespace SafetyTraining.Runtime
 
             try
             {
+                IsResponding = true;
                 // Circuit breaker: once the endpoint fails (no local model on a fresh
                 // install), stay on the instant scripted fallback for the rest of the
                 // session instead of waiting out the HTTP timeout on every question.
                 var service = useLanguageModel && endpointConfig != null && !endpointUnavailable
                     ? new OpenAiCompatibleConversationService(endpointConfig)
                     : fallback;
-                LastReply = (await service.ReplyAsync(request, lifetime.Token)).Text;
+                var reply = await service.ReplyAsync(request, token);
+                LastReply = IsUsableReply(reply.Text, request)
+                    ? reply.Text.Trim()
+                    : (await fallback.ReplyAsync(request, token)).Text;
             }
             catch (OperationCanceledException)
             {
-                return;
+                return LastReply;
             }
             catch (Exception) when (!lifetime.IsCancellationRequested)
             {
@@ -89,13 +105,30 @@ namespace SafetyTraining.Runtime
                     endpointUnavailable = true;
                     Debug.LogWarning("LLM coach endpoint unavailable; using scripted coaching for this session.");
                 }
-                LastReply = (await fallback.ReplyAsync(request, lifetime.Token)).Text;
+                try
+                {
+                    LastReply = (await fallback.ReplyAsync(request, token)).Text;
+                }
+                catch (OperationCanceledException)
+                {
+                    return LastReply;
+                }
+            }
+            finally
+            {
+                if (pendingReply != null && pendingReply.Token == token)
+                {
+                    pendingReply.Dispose();
+                    pendingReply = null;
+                }
+                IsResponding = false;
             }
 
             transcript.Add($"Learner: {learnerMessage}");
             transcript.Add($"Coach: {LastReply}");
             if (transcript.Count > 24)
                 transcript.RemoveRange(0, transcript.Count - 24);
+            return LastReply;
         }
 
         public void Configure(SafetyTraining.Core.TrainingSiteId trainingSite, string role, string facts)
@@ -112,10 +145,35 @@ namespace SafetyTraining.Runtime
 
         public void SetScriptedReply(string message)
         {
+            CancelPendingReply();
             LastReply = message;
             transcript.Add($"Coach: {message}");
             if (transcript.Count > 24)
                 transcript.RemoveRange(0, transcript.Count - 24);
+        }
+
+        public void CancelPendingReply()
+        {
+            if (pendingReply == null)
+                return;
+            pendingReply.Cancel();
+            pendingReply.Dispose();
+            pendingReply = null;
+            IsResponding = false;
+        }
+
+        static bool IsUsableReply(string reply, ConversationRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(reply))
+                return false;
+            var trimmed = reply.Trim();
+            if (trimmed.Length < 8 || trimmed.Length > 800)
+                return false;
+            if (trimmed.IndexOf("verified facts", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                trimmed.IndexOf("supplied facts", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                trimmed.IndexOf("metadata", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return false;
+            return true;
         }
 
         public string BuildSituationContext(Vector3 learnerPosition)

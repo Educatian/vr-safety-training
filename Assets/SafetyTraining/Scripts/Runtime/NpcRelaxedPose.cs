@@ -22,6 +22,7 @@ namespace SafetyTraining.Runtime
         bool hasLocomotionController;
         [SerializeField] bool useAuthoredWalk = true;
         float previewMovementPhase = -1f;
+        float locomotionPace = 1f;
         Transform leftUpperLeg;
         Transform rightUpperLeg;
         Quaternion leftLegBase;
@@ -76,11 +77,10 @@ namespace SafetyTraining.Runtime
 
             if (genericRig)
                 ApplyGenericIdle(Time.time);
-            // Rocketbox rigs intentionally stay on the deformation-safe procedural
-            // gait until each imported clip is validated. Keep driving that gait at
-            // runtime even when an Animator Controller is present; previously this
-            // branch only ran in preview tests, so coaches translated with frozen legs.
-            if (!hasLocomotionController || !useAuthoredWalk)
+            // Rocketbox rigs intentionally stay on a deformation-safe procedural gait
+            // until each imported walk clip is validated. Even with an Animator
+            // Controller present, this LateUpdate pass guarantees visible stepping.
+            if (moving || previewMovementPhase >= 0f || !hasLocomotionController || !useAuthoredWalk)
                 ApplyWalkCycle(Time.time, previewMovementPhase >= 0f);
 
             var activeConversation = GetComponent<NpcTalkInteractable>()?.ConversationActive == true;
@@ -118,6 +118,7 @@ namespace SafetyTraining.Runtime
         public void SetMoving(bool value, float pace = 1f)
         {
             moving = value;
+            locomotionPace = Mathf.Clamp(pace, 0.75f, 1.45f);
             if (!value)
             {
                 previewMovementPhase = -1f;
@@ -127,7 +128,7 @@ namespace SafetyTraining.Runtime
             if (hasLocomotionController)
             {
                 animator.SetBool("Moving", useAuthoredWalk && value);
-                animator.speed = useAuthoredWalk && value ? Mathf.Clamp(pace, 0.85f, 1.35f) : 1f;
+                animator.speed = useAuthoredWalk && value ? locomotionPace : 1f;
                 if (!useAuthoredWalk && !value)
                     animator.Play("Natural Idle", 0, 0f);
             }
@@ -180,7 +181,7 @@ namespace SafetyTraining.Runtime
                 return;
             var cycle = previewMovementPhase >= 0f
                 ? previewMovementPhase * Mathf.PI * 2f
-                : time * 7f;
+                : time * 7f * locomotionPace;
             var stride = moving ? Mathf.Sin(cycle) * 16f : 0f;
             var leftTarget = leftLegBase * Quaternion.Euler(stride, 0f, 0f);
             var rightTarget = rightLegBase * Quaternion.Euler(-stride, 0f, 0f);
@@ -190,13 +191,13 @@ namespace SafetyTraining.Runtime
             rightUpperLeg.localRotation = snap
                 ? rightTarget
                 : Quaternion.Slerp(rightUpperLeg.localRotation, rightTarget, 0.22f);
-            if (snap && moving)
+            if (moving)
             {
                 var swing = Mathf.Sin(cycle);
                 SetArm(leftUpperArm, leftLowerArm,
-                    new Vector3(-0.24f, -0.72f, 0.12f + swing * 0.48f), 1f);
+                    new Vector3(-0.24f, -0.72f, 0.12f + swing * 0.48f), snap ? 1f : 0.32f);
                 SetArm(rightUpperArm, rightLowerArm,
-                    new Vector3(0.24f, -0.72f, 0.12f - swing * 0.48f), 1f);
+                    new Vector3(0.24f, -0.72f, 0.12f - swing * 0.48f), snap ? 1f : 0.32f);
             }
         }
 

@@ -30,6 +30,7 @@ namespace SafetyTraining.Runtime
         Vector3 lastPlayerPosition;
         float nextSafetySample;
         readonly RaycastHit[] movementHits = new RaycastHit[16];
+        readonly Collider[] overlapHits = new Collider[24];
 
         static readonly Vector3[] SafetyOffsets =
         {
@@ -203,6 +204,7 @@ namespace SafetyTraining.Runtime
 
         void MoveToward(Vector3 target, float speed)
         {
+            ResolvePenetration();
             var delta = target - transform.position;
             delta.y = 0f;
             if (!accompanying)
@@ -224,6 +226,7 @@ namespace SafetyTraining.Runtime
             var step = Mathf.Min(delta.magnitude, speed * Time.deltaTime * facing);
             step = LimitStepByCollision(travelDirection, step);
             transform.position += travelDirection * step;
+            ResolvePenetration();
             if (step <= 0.001f)
             {
                 if (facing <= 0.2f)
@@ -262,6 +265,36 @@ namespace SafetyTraining.Runtime
                 allowedStep = Mathf.Min(allowedStep, Mathf.Max(0f, hit.distance - skin));
             }
             return allowedStep;
+        }
+
+        void ResolvePenetration()
+        {
+            var self = GetComponent<Collider>();
+            if (self == null)
+                return;
+            var bottom = transform.position + Vector3.up * 0.48f;
+            var top = transform.position + Vector3.up * 1.55f;
+            var count = Physics.OverlapCapsuleNonAlloc(bottom, top, 0.39f, overlapHits,
+                Physics.AllLayers, QueryTriggerInteraction.Ignore);
+            var correction = Vector3.zero;
+            for (var index = 0; index < count; index++)
+            {
+                var other = overlapHits[index];
+                if (other == null || other == self || other.transform.IsChildOf(transform) ||
+                    other.GetType().Name == "TerrainCollider" || other.name.Contains("Floor") ||
+                    other.name.Contains("Ground"))
+                    continue;
+                if (!Physics.ComputePenetration(self, transform.position, transform.rotation,
+                        other, other.transform.position, other.transform.rotation,
+                        out var direction, out var distance))
+                    continue;
+                direction.y = 0f;
+                if (direction.sqrMagnitude < 0.0001f)
+                    continue;
+                correction += direction.normalized * Mathf.Min(distance + 0.02f, 0.16f);
+            }
+            if (correction.sqrMagnitude > 0.0001f)
+                transform.position += Vector3.ClampMagnitude(correction, 0.22f);
         }
 
         void FaceViewer()

@@ -64,6 +64,7 @@ namespace SafetyTraining.Runtime
 
         public void RequestMode(TrainingExperienceMode mode)
         {
+            NpcChatPanel.Instance?.Close();
             if (transition != null)
                 StopCoroutine(transition);
             transition = StartCoroutine(ApplyMode(mode));
@@ -89,6 +90,12 @@ namespace SafetyTraining.Runtime
             }
 
             desktopController?.SetDesktopMode(false);
+            if (Application.platform != RuntimePlatform.Android && !HasRunningXrDisplay())
+            {
+                RevertToDesktop("IVR runtime is not already active. Start Meta Quest Link/OpenXR first, or use the Quest APK.");
+                yield break;
+            }
+
             var manager = XRGeneralSettings.Instance?.Manager;
             if (manager == null)
             {

@@ -34,6 +34,7 @@ namespace SafetyTraining.Runtime
         string conversationLog = string.Empty;
         Coroutine refresh;
         bool controlsBound;
+        int submitSequence;
 
         const int MaxTranscriptChars = 6000;
 
@@ -137,6 +138,7 @@ namespace SafetyTraining.Runtime
 
         public void Open(NpcConversationAgent agent, string npcName)
         {
+            submitSequence++;
             activeAgent = agent;
             var conciseSiteName = agent.SiteName.Split(' ')[0].ToUpperInvariant();
             title.text = $"{conciseSiteName} SAFETY COACH";
@@ -164,6 +166,8 @@ namespace SafetyTraining.Runtime
                 StopCoroutine(refresh);
             refresh = null;
             var previousAgent = activeAgent;
+            submitSequence++;
+            previousAgent?.CancelPendingReply();
             var restoreHud = previousAgent != null && TrainingCoordinator.Instance?.ActiveSite != null;
             activeAgent = null;
             SetVisible(false);
@@ -183,16 +187,30 @@ namespace SafetyTraining.Runtime
             OnSubmit(input != null ? input.text : string.Empty);
         }
 
-        void OnSubmit(string value)
+        async void OnSubmit(string value)
         {
             if (string.IsNullOrWhiteSpace(value) || activeAgent == null)
                 return;
+            if (activeAgent.IsResponding)
+                return;
             var message = value.Trim();
+            var agent = activeAgent;
+            var sequence = ++submitSequence;
             input.text = string.Empty;
             AppendToLog($"You: {message}");
             transcript.text = $"{conversationLog}\n\nCoach is responding...";
             ScrollToLatest();
-            activeAgent.Ask(message);
+            SetSendingEnabled(false);
+            var reply = await agent.AskAsync(message);
+            if (activeAgent != agent || sequence != submitSequence || !IsVisible)
+                return;
+            lastReply = reply;
+            AppendToLog($"Coach: {reply}");
+            transcript.text = conversationLog;
+            SetSendingEnabled(true);
+            ScrollToLatest();
+            input.Select();
+            input.ActivateInputField();
         }
 
         IEnumerator RefreshReply()
@@ -201,6 +219,11 @@ namespace SafetyTraining.Runtime
             {
                 if (activeAgent.LastReply != lastReply)
                 {
+                    if (activeAgent.IsResponding)
+                    {
+                        yield return null;
+                        continue;
+                    }
                     lastReply = activeAgent.LastReply;
                     AppendToLog($"Coach: {lastReply}");
                     transcript.text = conversationLog;
@@ -233,15 +256,30 @@ namespace SafetyTraining.Runtime
         {
             if (panel != null)
                 panel.SetActive(visible);
+            if (visible)
+                SetSendingEnabled(true);
+        }
+
+        void SetSendingEnabled(bool enabled)
+        {
+            if (input != null)
+                input.interactable = enabled;
+            if (sendButton != null)
+                sendButton.interactable = enabled;
+            if (sendLabel != null)
+                sendLabel.text = enabled ? "SEND" : "WAIT";
         }
 
         void BindControls()
         {
             if (controlsBound)
                 return;
-            input.onEndEdit.AddListener(OnSubmit);
-            sendButton.onClick.AddListener(SubmitCurrent);
-            closeButton.onClick.AddListener(Close);
+            if (input != null)
+                input.onEndEdit.AddListener(OnSubmit);
+            if (sendButton != null)
+                sendButton.onClick.AddListener(SubmitCurrent);
+            if (closeButton != null)
+                closeButton.onClick.AddListener(Close);
             controlsBound = true;
         }
 
@@ -249,9 +287,12 @@ namespace SafetyTraining.Runtime
         {
             if (!controlsBound)
                 return;
-            input.onEndEdit.RemoveListener(OnSubmit);
-            sendButton.onClick.RemoveListener(SubmitCurrent);
-            closeButton.onClick.RemoveListener(Close);
+            if (input != null)
+                input.onEndEdit.RemoveListener(OnSubmit);
+            if (sendButton != null)
+                sendButton.onClick.RemoveListener(SubmitCurrent);
+            if (closeButton != null)
+                closeButton.onClick.RemoveListener(Close);
             controlsBound = false;
         }
     }

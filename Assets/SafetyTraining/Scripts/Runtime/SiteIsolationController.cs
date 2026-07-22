@@ -54,7 +54,10 @@ namespace SafetyTraining.Runtime
                 "barrier", "cement", "crate", "pallet", "toolbox", "cart",
                 "generator", "drum", "utility box", "ladder", "formwork",
                 "material", "chainlink", "perimeter", "gate", "door",
-                "cabinet", "hand truck", "delivery stack", "panel row"
+                "cabinet", "hand truck", "delivery stack", "panel row",
+                "brick", "rebar", "beam", "column", "pipe", "shelf",
+                "rack", "stack", "box", "barricade", "hoarding",
+                "compressor", "forklift", "scaffold", "shoring"
             };
             foreach (var site in sites)
             {
@@ -62,8 +65,11 @@ namespace SafetyTraining.Runtime
                     continue;
                 foreach (var candidate in site.GetComponentsInChildren<Transform>(true))
                 {
-                    if (!candidate.name.StartsWith("WorldExpansion - RealAsset -") ||
-                        candidate.GetComponent<BoxCollider>() != null)
+                    if (candidate.GetComponent<BoxCollider>() != null ||
+                        candidate.GetComponent<Terrain>() != null ||
+                        candidate.GetComponent<Canvas>() != null ||
+                        candidate.GetComponent<TextMesh>() != null ||
+                        HasSolidColliderAncestor(candidate))
                         continue;
                     var lowerName = candidate.name.ToLowerInvariant();
                     var shouldBlock = false;
@@ -75,6 +81,8 @@ namespace SafetyTraining.Runtime
                         break;
                     }
                     if (!shouldBlock)
+                        continue;
+                    if (!HasVisibleRenderable(candidate))
                         continue;
 
                     var renderers = candidate.GetComponentsInChildren<Renderer>(true);
@@ -103,6 +111,34 @@ namespace SafetyTraining.Runtime
                 }
             }
             return added;
+        }
+
+        static bool HasSolidColliderAncestor(Transform candidate)
+        {
+            var parent = candidate.parent;
+            while (parent != null)
+            {
+                var collider = parent.GetComponent<BoxCollider>();
+                if (collider != null && !collider.isTrigger)
+                    return true;
+                parent = parent.parent;
+            }
+            return false;
+        }
+
+        static bool HasVisibleRenderable(Transform candidate)
+        {
+            foreach (var renderer in candidate.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!renderer.enabled || renderer.GetComponent<TextMesh>() != null)
+                    continue;
+                if (renderer.bounds.size.x <= 0.05f &&
+                    renderer.bounds.size.y <= 0.05f &&
+                    renderer.bounds.size.z <= 0.05f)
+                    continue;
+                return true;
+            }
+            return false;
         }
 
         static Bounds Encapsulate(Bounds value, Bounds addition)
