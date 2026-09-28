@@ -9,12 +9,15 @@ Each task ends green: compile, errors-only console, test or screenshot, then com
 - [ ] T0.4 Add a project `CLAUDE.md` from the template and commit.
 
 ## M1 — Core + greybox
-- [ ] T1.1 `Jobsite.Core`: add `EnergySource`, `FocusFourCategory`, `ControlLevel` (hierarchy of controls), `HazardDefinition` (POCO) and `ZoneSession` (inspect → classify → P×S rating → control level → control execution → stop-work), plus HII and the GDD §3 scoring. EditMode tests cover the scoring table, order gating, repeat-safety, look-alike penalties, PPE-only partial credit and stop-work latency.
-- [ ] T1.2 Add the `ZoneDefinition` and `HazardDefinition` ScriptableObjects with **hazard pools and a seeded sampler** (3–4 real + 2 look-alikes per run). Author the GDD §4 pools, including cross-cutting and capstone, with the expert key for P×S ratings and the correct control level.
+- [ ] T1.1 `Jobsite.Core`: add `EnergySource`, `ControlLevel`, `HazardDefinition`, the **hazard state machine** (Latent/Reported/Controlled/Lapsed/Stopped/Incident, with seeded lapse and trigger timers), the **DaySession** meters (Safety record, Schedule, Crew trust) and **CP mastery** per area (C1–C6). EditMode tests cover every GDD §5.3 transition, the §6 abuse cases, PPE lapse, the stop-work rule that never costs CP rating, and HII.
+- [ ] T1.2 Add ScriptableObjects: `DayDefinition` (phase, foreground area, hazard pools, live-event timeline, lapse/trigger windows) and `HazardDefinition` (expert P×S key, feasible control levels, CFR, explanation). Author Mon–Fri plus Week 2. Add a seeded sampler.
 - [ ] T1.3a HF-LAYOUT: top-down site plan and 5 zone mood boards (gate + A–D), with sightlines, hazard hiding spots and look-alike placement. User signs off before greybox.
-- [ ] T1.3 Build a greybox jobsite scene (`Assets/_Game/Scenes/Jobsite.unity`): terrain and grade, 2-storey frame with roof, trench cut, equipment yard, temp power, and an overhead line. It must be walkable with XR and desktop.
+- [ ] T1.3 Greybox `Assets/_Game/Scenes/Jobsite.unity` with **per-day site phase states** (Mon mobilization → Fri pour), switched by `SitePhaseController`. Walkable in XR and desktop.
 - [ ] T1.4 Port the placement mechanic to `ControlTaskInteractable`, then add the tie-off and two-hand variants.
-- [ ] T1.5 Radials: energy-wheel classify, P×S rating, hierarchy-of-controls choice, and a "why?" 3-option. Add `StopWorkCall` and the field-tablet HUD, capped at 12 words per panel.
+- [ ] T1.5 **Tablet** (diegetic): photo capture (cone and occlusion validity), energy-wheel tag, risk-matrix card, Fix/Assign/Stop with the resource board, and a "why?" 3-option. Radio stop-work. 12 words per card at most.
+- [ ] T1.8 Monday: trailer orientation (2D) and the profile pick (Guided shadow day vs. Field solo), with Dolores's cues fading through Wednesday.
+- [ ] T1.9 Crew: Dolores (mentor), Ray (foreman pressure), Marisol (ES), Tyler and Earl, plus background workers; speak-up dialogue with assertiveness choices; live-event timeline (truck backing, crane pick, swing radius).
+- [ ] T1.10 End of day: daily report, incident review (path replay, missed hazards by energy, near-miss clip slot, Dolores's expert ghost walk), **toolbox-talk writer** (pick and order 3 findings plus the why), and the Friday mastery gate.
 - [ ] T1.8 Gate-trailer pre-briefing (2D slides/video) and learner profile (years on site + 3-item pretest) → Guided or Field mode. In Guided mode, signaling cues fade over the session.
 - [ ] T1.9 Foreman pressure NPC and schedule clock; dynamic late-session events (truck backing, swing load).
 - [ ] T1.6 Extend the logger with the GDD §6 events, BORIS proxy codes and session meta (profile, language, input mode, config seed). Head-gaze dwell goes through `IGazeSource`.
