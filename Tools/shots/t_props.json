@@ -1,0 +1,10 @@
+{
+  "scene": "Assets/_Game/Scenes/Jobsite.unity",
+  "outDir": "Captures/t_props",
+  "shots": [
+    { "name": "01_gate_eye_level", "pos": [12, 1.7, -2.5], "lookAt": [10, 1.6, 20], "fov": 70, "day": "Mon" },
+    { "name": "02_trailer_porch", "pos": [9, 1.7, 11], "lookAt": [6, 1.8, 17], "fov": 70, "day": "Mon" },
+    { "name": "03_welfare_dumpster", "pos": [14, 1.7, 29], "lookAt": [4, 1.2, 34], "fov": 70, "day": "Mon" },
+    { "name": "04_temp_power_generator", "pos": [21, 1.7, 15], "lookAt": [17, 0.6, 20], "fov": 70, "day": "Mon" }
+  ]
+}

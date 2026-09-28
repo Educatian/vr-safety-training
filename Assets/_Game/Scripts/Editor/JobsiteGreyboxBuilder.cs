@@ -112,19 +112,29 @@ namespace Jobsite.Editor
                 case "mats": Flat(surfaces, id, c, w, d, Color("M_CraneMatTimber", new Color(0.36f, 0.26f, 0.17f)), 0.15f); break;
                 case "locates": Flat(surfaces, id, c, w, d, Mat("M_RedClayGraded", "red_dirt_mud_01", 5f), 0.01f); break;
                 case "trench": break; // cut in BuildGround
-                case "trailer": Box(logistics, id, c + Vector3.up * 1.95f, new Vector3(w, 2.7f, d), Color("M_TrailerWhite", new Color(0.86f, 0.85f, 0.8f))); break;
+                case "trailer":
+                    if (!Prop(logistics, "B-PROC/SM_OfficeTrailer.fbx", c, 180)) // door + stair face south, toward the gate
+                        Box(logistics, id, c + Vector3.up * 1.95f, new Vector3(w, 2.7f, d), Color("M_TrailerWhite", new Color(0.86f, 0.85f, 0.8f)));
+                    break;
                 case "conex": Box(logistics, id, c + Vector3.up * 1.3f, new Vector3(w, 2.6f, d), Color("M_ConexBlue", new Color(0.2f, 0.32f, 0.45f))); break;
-                case "dumpster": Box(logistics, id, c + Vector3.up * 0.9f, new Vector3(w, 1.8f, d), Color("M_DumpsterGreen", new Color(0.12f, 0.3f, 0.2f))); break;
+                case "dumpster":
+                    if (!Prop(logistics, "B-PROC/SM_RollOffDumpster30.fbx", c, 0))
+                        Box(logistics, id, c + Vector3.up * 0.9f, new Vector3(w, 1.8f, d), Color("M_DumpsterGreen", new Color(0.12f, 0.3f, 0.2f)));
+                    break;
                 case "fuel": Box(logistics, id, c + Vector3.up * 0.8f, new Vector3(w, 1.6f, d), Color("M_FuelTankRed", new Color(0.55f, 0.08f, 0.06f))); break;
-                case "electrical": Box(logistics, id, c + Vector3.up * 0.75f, new Vector3(0.6f, 1.5f, 0.3f), Color("M_PanelGrey", new Color(0.5f, 0.52f, 0.52f))); break;
+                case "electrical":
+                    Box(logistics, id, c + Vector3.up * 0.75f, new Vector3(0.6f, 1.5f, 0.3f), Color("M_PanelGrey", new Color(0.5f, 0.52f, 0.52f)));
+                    ModelAt(logistics, "Assets/ThirdParty/PolyHaven/Environment/Models/portable_generator_1k.fbx", c + new Vector3(1.8f, 0, -1.2f), 20);
+                    break;
                 case "welfare":
                     for (var i = 0; i < 3; i++)
-                        Box(logistics, "PortableToilet_" + i, new Vector3(x + 1 + i * 1.3f, 1.15f, z + 1), new Vector3(1.1f, 2.3f, 1.1f), Color("M_ToiletBlue", new Color(0.12f, 0.3f, 0.6f)));
+                        if (!Prop(logistics, "B-PROC/SM_PortableToilet.fbx", new Vector3(x + 1 + i * 1.3f, 0, z + 1), 180))
+                            Box(logistics, "PortableToilet_" + i, new Vector3(x + 1 + i * 1.3f, 1.15f, z + 1), new Vector3(1.1f, 2.3f, 1.1f), Color("M_ToiletBlue", new Color(0.12f, 0.3f, 0.6f)));
                     break;
                 case "stockpile": Mound(id == "spoil" ? civil : logistics, id, c, w, d, id == "gravel_pile" ? 2.2f : 2.5f,
                         id == "gravel_pile" ? Mat("M_CrushedStone", "gravel_road", 4f) : Mat("M_RedClayCut", "red_laterite_soil_stones", 2f)); break;
                 case "building_b": BuildBuildingB(building.parent, x, z, w, d); break;
-                case "building": Box(building, "Slab_On_Grade", c + Vector3.up * 0.1f, new Vector3(w, 0.2f, d), Color("M_Concrete", new Color(0.62f, 0.61f, 0.58f))); break;
+                case "building": Box(building, "Slab_On_Grade", c + Vector3.up * 0.1f, new Vector3(w, 0.2f, d), HfMat("M_HF_ConcreteSlab", "ConcreteSlab", 3f, 0.15f)); break;
             }
 
             if (id == "pipe_laydown") Tag(PipeStack(civil, c), WorkDay.Mon | WorkDay.Tue | WorkDay.Wed);
@@ -185,7 +195,7 @@ namespace Jobsite.Editor
         static void BuildFence(Transform root, JObject layout)
         {
             var fence = Group(root, "Perimeter_Fence");
-            var screen = Color("M_FenceWindscreen", new Color(0.08f, 0.2f, 0.14f));
+            var screen = HfMat("M_HF_Windscreen", "Windscreen", 1.5f, 0.1f);
             var gate = layout["rects"].First(r => (string)r["id"] == "gate_pad");
             float gx0 = (float)gate["x"], gx1 = gx0 + (float)gate["w"];
             float W = (float)layout["parcel"][0], D = (float)layout["parcel"][1];
@@ -231,7 +241,7 @@ namespace Jobsite.Editor
             for (var i = 0; i <= 3; i++)
                 for (var j = 0; j <= 2; j++)
                     Box(parent, "Column_W8", new Vector3(x0 + i * 6, DeckHeight / 2, z0 + j * 6), new Vector3(0.25f, DeckHeight, 0.25f), steel);
-            var deck = Color("M_MetalDeck", new Color(0.36f, 0.37f, 0.37f));
+            var deck = HfMat("M_HF_MetalDeck", "MetalDeck", 2.5f, 0.35f);
             // Deck with one floor opening (hazard pool slot) left open at x 40-41.2, z 30-31.2.
             Box(parent, "Deck_A", new Vector3(x0 + 3, DeckHeight, z0 + d / 2), new Vector3(6, 0.15f, d), deck);
             Box(parent, "Deck_B", new Vector3(x0 + 12, DeckHeight, z0 + d / 2), new Vector3(12, 0.15f, d), deck);
@@ -259,7 +269,7 @@ namespace Jobsite.Editor
             var b = Group(root, "Bldg_B_4Storey");
             const float floorH = 4f;
             var steel = Color("M_PrimedSteel", new Color(0.35f, 0.33f, 0.3f));
-            var slab = Color("M_ConcreteDeck", new Color(0.58f, 0.57f, 0.54f));
+            var slab = HfMat("M_HF_ConcreteSlab", "ConcreteSlab", 3f, 0.15f);
             var rope = Color("M_WireRope", new Color(0.55f, 0.56f, 0.57f));
             var flag = Color("M_FlaggingOrange", new Color(0.95f, 0.35f, 0.05f));
             Box(b, "Slab_On_Grade", new Vector3(x0 + w / 2, 0.1f, z0 + d / 2), new Vector3(w, 0.2f, d), slab);
@@ -365,6 +375,35 @@ namespace Jobsite.Editor
             Box(pump, "Truck", new Vector3(40, 1.6f, lineZ - 10), new Vector3(2.5f, 3.2f, 11f), white);
             var pboom = Box(pump, "Boom", new Vector3(40, 6.5f, lineZ - 5.5f), new Vector3(0.5f, 0.5f, 12f), red);
             pboom.transform.rotation = Quaternion.Euler(-35, 0, 0);
+        }
+
+        // Places a model from Assets/_Game/Art/Models/<rel> at ground point `at`; adds a box collider so the
+        // player cannot walk through it. Returns false (caller falls back to a greybox block) if missing.
+        static bool Prop(Transform parent, string rel, Vector3 at, float yaw) =>
+            ModelAt(parent, "Assets/_Game/Art/Models/" + rel, at, yaw) != null;
+
+        static GameObject ModelAt(Transform parent, string path, Vector3 at, float yaw)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null) return null;
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            go.transform.position = at;
+            // Keep the importer's root axis conversion (Blender FBX roots carry -90 deg X); only add yaw.
+            go.transform.rotation = Quaternion.Euler(0, yaw, 0) * prefab.transform.rotation;
+            var rs = go.GetComponentsInChildren<Renderer>();
+            foreach (var r in rs)
+                r.sharedMaterials = r.sharedMaterials.Select(m => (m != null ? Remap(m.name) : null) ?? m).ToArray();
+            if (rs.Length > 0)
+            {
+                var b = rs[0].bounds;
+                foreach (var r in rs) b.Encapsulate(r.bounds);
+                var col = go.AddComponent<BoxCollider>();
+                col.center = go.transform.InverseTransformPoint(b.center);
+                col.size = go.transform.InverseTransformVector(b.size);
+                col.size = new Vector3(Mathf.Abs(col.size.x), Mathf.Abs(col.size.y), Mathf.Abs(col.size.z));
+            }
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+            return go;
         }
 
         static void Place(Transform parent, GameObject prefab, Vector3 pos, float yaw)
@@ -585,6 +624,38 @@ namespace Jobsite.Editor
             TileMetres[m] = metresPerTile;
             m.SetFloat("_Smoothness", 0.12f);
             return m;
+        }
+
+        // Higgsfield albedo + derived normal (Tools/hf/make_pbr.py), tiled at world scale.
+        static Material HfMat(string name, string tex, float metresPerTile, float smoothness = 0.2f)
+        {
+            if (Mats.TryGetValue(name, out var cached)) return cached;
+            var m = Color(name, UnityEngine.Color.white);
+            const string dir = "Assets/_Game/Art/Textures/HF/";
+            var normalPath = dir + "T_" + tex + "_Normal.png";
+            var importer = (TextureImporter)AssetImporter.GetAtPath(normalPath);
+            if (importer != null && importer.textureType != TextureImporterType.NormalMap)
+            {
+                importer.textureType = TextureImporterType.NormalMap;
+                importer.SaveAndReimport();
+            }
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(dir + "T_" + tex + "_BaseMap.png"));
+            m.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath));
+            m.EnableKeyword("_NORMALMAP");
+            m.SetFloat("_Smoothness", smoothness);
+            TileMetres[m] = metresPerTile;
+            return m;
+        }
+
+        // FBX material name (from Tools/blender/*.py) -> textured material we own.
+        static Material Remap(string fbxMaterial)
+        {
+            var n = fbxMaterial.Replace(" (Instance)", "");
+            if (n.StartsWith("M_TrailerSiding") || n.StartsWith("M_TrailerRib")) return HfMat("M_HF_TrailerSiding", "TrailerSiding", 1.2f, 0.35f);
+            if (n.StartsWith("M_DumpsterGreen") || n.StartsWith("M_Rust")) return HfMat("M_HF_DumpsterSteel", "DumpsterSteel", 1.2f, 0.25f);
+            if (n.StartsWith("M_ToiletBlue")) return HfMat("M_HF_ToiletHDPE", "ToiletHDPE", 1.2f, 0.45f);
+            if (n.StartsWith("M_Galvanized") || n.StartsWith("M_GalvanizedSteel")) return HfMat("M_HF_Galvanized", "Galvanized", 1.2f, 0.4f);
+            return null;
         }
 
         static Texture2D FindTex(string dir, string tex, string channel)

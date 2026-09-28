@@ -1,0 +1,7 @@
+{
+  "_note": "Real-world target size in metres (length along X, i.e. the longest horizontal axis). 'basis' = where the number comes from; typical product sizes need an SME check before the study (PropBible).",
+  "portable_toilet": {"length_m": 1.19, "height_m": 2.29, "basis": "typical US standard unit ~43-44 in W x 47 in D x 89-90 in H (UNVERIFIED - SME check)"},
+  "generator": {"length_m": 0.69, "height_m": 0.69, "basis": "typical 7,500 W class with wheel kit ~27 x 26 x 27 in (UNVERIFIED - SME check)"},
+  "rolloff_dumpster": {"length_m": 6.71, "height_m": 1.83, "basis": "30-yd roll-off commonly ~22 ft L x 7.5 ft W x 6 ft H (UNVERIFIED - SME check)"},
+  "office_trailer": {"length_m": 12.19, "height_m": 3.4, "basis": "10 x 40 ft mobile office box length 40 ft; height incl. chassis/jacks authored ~3.4 m (UNVERIFIED - SME check)"}
+}
