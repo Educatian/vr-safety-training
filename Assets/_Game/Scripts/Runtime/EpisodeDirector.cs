@@ -56,7 +56,7 @@ namespace Jobsite.Runtime
             if (on && cine == null)
             {
                 cine = new GameObject("CinematicCamera", typeof(Camera), typeof(AudioListener)).GetComponent<Camera>();
-                cine.fieldOfView = 38; cine.nearClipPlane = 0.1f; cine.depth = 10;
+                cine.fieldOfView = 38; cine.nearClipPlane = 0.1f; cine.depth = 10; cine.tag = "MainCamera";
                 var go = new GameObject("CinematicCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
                 canvas = go.GetComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = cine; canvas.planeDistance = 0.3f;

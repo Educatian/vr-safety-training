@@ -32,3 +32,10 @@ ax.set_title("Municipal Pump Station & Stormwater Tie-in — Site Logistics Plan
 ax.legend(loc="upper left", fontsize=8, framealpha=0.9); ax.grid(alpha=0.2)
 out = ROOT / "docs" / "images" / "site_plan.png"; out.parent.mkdir(exist_ok=True)
 fig.savefig(out, dpi=130, bbox_inches="tight"); print(out)
+
+# Minimap: same drawing, exact extent (X -4..124, Z -4..84 m), no chrome -> Resources/UI/Minimap.png (8 px/m).
+ax.set_title(""); ax.get_legend().remove(); ax.grid(False); ax.axis("off")
+ax.set_xlim(-4, 124); ax.set_ylim(-4, 84); ax.set_aspect("auto"); fig.patch.set_facecolor("#5f6b45")
+fig.set_size_inches(12.8, 8.8); ax.set_position([0, 0, 1, 1])
+mini = ROOT / "Assets" / "_Game" / "Resources" / "UI" / "Minimap.png"
+fig.savefig(mini, dpi=80); print(mini)

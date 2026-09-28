@@ -218,6 +218,7 @@ namespace Jobsite.Editor
             var fr = flashGo.GetComponent<RectTransform>(); fr.anchorMin = Vector2.zero; fr.anchorMax = Vector2.one; fr.offsetMin = fr.offsetMax = Vector2.zero;
             flash = flashGo.GetComponent<Image>(); flash.color = Color.clear; flash.raycastTarget = false;
 
+            canvasGo.AddComponent<Minimap>().Build(canvasGo.transform);
             var tablet = canvasGo.AddComponent<FieldTablet>();
             tablet.name = "TabletCanvas";
             radioText.name = "RadioLine";

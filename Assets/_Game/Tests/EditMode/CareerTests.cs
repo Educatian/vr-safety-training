@@ -37,7 +37,7 @@ namespace Jobsite.Tests
         [Test]
         public void Hints_EscalateFromAreaToEnergyToTheCondition()
         {
-            Assert.That(Career.HintText(1, "Open hole", EnergySource.Gravity, FocusFour.Falls, "deck"), Does.Contain("deck"));
+            Assert.That(Career.HintText(1, "Open hole", EnergySource.Gravity, FocusFour.Falls, "northeast, about 20 m"), Does.Contain("northeast"));
             Assert.That(Career.HintText(2, "Open hole", EnergySource.Gravity, FocusFour.Falls, "deck"), Does.Contain("gravity"));
             Assert.That(Career.HintText(3, "Open hole", EnergySource.Gravity, FocusFour.Falls, "deck"), Does.Contain("open hole"));
         }

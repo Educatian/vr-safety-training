@@ -26,7 +26,7 @@ namespace Jobsite.Editor
                 new Vector3((X0 + X1) / 2, -Depth / 2, 26.4f), new Vector3(1.6f, Depth + 0.6f, 4.8f),
                 EnergySource.Gravity, CpArea.Excavation, 4, 5, ControlLevel.Engineering, 420f, true,
                 "29 CFR 1926.652(a)(1)", "Protect workers in excavations 5 ft or deeper from cave-ins.", "5 ft", true);
-            Worker(gap.transform.Find("Unresolved"), new Vector3(66f, -Depth, 26.4f), 0);
+            Worker(gap.transform.Find("Unresolved"), new Vector3(66f, -Depth, 26.4f), 0, "Marcus Bell", "Pipe layer");
             TrenchBox(gap.transform.Find("Resolved"), 24.4f);
 
             // Spoil dumped at the edge on one stretch (the rest of the spoil line is set back more than 2 ft).
@@ -61,7 +61,7 @@ namespace Jobsite.Editor
                 new Vector3(55.6f, 0.9f, 15f), new Vector3(2f, 1.8f, 2f),
                 EnergySource.Chemical, CpArea.General, 4, 4, ControlLevel.Engineering, 540f, false,
                 "29 CFR 1926.1153 Table 1", "Use integrated water delivery when cutting concrete.", "Wet method", true);
-            Worker(silica.transform.Find("Unresolved"), new Vector3(55.2f, 0f, 15f), 90); // at the pipe end, not inside the stack
+            Worker(silica.transform.Find("Unresolved"), new Vector3(55.2f, 0f, 15f), 90, "Luis Ortega", "Saw operator"); // at the pipe end, not inside the stack
             Dust(silica.transform.Find("Unresolved"), new Vector3(55.9f, 0.5f, 15f));
 
             // Look-alikes: a correctly placed box and a competent-person inspection board.
@@ -124,7 +124,7 @@ namespace Jobsite.Editor
             go.GetComponent<Renderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Game/Art/Materials/M_RedClayCut.mat");
         }
 
-        static void Worker(Transform parent, Vector3 at, float yaw)
+        static void Worker(Transform parent, Vector3 at, float yaw, string name = null, string trade = null)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Rocketbox);
             if (prefab == null) return;
@@ -138,6 +138,7 @@ namespace Jobsite.Editor
                 if (current == go.transform) break;
             }
             MondaySliceBuilderAccess.RelaxArms(go);
+            if (name != null) go.AddComponent<NameTag>().Configure(name, trade);
             go.AddComponent<SafetyTraining.Runtime.NpcRelaxedPose>();
         }
 

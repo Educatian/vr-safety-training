@@ -64,6 +64,8 @@ namespace Jobsite.Editor
             var crew = go.AddComponent<CrewMember>();
             crew.Configure(name, role, facts, config);
             crew.SetCharacter(name.ToLowerInvariant());
+            var who = Jobsite.Core.Cast.Get(name.ToLowerInvariant());
+            go.AddComponent<NameTag>().Configure(who.Name, name == "Dolores" ? "Safety manager" : "General foreman");
         }
 
         static LlmEndpointConfig EnsureConfig()

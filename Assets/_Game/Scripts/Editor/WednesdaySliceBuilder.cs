@@ -57,7 +57,7 @@ namespace Jobsite.Editor
                 new Vector3(51.4f, Deck + 1f, 30f), new Vector3(1f, 2f, 1f),
                 EnergySource.Gravity, CpArea.FallProtection, 1, 1, ControlLevel.Ppe, float.PositiveInfinity, false,
                 "29 CFR 1926.502(d)", "Personal fall arrest: harness, lanyard, anchor.", "Anchor 5,000 lb", false);
-            Worker(tied.transform.Find("Unresolved"), new Vector3(51.4f, Deck, 30f), 90);
+            Worker(tied.transform.Find("Unresolved"), new Vector3(51.4f, Deck, 30f), 90, "Tasha Greene", "Ironworker foreman");
         }
 
         static SiteCondition Condition(Transform root, string id, string title, bool hazard, Vector3 center, Vector3 size,
@@ -110,7 +110,7 @@ namespace Jobsite.Editor
             for (var y = 0.3f; y < length; y += 0.3f) Part("Rung", new Vector3(0, y, 0), new Vector3(0.03f, 0.03f, 0.44f));
         }
 
-        static void Worker(Transform parent, Vector3 at, float yaw)
+        static void Worker(Transform parent, Vector3 at, float yaw, string name = null, string trade = null)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Rocketbox);
             if (prefab == null) return;
@@ -123,6 +123,7 @@ namespace Jobsite.Editor
                 if (current == go.transform) break;
             }
             MondaySliceBuilderAccess.RelaxArms(go);
+            if (name != null) go.AddComponent<NameTag>().Configure(name, trade);
             go.AddComponent<SafetyTraining.Runtime.NpcRelaxedPose>();
         }
     }

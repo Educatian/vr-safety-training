@@ -268,16 +268,18 @@ namespace Jobsite.Runtime
             if (!Hints.TrySpend()) { Say("No hint tokens left. A logbook in the gear locker adds one per shift."); return; }
             var tier = Session.UseHint(target.Id);
             var spec = target.Spec;
-            Say(Career.HintText(tier, target.DisplayName, spec.Energy, spec.FocusFour, Where(spec.Area)));
+            Say(Career.HintText(tier, target.DisplayName, spec.Energy, spec.FocusFour, Where(target.transform.position - player.transform.position)));
             Log("hint", target.Id, "tier=" + tier);
             tablet.Refresh();
         }
 
-        static string Where(CpArea area) => area switch
+        // Site plan is north-up (+Z): "northeast, about 20 m".
+        static string Where(Vector3 d)
         {
-            CpArea.Excavation => "trench", CpArea.FallProtection => "pump-house deck", CpArea.Scaffold => "scaffold",
-            CpArea.Electrical => "temporary power", CpArea.StruckBy => "equipment", _ => "trailers",
-        };
+            var names = new[] { "north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest" };
+            var i = Mathf.RoundToInt(Mathf.Repeat(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, 360) / 45f) % 8;
+            return $"{names[i]}, about {Mathf.Max(5, Mathf.RoundToInt(new Vector2(d.x, d.z).magnitude / 5f) * 5)} m";
+        }
 
         // ---------- crew conversation ----------
         private void StartTalk(CrewMember crew)

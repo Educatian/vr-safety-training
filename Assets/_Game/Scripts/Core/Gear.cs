@@ -80,7 +80,7 @@ namespace Jobsite.Core
         // Hint text for tier 1-3 on a hazard the learner has not found yet (Dolores over the radio).
         public static string HintText(int tier, string displayName, EnergySource energy, FocusFour focus, string where) => tier switch
         {
-            1 => $"Dolores: Walk toward the {where}. Something there doesn't sit right with me.",
+            1 => $"Dolores: Head {where}. Something there doesn't sit right with me.",
             2 => $"Dolores: Think {energy.ToString().ToLowerInvariant()} energy" + (focus != FocusFour.None ? $", a {FocusName(focus)} hazard." : "."),
             _ => $"Dolores: Look at the {displayName.ToLowerInvariant()}.",
         };

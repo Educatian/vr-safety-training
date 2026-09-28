@@ -50,6 +50,19 @@ namespace Jobsite.PlayTests
             director.UseHint();
             Assert.That(director.Hints.Tokens, Is.EqualTo(tokens - 1));
             Assert.That(director.Notice, Does.StartWith("Dolores:"));
+            // Walk up to Dolores: name tag over her head + minimap in the corner; then the full-site map.
+            var dolores = Object.FindObjectsByType<CrewMember>(FindObjectsSortMode.None).First(c => c.DisplayName == "Dolores");
+            var player = Object.FindFirstObjectByType<SitePlayer>();
+            player.GetComponent<CharacterController>().enabled = false;
+            player.transform.position = dolores.transform.position + dolores.transform.forward * 4.5f + Vector3.right * 1.2f;
+            player.transform.LookAt(new Vector3(dolores.transform.position.x, player.transform.position.y, dolores.transform.position.z));
+            player.View.transform.localRotation = Quaternion.Euler(4, 0, 0);
+            for (var i = 0; i < 3; i++) yield return null;
+            Shot(player.View, "09_nametag_minimap");
+            var map = Object.FindFirstObjectByType<Minimap>();
+            map.Toggle(); yield return null;
+            Shot(player.View, "10_full_map");
+            map.Toggle();
             CareerStore.Reset();
         }
 
