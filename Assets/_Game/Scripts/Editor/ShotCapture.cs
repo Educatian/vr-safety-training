@@ -45,6 +45,11 @@ namespace Jobsite.Editor
                     go.transform.position = V(shot.pos);
                     go.transform.LookAt(V(shot.lookAt));
                 }
+                // Edit-mode capture: NPC pose scripts only run in play, so apply the relaxed pose once (no T-pose).
+                foreach (var mb in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+                    if (mb.GetType().Name == "NpcRelaxedPose")
+                        foreach (var m in new[] { "Awake", "LateUpdate" })
+                            mb.GetType().GetMethod(m, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.Invoke(mb, null);
                 // Edit-mode capture: particles do not tick, so pre-warm them (e.g. silica dust).
                 foreach (var ps in UnityEngine.Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None))
                     ps.Simulate(3f, true, true);

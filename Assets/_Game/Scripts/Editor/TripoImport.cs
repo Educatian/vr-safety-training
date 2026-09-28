@@ -31,8 +31,26 @@ namespace Jobsite.Editor
                     ((ModelImporter)AssetImporter.GetAtPath(path)).ExtractTextures(dir);
                 }
                 FixExtensions(dir);
+                CapTextures(dir, IsVehicle(Path.GetFileNameWithoutExtension(path)) ? 1024 : 512);
             }
             AssetDatabase.Refresh();
+        }
+
+        // Web download budget (TechSpec): vehicles 1024, props 512; crunch-compressed in the build.
+        static bool IsVehicle(string model) => new[] { "Truck", "Crane", "Excavator", "Loader", "Lift", "Roller", "Steer", "Pickup", "Telehandler" }
+            .Any(model.Contains);
+
+        static void CapTextures(string dir, int size)
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { dir }))
+            {
+                var imp = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
+                if (imp.maxTextureSize == size && imp.crunchedCompression) continue;
+                imp.maxTextureSize = size;
+                imp.crunchedCompression = true;
+                imp.compressionQuality = 50;
+                imp.SaveAndReimport();
+            }
         }
 
         static string TexDir(string model) => $"{Root}/Textures/{model}";

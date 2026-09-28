@@ -51,7 +51,9 @@ for name, spec in specs.items():
     # Tripo meshes are split at every UV seam; weld first, then collapse in <=10x passes.
     # A single 0.001 ratio pass stalls on seams and spikes vertices (seen: 2x bounding box).
     bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.mesh.remove_doubles(threshold=0.0005); bpy.ops.object.mode_set(mode="OBJECT")
+    # Weld relative to object size: tiny props (extinguisher, SRL) keep their seam splits at a fixed 0.5 mm.
+    lo0, hi0 = bounds(obj); weld = max(0.0005, 0.004 * max(hi0 - lo0))
+    bpy.ops.mesh.remove_doubles(threshold=weld); bpy.ops.object.mode_set(mode="OBJECT")
     pre_lo, pre_hi = bounds(obj)
     tris = tris0
     for _ in range(8):
@@ -59,6 +61,16 @@ for name, spec in specs.items():
         dec = obj.modifiers.new("decimate", "DECIMATE"); dec.ratio = max(0.1, budget / tris)
         dec.use_collapse_triangulate = True
         bpy.ops.object.modifier_apply(modifier="decimate")
+        tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+    if tris > budget * 1.5:
+        # Collapse stalls on UV-seam islands; planar dissolve merges flat regions, then collapse again.
+        d = obj.modifiers.new("dissolve", "DECIMATE"); d.decimate_type = "DISSOLVE"; d.angle_limit = math.radians(6)
+        bpy.ops.object.modifier_apply(modifier="dissolve")
+        for _ in range(6):
+            tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+            if tris <= budget: break
+            dec = obj.modifiers.new("decimate", "DECIMATE"); dec.ratio = max(0.1, budget / tris); dec.use_collapse_triangulate = True
+            bpy.ops.object.modifier_apply(modifier="decimate")
         tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     post_lo, post_hi = bounds(obj)
     growth = max((post_hi - post_lo)[i] / max((pre_hi - pre_lo)[i], 1e-6) for i in range(3))

@@ -4,12 +4,12 @@
   "size_m": [
    0.28,
    0.18,
-   0.62
+   0.61
   ],
   "tris_in": 1965136,
-  "tris": 31838,
-  "bbox_growth": 1.0,
-  "mb": 6.7
+  "tris": 14007,
+  "bbox_growth": 1.001,
+  "mb": 6.1
  },
  {
   "name": "SM_GfciSpiderBox",
@@ -19,45 +19,33 @@
    0.42
   ],
   "tris_in": 1905958,
-  "tris": 51903,
-  "bbox_growth": 1.012,
-  "mb": 9.6
- },
- {
-  "name": "SM_TempPowerPole",
-  "size_m": [
-   0.55,
-   0.49,
-   3.0
-  ],
-  "tris_in": 1934248,
-  "tris": 2999,
-  "bbox_growth": 1.0,
-  "mb": 7.3
+  "tris": 47953,
+  "bbox_growth": 1.007,
+  "mb": 9.9
  },
  {
   "name": "SM_WaterCooler10gal",
   "size_m": [
-   0.6,
-   0.53,
-   1.13
+   0.61,
+   0.56,
+   1.16
   ],
   "tris_in": 1989102,
-  "tris": 10304,
-  "bbox_growth": 0.984,
-  "mb": 4.5
+  "tris": 31503,
+  "bbox_growth": 1.006,
+  "mb": 5.6
  },
  {
   "name": "SM_HarnessLanyard",
   "size_m": [
-   1.0,
+   1.02,
    0.59,
-   1.55
+   1.5
   ],
   "tris_in": 1881845,
-  "tris": 7330,
-  "bbox_growth": 1.036,
-  "mb": 7.8
+  "tris": 20489,
+  "bbox_growth": 1.003,
+  "mb": 8.5
  },
  {
   "name": "SM_SrlRoofAnchor",
@@ -67,260 +55,44 @@
    0.6
   ],
   "tris_in": 1960440,
-  "tris": 55508,
-  "bbox_growth": 1.002,
-  "mb": 8.7
+  "tris": 11158,
+  "bbox_growth": 1.003,
+  "mb": 7.1
  },
  {
   "name": "SM_ToolBag",
   "size_m": [
    0.45,
-   0.25,
+   0.24,
    0.36
   ],
   "tris_in": 1945286,
-  "tris": 60402,
-  "bbox_growth": 1.029,
+  "tris": 49780,
+  "bbox_growth": 1.002,
   "mb": 12.3
  },
  {
   "name": "SM_CutoffSawWet",
   "size_m": [
    0.8,
-   0.24,
+   0.23,
    0.35
   ],
   "tris_in": 1935564,
-  "tris": 24229,
-  "bbox_growth": 1.008,
-  "mb": 7.1
+  "tris": 25875,
+  "bbox_growth": 1.002,
+  "mb": 7.4
  },
  {
   "name": "SM_TrafficCone28in",
   "size_m": [
    0.38,
    0.36,
-   0.72
+   0.71
   ],
   "tris_in": 1892706,
-  "tris": 6790,
-  "bbox_growth": 1.016,
-  "mb": 6.9
- },
- {
-  "name": "SM_BarricadeType3",
-  "size_m": [
-   2.45,
-   1.21,
-   1.16
-  ],
-  "tris_in": 1967460,
-  "tris": 5241,
-  "bbox_growth": 1.002,
-  "mb": 6.2
- },
- {
-  "name": "SM_HoistBucket",
-  "size_m": [
-   1.58,
-   1.33,
-   2.19
-  ],
-  "tris_in": 1904240,
-  "tris": 2999,
-  "bbox_growth": 1.01,
-  "mb": 5.1
- },
- {
-  "name": "SM_Excavator20t",
-  "size_m": [
-   9.51,
-   3.52,
-   4.29
-  ],
-  "tris_in": 1862369,
-  "tris": 12000,
-  "bbox_growth": 1.001,
-  "mb": 7.0
- },
- {
-  "name": "SM_DumpTruckTandem",
-  "size_m": [
-   9.08,
-   3.74,
-   4.25
-  ],
-  "tris_in": 1880487,
-  "tris": 11999,
-  "bbox_growth": 1.001,
-  "mb": 5.8
- },
- {
-  "name": "SM_BoomLift60ft",
-  "size_m": [
-   8.89,
-   3.33,
-   3.18
-  ],
-  "tris_in": 1932204,
-  "tris": 12000,
-  "bbox_growth": 1.002,
-  "mb": 6.3
- },
- {
-  "name": "SM_BoomTruckCrane",
-  "size_m": [
-   10.5,
-   3.68,
-   4.0
-  ],
-  "tris_in": 1916922,
-  "tris": 11998,
-  "bbox_growth": 1.0,
-  "mb": 5.8
- },
- {
-  "name": "SM_RtMobileCrane",
-  "size_m": [
-   11.97,
-   6.61,
-   4.6
-  ],
-  "tris_in": 1865374,
-  "tris": 11999,
-  "bbox_growth": 0.998,
-  "mb": 7.3
- },
- {
-  "name": "SM_VibratoryRoller",
-  "size_m": [
-   5.8,
-   2.72,
-   3.13
-  ],
-  "tris_in": 1883176,
-  "tris": 11999,
-  "bbox_growth": 1.0,
-  "mb": 7.7
- },
- {
-  "name": "SM_SkidSteer",
-  "size_m": [
-   3.39,
-   2.03,
-   2.02
-  ],
-  "tris_in": 1894507,
-  "tris": 11999,
-  "bbox_growth": 1.001,
-  "mb": 6.8
- },
- {
-  "name": "SM_BackhoeLoader",
-  "size_m": [
-   7.2,
-   2.24,
-   3.18
-  ],
-  "tris_in": 1894680,
-  "tris": 11998,
-  "bbox_growth": 1.002,
-  "mb": 6.6
- },
- {
-  "name": "SM_MixerTruck",
-  "size_m": [
-   9.99,
-   3.72,
-   4.24
-  ],
-  "tris_in": 1873461,
-  "tris": 11999,
-  "bbox_growth": 1.0,
-  "mb": 6.4
- },
- {
-  "name": "SM_ConcretePumpTruck",
-  "size_m": [
-   11.5,
-   3.28,
-   4.2
-  ],
-  "tris_in": 1899827,
-  "tris": 11999,
-  "bbox_growth": 1.001,
-  "mb": 6.2
- },
- {
-  "name": "SM_Telehandler",
-  "size_m": [
-   6.49,
-   2.61,
-   2.64
-  ],
-  "tris_in": 1895396,
-  "tris": 11999,
-  "bbox_growth": 0.999,
-  "mb": 6.4
- },
- {
-  "name": "SM_WheelLoader",
-  "size_m": [
-   8.0,
-   3.32,
-   3.81
-  ],
-  "tris_in": 1974141,
-  "tris": 11999,
-  "bbox_growth": 1.0,
-  "mb": 6.8
- },
- {
-  "name": "SM_WaterTruck",
-  "size_m": [
-   8.99,
-   3.13,
-   3.07
-  ],
-  "tris_in": 1896203,
-  "tris": 11999,
-  "bbox_growth": 1.0,
-  "mb": 5.6
- },
- {
-  "name": "SM_FlatbedBoomTruck",
-  "size_m": [
-   9.5,
-   3.38,
-   3.68
-  ],
-  "tris_in": 1826201,
-  "tris": 11999,
-  "bbox_growth": 1.0,
-  "mb": 6.5
- },
- {
-  "name": "SM_CrewPickup",
-  "size_m": [
-   6.2,
-   3.0,
-   2.56
-  ],
-  "tris_in": 1874061,
-  "tris": 11999,
-  "bbox_growth": 1.0,
+  "tris": 8826,
+  "bbox_growth": 1.007,
   "mb": 7.1
- },
- {
-  "name": "SM_ScissorLift",
-  "size_m": [
-   2.5,
-   1.22,
-   2.49
-  ],
-  "tris_in": 1839652,
-  "tris": 11999,
-  "bbox_growth": 1.0,
-  "mb": 6.1
  }
 ]

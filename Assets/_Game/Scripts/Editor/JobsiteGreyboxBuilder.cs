@@ -253,7 +253,15 @@ namespace Jobsite.Editor
             var deck = HfMat("M_HF_MetalDeck", "MetalDeck", 2.5f, 0.35f);
             // Deck with one floor opening (hazard pool slot) left open at x 40-41.2, z 30-31.2.
             Box(parent, "Deck_A", new Vector3(x0 + 3, DeckHeight, z0 + d / 2), new Vector3(6, 0.15f, d), deck);
-            Box(parent, "Deck_B", new Vector3(x0 + 12, DeckHeight, z0 + d / 2), new Vector3(12, 0.15f, d), deck);
+            // Deck_B (x 40-52) is tiled around two 1.2 m openings: x 41-42.2/z 30-31.2 and x 48-49.2/z 34-35.2.
+            void DeckTile(float ax, float bx, float az, float bz) => Box(parent, "Deck_B", new Vector3((ax + bx) / 2, DeckHeight, (az + bz) / 2), new Vector3(bx - ax, 0.15f, bz - az), deck);
+            DeckTile(40f, 41f, 26f, 38f);
+            DeckTile(41f, 42.2f, 26f, 30f);
+            DeckTile(41f, 42.2f, 31.2f, 38f);
+            DeckTile(42.2f, 48f, 26f, 38f);
+            DeckTile(48f, 49.2f, 26f, 34f);
+            DeckTile(48f, 49.2f, 35.2f, 38f);
+            DeckTile(49.2f, 52f, 26f, 38f);
             Box(parent, "StairTower", new Vector3(x0 - 2, DeckHeight / 2, z0 + 3), new Vector3(3, DeckHeight, 5), Color("M_ScaffoldGalv", new Color(0.6f, 0.62f, 0.63f)));
 
             var rail = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-PROC/SM_Guardrail_service_worn.fbx");

@@ -137,6 +137,7 @@ namespace Jobsite.Editor
                 current.gameObject.SetActive(true);
                 if (current == go.transform) break;
             }
+            MondaySliceBuilderAccess.RelaxArms(go);
             go.AddComponent<SafetyTraining.Runtime.NpcRelaxedPose>();
         }
 

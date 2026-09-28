@@ -52,36 +52,10 @@ namespace Jobsite.Runtime
             (frame != null ? frame : content).gameObject.SetActive(director.MenuOpen);
             foreach (Transform child in content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
             if (!director.MenuOpen) return;
-            Label("COMPETENT PERSON · MONDAY", 22, Accent);
-            if (!director.Started)
-            {
-                Label("Dolores: walk the site with me.", 32, Color.white);
-                Label("Photograph conditions. Rate the risk. Choose a control.");
-                Label("WASD walk · Shift hurry · Right mouse look");
-                Label("E photographs · Tab opens this tablet");
-                Label("Stopping work never lowers your rating.", 22, Accent);
-                Button("Begin shift", director.Begin);
-                return;
-            }
-            if (director.Finished)
-            {
-                Label("SHIFT CLOSED", 34, Color.white);
-                Label($"Hazards found {director.Session.HazardIdentificationIndex:P0} · Precision {director.Session.ReportPrecision:P0}");
-                Label($"Crew trust {director.Session.CrewTrust:+0;-0;0} · Incidents {director.Session.NearMisses + director.Session.Recordables}");
-                foreach (var condition in director.Conditions)
-                    if (condition.IsHazard)
-                    {
-                        var st = director.Session.GetState(condition.Id);
-                        Label((st == HazardState.Latent ? "MISSED  " : "") + condition.DisplayName + " · " + st, 20,
-                            st == HazardState.Latent ? new Color(1f, .45f, .35f) : Ink);
-                        if (st == HazardState.Latent && !string.IsNullOrEmpty(condition.Cfr))
-                            Label("   " + condition.Cfr + " — " + condition.Threshold, 18, Accent);
-                    }
-                Label("Tomorrow's toolbox talk opens with:", 22, Accent);
-                Button("Protect edges. Clear access. Verify controls.", () => director.ExplainBack(0));
-                Button("Keep schedule. Rely on reminders and PPE.", () => director.ExplainBack(1));
-                return;
-            }
+            Label($"COMPETENT PERSON · XP {director.Xp}", 22, Accent);
+            if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
+            if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
+            if (director.Finished) { Closing(); return; }
             if (director.Selected == null)
             {
                 Label("SITE WALK", 34, Color.white);
@@ -115,6 +89,88 @@ namespace Jobsite.Runtime
             }
             Button("Return to site", director.ToggleTablet);
             Button("Finish shift", director.EndShift);
+        }
+
+        // Gate briefing: drag the controls into rank order, then the toolbox quiz, then start the shift.
+        private void Briefing()
+        {
+            if (director.HierarchyScore < 5)
+            {
+                Label("Rank the controls: most effective on top.", 26, Color.white);
+                Label("Drag each card onto a slot.", 20, Ink);
+                HierarchyBoard.Build(content, font, order => director.SubmitHierarchy(order));
+                return;
+            }
+            var quiz = director.Quiz;
+            if (quiz != null && !quiz.Done)
+            {
+                Label($"Toolbox talk · {quiz.Index + 1}/{quiz.Items.Count}", 20, Accent);
+                Label(quiz.Current.Prompt, 26, Color.white);
+                for (var i = 0; i < quiz.Current.Options.Length; i++)
+                {
+                    var k = i;
+                    Button(quiz.Current.Options[i], () => director.AnswerQuiz(k));
+                }
+                return;
+            }
+            Label($"Briefing done · {quiz?.CorrectCount ?? 0}/{quiz?.Items.Count ?? 0} correct", 26, Color.white);
+            Button("Begin shift", director.Begin, null, true);
+        }
+
+        private void Closing()
+        {
+            Label("SHIFT CLOSED", 34, Color.white);
+            Label($"Hazards found {director.Session.HazardIdentificationIndex:P0} · Precision {director.Session.ReportPrecision:P0}");
+            Label($"Crew trust {director.Session.CrewTrust:+0;-0;0} · Incidents {director.Session.NearMisses + director.Session.Recordables} · Level {XpRules.Level(director.Xp)}");
+            foreach (var condition in director.Conditions)
+                if (condition.IsHazard)
+                {
+                    var st = director.Session.GetState(condition.Id);
+                    Label((st == HazardState.Latent ? "MISSED  " : "") + condition.DisplayName + " · " + st, 20,
+                        st == HazardState.Latent ? new Color(1f, .45f, .35f) : Ink);
+                    if (st == HazardState.Latent && !string.IsNullOrEmpty(condition.Cfr))
+                        Label("   " + condition.Cfr + " — " + condition.Threshold, 18, Accent);
+                }
+            var quiz = director.Quiz;
+            if (quiz != null && !quiz.Done)
+            {
+                Label("Check · " + quiz.Current.Prompt, 22, Accent);
+                for (var i = 0; i < quiz.Current.Options.Length; i++) { var k = i; Button(quiz.Current.Options[i], () => director.AnswerQuiz(k)); }
+                return;
+            }
+            Label("Tomorrow's toolbox talk opens with:", 22, Accent);
+            Button("Protect edges. Clear access. Verify controls.", () => director.ExplainBack(0));
+            Button("Keep schedule. Rely on reminders and PPE.", () => director.ExplainBack(1));
+        }
+
+        // Crew conversation: transcript + typed question (LLM via OpenRouter; offline fallback).
+        private void Chat(CrewMember crew)
+        {
+            Label(crew.DisplayName, 30, Color.white);
+            var lines = crew.Transcript;
+            for (var i = System.Math.Max(0, lines.Count - 6); i < lines.Count; i++)
+                Label(lines[i], 19, lines[i].StartsWith("You:") ? Accent : Ink);
+            if (crew.Thinking) Label("…", 22, Ink);
+            var input = InputBox("Ask about this condition…");
+            Button("Send", () => { director.AskCrew(input.text); });
+            input.onSubmit.AddListener(s => director.AskCrew(s));
+            Button("Close (Tab)", director.EndTalk);
+            input.ActivateInputField();
+        }
+
+        private InputField InputBox(string placeholder)
+        {
+            var go = new GameObject("Ask", typeof(RectTransform), typeof(Image), typeof(InputField), typeof(LayoutElement));
+            go.transform.SetParent(content, false);
+            go.GetComponent<Image>().color = new Color(.12f, .15f, .16f);
+            go.GetComponent<LayoutElement>().preferredHeight = 56;
+            var text = new GameObject("Text", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+            text.transform.SetParent(go.transform, false);
+            var tr = (RectTransform)text.transform; tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.offsetMin = new Vector2(12, 4); tr.offsetMax = new Vector2(-12, -4);
+            text.font = font; text.fontSize = 22; text.color = Color.white; text.supportRichText = false;
+            var ph = UnityEngine.Object.Instantiate(text, go.transform); ph.text = placeholder; ph.color = new Color(1, 1, 1, .35f);
+            var field = go.GetComponent<InputField>(); field.textComponent = text; field.placeholder = ph; field.lineType = InputField.LineType.SingleLine;
+            return field;
         }
 
         // OSHA citation chip + plain-language requirement (GDD §15).

@@ -52,3 +52,8 @@ The clamp overshoot above 42 in was caught by the recipe's bounds check and fixe
 - 2026-09-28 Poly Haven CC0 (Alabama context): textures red_dirt_mud_01, red_laterite_soil_stones, sparse_grass; models pine_tree_01, shrub_01, fire_hydrant (B-LIB, 1k fbx)
 - 2026-09-28 Higgsfield (gpt_image_2_5) albedo textures ×8 → seamless + luminance normals via Tools/hf/make_pbr.py: TrailerSiding, DumpsterSteel, ToiletHDPE, Galvanized, Plywood, Windscreen, ConcreteSlab, MetalDeck (Assets/_Game/Art/Textures/HF/)
 - 2026-09-28 UI: Higgsfield tablet frame + energy/control icon sheets (sliced to Assets/_Game/Resources/UI); font Barlow Condensed SemiBold (SIL OFL 1.1, Google Fonts)
+
+## 2026-09-28 Tripo Studio batch (27 models; web credits 3,200 -> 1,715)
+- Cleaned in Blender (`Tools/blender/cleanup_batch.py`): vehicles 12k tris + LOD1 (~5k), textures 1024. All 19 vehicles and large props are on budget.
+- **Follow-up (over the web budget):** small props are still 9k-50k tris against a 1.5-3k target, because collapse decimation stalls on Tripo's dense detail. Offenders: GFCI spider box 48k, tool bag 50k, water cooler 32k, saw 26k, harness 20k, extinguisher 14k, SRL 11k, cone 9k. Fix with Tripo Studio Smart Mesh (low-poly regeneration) or a Blender remesh + texture bake. Texture size is capped in Unity (512 props / 1024 vehicles, crunch).
+- Rigs (`Tools/blender/rig_vehicle.py` + `Tools/tripo/rig_specs.json`): crew pickup (door, 4 wheels, cab interior), tandem dump truck (bed, door, 6 wheels), excavator (House > Boom > Stick > Bucket), RT crane (House > Boom > Tele1, hook). Tripo shells are hollow, so part cuts leave small gaps at fused joints; this is acceptable at site viewing distance.

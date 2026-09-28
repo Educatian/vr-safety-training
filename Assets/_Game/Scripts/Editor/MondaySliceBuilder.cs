@@ -63,6 +63,8 @@ namespace Jobsite.Editor
             foreach (var go in new[] { player, director.gameObject, tablet.gameObject, events, rack })
                 go.transform.SetParent(gameplay, true);
             TuesdaySliceBuilder.Add(gameplay);
+            WednesdaySliceBuilder.Add(gameplay);
+            GateAndCrewBuilder.Add(gameplay);
         }
 
         // ---------- conditions ----------
@@ -276,6 +278,18 @@ namespace Jobsite.Editor
             m.SetColor("_BaseColor", color);
             go.GetComponent<Renderer>().sharedMaterial = m;
             return go;
+        }
+
+        // Bake a relaxed standing pose into Rocketbox workers so scene captures never show a T-pose.
+        public static void RelaxArms(GameObject worker)
+        {
+            var fwd = worker.transform.forward;
+            foreach (var t in worker.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "Bip01 L UpperArm") t.rotation = Quaternion.AngleAxis(72f, fwd) * t.rotation;
+                else if (t.name == "Bip01 R UpperArm") t.rotation = Quaternion.AngleAxis(-72f, fwd) * t.rotation;
+                else if (t.name == "Bip01 L Forearm" || t.name == "Bip01 R Forearm") t.rotation = Quaternion.AngleAxis(-15f, worker.transform.right) * t.rotation;
+            }
         }
 
         public static void Cone(Transform parent, Vector3 at)

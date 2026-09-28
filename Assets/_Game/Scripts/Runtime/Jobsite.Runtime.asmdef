@@ -1,1 +1,11 @@
-{"name":"Jobsite.Runtime","rootNamespace":"Jobsite.Runtime","references":["Jobsite.Core","Unity.InputSystem","Unity.ugui"],"autoReferenced":true}
+{
+  "name": "Jobsite.Runtime",
+  "rootNamespace": "Jobsite.Runtime",
+  "references": [
+    "Jobsite.Core",
+    "Unity.InputSystem",
+    "Unity.ugui",
+    "SafetyTraining.Runtime"
+  ],
+  "autoReferenced": true
+}
