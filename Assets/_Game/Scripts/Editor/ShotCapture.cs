@@ -10,7 +10,7 @@ namespace Jobsite.Editor
     // Unity.exe -batchmode -quit -executeMethod Jobsite.Editor.ShotCapture.Run -shots Tools/shots/<set>.json
     public static class ShotCapture
     {
-        [Serializable] sealed class Shot { public string name; public float[] pos; public float[] lookAt; public string target; public float[] offset; public float fov = 60f; }
+        [Serializable] sealed class Shot { public string name; public float[] pos; public float[] lookAt; public string target; public float[] offset; public float fov = 60f; public string day; }
         [Serializable] sealed class ShotSet { public string scene; public string outDir; public int width = 1600; public int height = 900; public Shot[] shots; }
 
         public static void Run()
@@ -30,6 +30,8 @@ namespace Jobsite.Editor
             foreach (var shot in set.shots)
             {
                 cam.fieldOfView = shot.fov;
+                if (!string.IsNullOrEmpty(shot.day))
+                    Jobsite.Runtime.SitePhaseController.Apply((Jobsite.Runtime.WorkDay)Enum.Parse(typeof(Jobsite.Runtime.WorkDay), shot.day));
                 if (!string.IsNullOrEmpty(shot.target))
                 {
                     // Frame a named object: camera sits at bounds centre + offset * bounds radius.

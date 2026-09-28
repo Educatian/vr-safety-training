@@ -7,6 +7,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using Jobsite.Runtime;
 
 namespace Jobsite.Editor
 {
@@ -51,6 +52,8 @@ namespace Jobsite.Editor
             BuildDeck(building);
             BuildLighting();
             BuildSurroundings(root);
+            BuildDayVariants(root, civil, layout);
+            new GameObject("SitePhaseController").AddComponent<SitePhaseController>();
 
             var spawn = new GameObject("PlayerSpawn").transform;
             spawn.position = new Vector3((float)layout["spawn"]["x"], 0f, (float)layout["spawn"]["y"]);
@@ -122,7 +125,10 @@ namespace Jobsite.Editor
                 case "building": Box(building, "Slab_On_Grade", c + Vector3.up * 0.1f, new Vector3(w, 0.2f, d), Color("M_Concrete", new Color(0.62f, 0.61f, 0.58f))); break;
             }
 
-            if (id == "pipe_laydown") PipeStack(civil, c);
+            if (id == "pipe_laydown") Tag(PipeStack(civil, c), WorkDay.Mon | WorkDay.Tue | WorkDay.Wed);
+            if (id == "spoil") Tag(civil.Find("spoil").gameObject, WorkDay.Tue | WorkDay.Wed);
+            if (id == "crane_pad") Tag(surfaces.Find("crane_pad").gameObject, WorkDay.Thu);
+            if (id == "building") Tag(building.Find("Slab_On_Grade").gameObject, WorkDay.Wed | WorkDay.Thu | WorkDay.Fri);
         }
 
         static void Flat(Transform parent, string name, Vector3 c, float w, float d, Material m, float h = 0.03f)
@@ -139,8 +145,9 @@ namespace Jobsite.Editor
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
         }
 
-        static void PipeStack(Transform parent, Vector3 c)
+        static GameObject PipeStack(Transform parent, Vector3 c)
         {
+            parent = Group(parent, "PipeStack_RCP");
             // 24 in RCP, 8 ft sections on dunnage (Tue pipe laydown).
             var concrete = Color("M_Concrete", new Color(0.62f, 0.61f, 0.58f));
             for (var row = 0; row < 2; row++)
@@ -154,6 +161,7 @@ namespace Jobsite.Editor
                     go.transform.localScale = new Vector3(0.76f, 1.22f, 0.76f);
                     go.GetComponent<Renderer>().sharedMaterial = concrete;
                 }
+            return parent.gameObject;
         }
 
         // ---------- haul road ----------
@@ -212,8 +220,10 @@ namespace Jobsite.Editor
         }
 
         // ---------- Wed building state: columns, deck, guardrail FBX ----------
-        static void BuildDeck(Transform parent)
+        static void BuildDeck(Transform building)
         {
+            var parent = Group(building, "PumpStation_Frame");
+            Tag(parent.gameObject, WorkDay.Wed | WorkDay.Thu | WorkDay.Fri);
             float x0 = 34, z0 = 26, w = 18, d = 12;
             var steel = Color("M_PrimedSteel", new Color(0.35f, 0.33f, 0.3f));
             for (var i = 0; i <= 3; i++)
@@ -284,6 +294,9 @@ namespace Jobsite.Editor
             var roofY = 4 * floorH;
             var lineH = 0.92f; // 36 in, inside the 34-39 in band (1926.502(f)(2)(iii))
             var inset = 1.83f;
+            var roofWork = Group(b, "BldgB_RoofWork");
+            Tag(roofWork.gameObject, WorkDay.Thu | WorkDay.Fri);
+            b = roofWork;
             var stanchion = Color("M_WarningLineStanchion", new Color(0.9f, 0.1f, 0.08f));
             var rect = new[] { new Vector2(x0 + inset, z0 + inset), new Vector2(x0 + w - inset, z0 + inset), new Vector2(x0 + w - inset, z0 + d - inset), new Vector2(x0 + inset, z0 + d - inset) };
             for (var k = 0; k < 4; k++)
@@ -303,9 +316,53 @@ namespace Jobsite.Editor
             Box(b, "Skylight_1", new Vector3(x0 + 4, roofY + 0.25f, z0 + 14), new Vector3(1.2f, 0.3f, 2.4f), skylight);
             Box(b, "Skylight_2", new Vector3(x0 + 20, roofY + 0.25f, z0 + 14), new Vector3(1.2f, 0.3f, 2.4f), skylight);
             Box(b, "RoofHatch_Curb", new Vector3(x0 + 13.5f, roofY + 0.3f, z0 + 8.5f), new Vector3(1f, 0.4f, 1.2f), steel);
+            b = roofWork.parent;
             Box(b, "StairTower_Ext", new Vector3(x0 - 2.5f, 8f, z0 + 4), new Vector3(3.5f, 16.5f, 5), Color("M_ScaffoldGalv", new Color(0.6f, 0.62f, 0.63f)));
             Box(b, "BoomLift_60ft_PH", new Vector3(x0 + 5, 1.3f, z0 - 4), new Vector3(2.4f, 2.6f, 8f), Color("M_LiftOrange", new Color(0.85f, 0.4f, 0.05f)));
             Box(b, "DebrisChute_PH", new Vector3(x0 + w + 0.6f, 6f, z0 + 3), new Vector3(0.8f, 12f, 0.8f), Color("M_ChuteYellow", new Color(0.85f, 0.65f, 0.1f)));
+        }
+
+        static void Tag(GameObject go, WorkDay days) => go.AddComponent<PhaseMember>().Configure(days);
+
+        // Day-specific site states (SiteLayout §3): stakeout, trench backfill, crane pick, pump truck.
+        static void BuildDayVariants(Transform root, Transform civil, JObject layout)
+        {
+            var days = Group(root, "DayVariants");
+            // Mon-Tue: pump-station stakeout (lath stakes + flagging at the corners, string line).
+            var stake = Group(days, "PumpStation_Stakeout");
+            Tag(stake.gameObject, WorkDay.Mon | WorkDay.Tue);
+            var lath = Color("M_LathStake", new Color(0.78f, 0.66f, 0.46f));
+            var pink = Color("M_SurveyPink", new Color(1f, 0.3f, 0.6f));
+            foreach (var p in new[] { new Vector2(34, 26), new Vector2(52, 26), new Vector2(52, 38), new Vector2(34, 38) })
+            {
+                Box(stake, "LathStake", new Vector3(p.x, 0.6f, p.y), new Vector3(0.04f, 1.2f, 0.02f), lath);
+                Box(stake, "Flagging", new Vector3(p.x, 1.15f, p.y + 0.06f), new Vector3(0.03f, 0.25f, 0.1f), pink);
+            }
+
+            // Trench closed on Mon (not dug) and Thu-Fri (backfilled): red-clay fill slightly crowned.
+            var t = layout["rects"].First(r => (string)r["id"] == "trench");
+            float tx = (float)t["x"], tw = (float)t["w"], ty = (float)t["y"], th = (float)t["h"];
+            var fill = Box(days, "Trench_Backfill", new Vector3(tx + tw / 2, -TrenchDepth / 2 + 0.03f, ty + th / 2),
+                new Vector3(tw + 0.4f, TrenchDepth + 0.06f, th), Mat("M_RedClayGraded", "red_dirt_mud_01", 5f));
+            Tag(fill, WorkDay.Mon | WorkDay.Thu | WorkDay.Fri);
+
+            // Thu: boom truck on the crane pad lifting a rooftop unit toward Bldg B (placeholder).
+            var crane = Group(days, "Crane_BoomTruck_PH");
+            Tag(crane.gameObject, WorkDay.Thu);
+            var white = Color("M_CraneWhite", new Color(0.85f, 0.85f, 0.82f));
+            Box(crane, "Carrier", new Vector3(48, 1.5f, 46), new Vector3(2.5f, 3f, 10f), white);
+            var boom = Box(crane, "Boom", new Vector3(56, 9f, 46), new Vector3(0.6f, 0.6f, 20f), white);
+            boom.transform.rotation = Quaternion.Euler(-40, 90, 0);
+            Box(crane, "Load_RTU", new Vector3(63, 12f, 46), new Vector3(2.4f, 1.3f, 1.6f), Color("M_RtuGrey", new Color(0.55f, 0.57f, 0.58f)));
+
+            // Fri: concrete pump truck set up under the overhead line (capstone), boom raised toward it.
+            var pump = Group(days, "ConcretePumpTruck_PH");
+            Tag(pump.gameObject, WorkDay.Fri);
+            var red = Color("M_PumpTruckRed", new Color(0.7f, 0.1f, 0.08f));
+            var lineZ = (float)layout["power_line"]["y"];
+            Box(pump, "Truck", new Vector3(40, 1.6f, lineZ - 10), new Vector3(2.5f, 3.2f, 11f), white);
+            var pboom = Box(pump, "Boom", new Vector3(40, 6.5f, lineZ - 5.5f), new Vector3(0.5f, 0.5f, 12f), red);
+            pboom.transform.rotation = Quaternion.Euler(-35, 0, 0);
         }
 
         static void Place(Transform parent, GameObject prefab, Vector3 pos, float yaw)

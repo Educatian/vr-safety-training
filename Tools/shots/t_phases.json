@@ -1,0 +1,83 @@
+{
+ "scene": "Assets/_Game/Scenes/Jobsite.unity",
+ "outDir": "Captures/t_phases",
+ "width": 1200,
+ "height": 675,
+ "shots": [
+  {
+   "name": "Mon_aerial",
+   "pos": [
+    -20,
+    40,
+    -30
+   ],
+   "lookAt": [
+    60,
+    0,
+    40
+   ],
+   "fov": 55,
+   "day": "Mon"
+  },
+  {
+   "name": "Tue_aerial",
+   "pos": [
+    -20,
+    40,
+    -30
+   ],
+   "lookAt": [
+    60,
+    0,
+    40
+   ],
+   "fov": 55,
+   "day": "Tue"
+  },
+  {
+   "name": "Wed_aerial",
+   "pos": [
+    -20,
+    40,
+    -30
+   ],
+   "lookAt": [
+    60,
+    0,
+    40
+   ],
+   "fov": 55,
+   "day": "Wed"
+  },
+  {
+   "name": "Thu_aerial",
+   "pos": [
+    -20,
+    40,
+    -30
+   ],
+   "lookAt": [
+    60,
+    0,
+    40
+   ],
+   "fov": 55,
+   "day": "Thu"
+  },
+  {
+   "name": "Fri_aerial",
+   "pos": [
+    -20,
+    40,
+    -30
+   ],
+   "lookAt": [
+    60,
+    0,
+    40
+   ],
+   "fov": 55,
+   "day": "Fri"
+  }
+ ]
+}
