@@ -11,6 +11,7 @@ Each task ends green: compile, errors-only console, test or screenshot, then com
 ## M1 — Core + greybox
 - [ ] T1.1 `Jobsite.Core`: add `EnergySource`, `FocusFourCategory`, `ControlLevel` (hierarchy of controls), `HazardDefinition` (POCO) and `ZoneSession` (inspect → classify → P×S rating → control level → control execution → stop-work), plus HII and the GDD §3 scoring. EditMode tests cover the scoring table, order gating, repeat-safety, look-alike penalties, PPE-only partial credit and stop-work latency.
 - [ ] T1.2 Add the `ZoneDefinition` and `HazardDefinition` ScriptableObjects with **hazard pools and a seeded sampler** (3–4 real + 2 look-alikes per run). Author the GDD §4 pools, including cross-cutting and capstone, with the expert key for P×S ratings and the correct control level.
+- [ ] T1.3a HF-LAYOUT: top-down site plan and 5 zone mood boards (gate + A–D), with sightlines, hazard hiding spots and look-alike placement. User signs off before greybox.
 - [ ] T1.3 Build a greybox jobsite scene (`Assets/_Game/Scenes/Jobsite.unity`): terrain and grade, 2-storey frame with roof, trench cut, equipment yard, temp power, and an overhead line. It must be walkable with XR and desktop.
 - [ ] T1.4 Port the placement mechanic to `ControlTaskInteractable`, then add the tie-off and two-hand variants.
 - [ ] T1.5 Radials: energy-wheel classify, P×S rating, hierarchy-of-controls choice, and a "why?" 3-option. Add `StopWorkCall` and the field-tablet HUD, capped at 12 words per panel.
@@ -23,18 +24,19 @@ Each task ends green: compile, errors-only console, test or screenshot, then com
 - [ ] T2.1 B-PROC `Tools/blender/guardrail.py`: parametric guardrail with a 42″ top rail, 21″ midrail and 3.5″ toeboard, plus posts and clamps.
 - [ ] T2.2 B-PROC: hole cover (plywood with a "HOLE" stencil and cleats), extension ladder (rungs, rails, feet, 3 ft extension), and frame scaffold (base plates, mudsills, planks, guardrails).
 - [ ] T2.3 B-PROC: aluminium trench box with spreaders, a trench-cut ground mesh with a spoil pile, and a sloped bench.
-- [ ] T2.4 HF-3D: harness + lanyard, roof anchor + SRL, and a tool bag.
+- [ ] T2.3b Tripo prop wrapper `Tools/tripo/tripo_prop.py`: image→model with no rig. Reuses the charpipe key, ledger and budget cap, and has a dry-run plan mode.
+- [ ] T2.4 TR-3D: harness + lanyard, roof anchor + SRL, and a tool bag.
 - [ ] T2.5 B-LIB: lumber stacks, sheathing, nail guns, and a roof membrane texture. Poly Haven soil, gravel and concrete PBR.
 - [ ] T2.6 HF-IMG: signage and decal set 1 (excavation danger, hard hat area, competent-person tag, "HOLE" stencil, mud and tire decals).
 
 ## M3 — Asset wave 2: struck-by + electrical + life
 - [ ] T3.1 B-LIB: excavator, dump truck, mobile crane and skid steer. Clean up in Blender, add LODs, and separate the pivots (boom, bucket, bed) for animation.
 - [ ] T3.2 B-PROC: barricade and cone set, cord ramp, line-proximity marker flags, and a trench pump with discharge hose.
-- [ ] T3.2b Cross-cutting props: concrete saw (dry vs. wet kit), leaking hydraulic hose, air-hose whip check, and a water/shade station (B-LIB or HF-3D).
-- [ ] T3.3 HF-3D: generator, GFCI spider box, temp panel, porta-john and site trailer.
+- [ ] T3.2b Cross-cutting props: concrete saw (dry vs. wet kit), leaking hydraulic hose, air-hose whip check, and a water/shade station (B-LIB or TR-3D).
+- [ ] T3.3 TR-3D: generator, GFCI spider box, temp panel, porta-john and site trailer.
 - [ ] T3.4 HF-AUD: ambience beds for 4 zones plus about 15 one-shots, mixed with `JobsiteAmbience`.
 - [ ] T3.5 Workers: Rocketbox in `WorkerLoop` idle work animations (8–12 NPCs), and equipment idle animation.
-- [ ] T3.6 HF-VID: toolbox-talk orientation clip on the trailer TV.
+- [ ] T3.6 HF-CINE: gate orientation, 4 zone intros, 4 near-miss consequence clips (no gore) and the AAR outro, wired through `VideoPlayer` (in-world TV or 2D overlay). EN/ES VO through `generate_audio`.
 
 ## M4 — Look + feel
 - [ ] T4.1 Lighting: HDRI, sun, work lights, reflection probes, and a URP post-process volume.

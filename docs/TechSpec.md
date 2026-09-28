@@ -31,7 +31,7 @@
   - `WorkerLoop` handles NPC idle work animation.
 - **UI:** uGUI (world-space). It is already used, and XRI supports it.
 
-## Asset pipeline (Blender MCP + Higgsfield)
+## Asset pipeline (Blender MCP + Tripo 3D + Higgsfield 2D/video/audio)
 
 Every prop gets exactly one source route, recorded in `docs/AssetManifest.md` with a license column.
 
@@ -39,15 +39,16 @@ Every prop gets exactly one source route, recorded in `docs/AssetManifest.md` wi
 |---|---|---|
 | **B-PROC** | Blender MCP `execute_blender_code` (bpy script, saved under `Tools/blender/`) | **Compliance-critical geometry**, where dimensions matter for the lesson: guardrail system (42″/21″/3.5″), hole cover, trench box, extension ladder, frame scaffold, cord ramp, barricade, line-proximity markers. Fully parametric and re-runnable. |
 | **B-LIB** | Blender MCP Poly Haven / Sketchfab (CC0 / CC-BY) / Poly Pizza, followed by a cleanup, scale and decimate pass in Blender | Heavy equipment (excavator, dump truck, mobile crane, skid steer), generic site clutter (pallets, barrels, lumber, rebar, tools), HDRI and PBR ground/soil/gravel/concrete textures. |
-| **HF-3D** | Higgsfield `generate_image` for a clean reference → `generate_3d` (GLB) → Blender cleanup, retopo/decimate, UV check, FBX | Specific props with no good library match: harness and lanyard, SRL on an anchor, porta-john, jobsite generator, GFCI spider box, tool bags, material hoist bucket, site trailer. |
+| **TR-3D** | Image reference (Higgsfield `generate_image`, clean product shot on a neutral background) → **Tripo API** image-to-model (no rig; via a prop wrapper over `CyberPlay_Lab/tools/charpipe/tripo_char.py` with its credit ledger and cap) → Blender cleanup, retopo/decimate, UV check, real-world scale, FBX | Specific props with no good library match: harness and lanyard, SRL on an anchor, porta-john, jobsite generator, GFCI spider box, tool bags, material hoist bucket, site trailer, concrete saw, water/shade station. |
+| **HF-LAYOUT** | Higgsfield `generate_image` | **Layout design** before greybox: a top-down site plan and one key-art/mood board per zone (camera height 1.7 m) showing sightlines, where each hazard hides inside the work, and look-alike placement. The boards are the blockout reference, not in-game art. |
+| **HF-CINE** | Higgsfield `generate_video` (+ `generate_audio` for VO/score) | **Cinematics**, pre-rendered and played through Unity `VideoPlayer` on in-world screens or a fade-to-2D overlay: gate orientation (30–45 s), 4 zone-intro establishing shots (8–10 s), 4 near-miss consequence clips with no gore (6–10 s), and an after-action review outro. Clips carry no factual safety claims; the coach and data carry facts. |
 | **HF-IMG** | Higgsfield `generate_image` | Decals (tire tracks, oil stains, mud splash), signage textures (generic OSHA-style: "DANGER – EXCAVATION", "HARD HAT AREA"; no real company logos), inspection tags, labels, and the field-tablet UI art. |
 | **HF-AUD** | Higgsfield `generate_audio` | Ambience beds and one-shots: generator, backup alarm, nail gun, circular saw, excavator hydraulics, radio chatter, and the snap/confirm UI sounds. |
-| **HF-VID** | Higgsfield `generate_video` | A 30–45 s toolbox-talk orientation clip shown on the site-trailer TV at the gate. It must not contain factual safety claims; the coach delivers those. |
 
 **Rules**
 
 - No Hunyuan3D anywhere (standing preference).
-- Tripo is the fallback if Higgsfield 3D output is unusable.
+- 3D generation is **Tripo only**. Higgsfield is used for images, layout boards, cinematics and audio, never `generate_3d`.
 - Budget per hero prop: ≤ 40k tris.
 - Budget per clutter prop: ≤ 8k tris.
 - Textures: 2K hero and 1K clutter, packed as BaseMap + Normal + MaskMap for URP Lit.
