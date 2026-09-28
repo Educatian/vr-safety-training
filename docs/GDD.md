@@ -323,3 +323,19 @@ The player drives the crane from the operator seat only in equipment-yard practi
 1. Generate the mesh in Tripo.
 2. Run `Tools/blender/rig_vehicle.py`. It splits the mesh into parts using authored cut volumes (one JSON file per model), sets pivots on the hinge and axle axes, names the hierarchy, and exports an FBX.
 3. Add the Unity `VehicleController` or `CraneRig` component.
+
+## 18. Episodes and cinematic narrative
+
+The week is split into topic-scoped episodes. Each can be run on its own, so an instructor can assign one OSHA-10 topic. Played in order they form one arc: a new competent person, Dolores the mentor and Ray the foreman under schedule pressure, all heading toward Friday's pour.
+
+| EP | Title | Day | Topic | Status |
+|---|---|---|---|---|
+| 1 | First Light | Mon | Site entry, PPE, temporary power (1926.95, 1926.404(b)(1), 1926.416(e)(1)) | playable |
+| 2 | The Cut | Tue | Trenching, silica, swing radius (1926.651/652, 1926.1153) | playable |
+| 3 | The Edge | Wed | Guardrails, holes, ladders (1926.501/502, 1926.1053) | playable |
+| 4 | The Pick | Thu | Crane, rigging, roof (1926.1402/1419/1424, 1926.501(b)(10)) | in production |
+| 5 | Under the Line | Fri | Capstone: power lines + pump truck (1926.1408, 1926.416) | in production |
+
+Flow: episode select (orbit over the site) → title card (Higgsfield key art, `Resources/Episodes/EP*.jpg`) → narrated in-engine flythrough (letterboxed, speaker plates, skippable) → gate check-in → topic toolbox quiz → shift → topic closing quiz → epilogue radio lines that hook the next episode → best XP stored per episode.
+
+Data lives in `Scripts/Core/Episodes.cs`, and the runtime is `EpisodeDirector`. The intros are in-engine rather than generated video: a Higgsfield clip costs 35 credits and would not match the playable site.

@@ -53,6 +53,7 @@ namespace Jobsite.Editor
             var sitePlayer = player.AddComponent<SitePlayer>();
 
             var director = new GameObject("ShiftDirector").AddComponent<ShiftDirector>();
+            director.gameObject.AddComponent<EpisodeDirector>();
             var radio = director.gameObject.AddComponent<AudioSource>();
             var tablet = BuildTablet(cam, out var panel, out var radioText, out var frame, out var flash);
             tablet.Configure(director, panel, radioText, radioText.font, frame, flash);

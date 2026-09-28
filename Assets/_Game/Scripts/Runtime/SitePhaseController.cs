@@ -9,7 +9,7 @@ namespace Jobsite.Runtime
 
         public WorkDay Day => day;
 
-        private void Awake() => Apply(day);
+        private void Awake() { if (EpisodeDirector.Selected != null) day = EpisodeDirector.DayOf(EpisodeDirector.Selected); Apply(day); }
 
         public void SetDay(WorkDay value)
         {

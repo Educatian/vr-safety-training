@@ -24,6 +24,7 @@ namespace Jobsite.PlayTests
         [UnityTest]
         public IEnumerator Gate_CheckInBriefingQuiz_ThenShift()
         {
+            EpisodeDirector.Selected = Episodes.Get(1); EpisodeDirector.SkipIntro = true;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var director = Object.FindFirstObjectByType<ShiftDirector>();
@@ -56,6 +57,7 @@ namespace Jobsite.PlayTests
         [UnityTest]
         public IEnumerator Crew_Dolores_AnswersAQuestion()
         {
+            EpisodeDirector.Selected = Episodes.Get(1); EpisodeDirector.SkipIntro = true;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var dolores = Object.FindObjectsByType<CrewMember>(FindObjectsSortMode.None).First(c => c.DisplayName == "Dolores");

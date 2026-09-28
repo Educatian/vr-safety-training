@@ -52,7 +52,7 @@ namespace Jobsite.Runtime
             (frame != null ? frame : content).gameObject.SetActive(director.MenuOpen);
             foreach (Transform child in content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
             if (!director.MenuOpen) return;
-            Label($"COMPETENT PERSON · XP {director.Xp}", 22, Accent);
+            Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp}", 22, Accent);
             if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
             if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
             if (director.Finished) { Closing(); return; }
@@ -136,6 +136,12 @@ namespace Jobsite.Runtime
             {
                 Label("Check · " + quiz.Current.Prompt, 22, Accent);
                 for (var i = 0; i < quiz.Current.Options.Length; i++) { var k = i; Button(quiz.Current.Options[i], () => director.AnswerQuiz(k)); }
+                return;
+            }
+            if (director.EpisodeComplete)
+            {
+                Label($"EPISODE {director.Episode.Number} COMPLETE · {director.Xp} XP", 26, Accent);
+                Button("Episode select", EpisodeDirector.BackToMenu, null, true);
                 return;
             }
             Label("Tomorrow's toolbox talk opens with:", 22, Accent);

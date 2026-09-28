@@ -41,7 +41,9 @@ namespace Jobsite.Runtime
         public QuizSession Quiz { get; private set; }
         public int HierarchyScore { get; private set; } = -1;
         public CrewMember TalkingTo { get; private set; }
+        public bool EpisodeComplete { get; private set; }
         public int Xp { get; private set; }
+        public Episode Episode => EpisodeDirector.Selected ?? Episodes.Get(1);
 
         public void Configure(SiteCondition[] targets, SitePlayer explorer, FieldTablet ui, AudioSource speaker)
         { conditions = targets; player = explorer; tablet = ui; radio = speaker; }
@@ -76,7 +78,7 @@ namespace Jobsite.Runtime
             if (CheckInComplete)
             {
                 Current = Phase.Briefing; MenuOpen = true;
-                Quiz = new QuizSession(QuizBank.GateToolboxTalk());
+                Quiz = new QuizSession(Episode.ToolboxQuiz());
                 Say("Checked in. Dolores: order the controls, then three quick questions.");
             }
             else Say($"Checked in: {string.Join(", ", checkedIn)}. {Enum.GetValues(typeof(CheckInStation.Kind)).Length - checkedIn.Count} to go.");
@@ -229,7 +231,7 @@ namespace Jobsite.Runtime
         {
             if (Current != Phase.Shift) return;
             Current = Phase.Closed; MenuOpen = true; Session.Paused = true;
-            Quiz = new QuizSession(QuizBank.EndOfDayTrench());
+            Quiz = new QuizSession(Episode.ClosingQuiz());
             Say("Shift closed. Review what your crew needed.");
             Log("shift_end", "day", "HII=" + Session.HazardIdentificationIndex.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " xp=" + Xp);
             tablet.Refresh();
@@ -239,7 +241,11 @@ namespace Jobsite.Runtime
         {
             if (!Finished) return;
             Log("toolbox_talk", "day", choice.ToString());
-            Say(choice == 0 ? "Protect the edge; remove obstructions; then resume work." : "Tomorrow: controls first. Speed and PPE alone are insufficient.");
+            Say(choice == 0 ? "Controls first, verified in the field. That's the job." : "Tomorrow: controls first. Speed and PPE alone are insufficient.");
+            if (Xp > PlayerPrefs.GetInt(EpisodeDirector.Key(Episode), -1)) { PlayerPrefs.SetInt(EpisodeDirector.Key(Episode), Xp); PlayerPrefs.Save(); }
+            EpisodeComplete = true;
+            Log("episode_complete", "ep" + Episode.Number, "xp=" + Xp);
+            StartCoroutine(EpisodeDirector.Epilogue(this));
             tablet.Refresh();
         }
 

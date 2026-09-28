@@ -1,3 +1,4 @@
+using Jobsite.Core;
 using System.Collections;
 using System.IO;
 using Jobsite.Runtime;
@@ -14,6 +15,7 @@ namespace Jobsite.PlayTests
         [UnityTest]
         public IEnumerator Pickup_EnterDriveExit()
         {
+            EpisodeDirector.Selected = Episodes.Get(1); EpisodeDirector.SkipIntro = true;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var director = Object.FindFirstObjectByType<ShiftDirector>();
