@@ -67,3 +67,56 @@ Implementation: a `SitePhaseController` switches phase roots (`Phase_Mon` … `P
 2. Higgsfield mood/key-art boards for the gate, trailer interior, trench, deck/roof, yard and the Friday line (T1.3a) set the look target.
 3. Greybox from the plan coordinates (T1.3), check the walk timing, then send screenshots.
 4. Dress with PropBible props by route (B-PROC / B-LIB / TR-3D / HF-IMG).
+
+---
+
+## 6. LXD × game mechanics in space (the map *is* the learning design)
+
+Realism sets the stage. The **learning experience design decides where things go.** Every placement rule below traces to a GDD mechanic or training need.
+
+### 6.1 Placement rules for hazards and look-alikes
+| Rule | Why (GDD / evidence) |
+|---|---|
+| Place a hazard **inside a real work area, with a production reason**. Never place one in empty ground. | Intrinsic integration [Habgood2011]; recognition is practiced in context [Sacks2013] |
+| A hazard is **not visible from the day's spawn or from the trailer door**. It is visible from the pedestrian route at one or more approach angles, within 3–12 m. | N1/N2: seeing must be earned by walking (search), but must be fair |
+| Each hazard has **a look-alike in the same work area** (same props, same wear). Example: a guarded deck edge 8 m from an unguarded one. | Discrimination learning; N2 look-alike pairs; parity rule |
+| The site holds **one decision point every 60–90 s** of walking along the day's natural loop (*starting value*; test: median time between photo opportunities; if above 120 s, add a work area, if below 40 s, spread them out). | Flow and pacing; avoids idle stretches, which BORIS codes as *Confusion* |
+| **Foreground area first on the loop, carry-over areas later.** The **late-shift dynamic event** sits at the far end of the loop. | Warm-up, then challenge; N5 vigilance decay [Hussain2024] |
+| **Non-Focus-Four hazards** (saw silica, air hose, heat) sit on the way *between* Focus Four areas. | N1: breaks Focus-Four tunnel vision [Albert2020] |
+| **Crew members stand at or near hazards** doing the work that caused them. | Stop-work and speak-up (C5) need someone to talk to; N4 |
+| Nothing is highlighted, and no training furniture appears (GDD invariant). | N6: load and *Display Distraction* |
+
+### 6.2 Wayfinding without UI (low extraneous load)
+- **Landmarks** visible across the site: the excavator boom (east), the crane (Thu), the building (centre), the dumpster (green, SW) and the trailers (W). Players orient by these, as on a real site.
+- The **tablet map** is the posted site logistics plan (this plan). It shows **crew locations and today's work areas only, never hazards**.
+- The **pedestrian walkway** (orange-edged) is the default loop and the safe route. Leaving it is allowed, because a real site doesn't stop you, but the haul road has live trucks (a struck-by exposure logged as evidence).
+
+### 6.3 Onboarding and scaffolding in space (Monday = the tutorial *is* the job)
+1. **Gate:** sign-in and the PPE check (hands-on, v1 mechanic). The tutorial reads as normal site procedure.
+2. **Trailer interior:** 2D pre-briefing on the plan table, covering the energy wheel, the hierarchy of controls and the crew board (N7, [Meyer2019]).
+3. **Guided loop with Dolores** (Guided profile): she walks a short loop and **models one photo → tag → risk → fix** at an easy, low-noise spot (the temp-power area). This is the worked example (N9).
+4. **First solo find:** the next hazard on the loop is the easiest one (high salience, low risk). Cues fade from Tuesday through Wednesday.
+
+### 6.4 Reflection spaces (generative pauses in the fiction)
+- **Trailer / toolbox-talk table:** the end-of-day review and *write tomorrow's toolbox talk* (N7/N10). Site noise ducks inside.
+- **Shade tent:** an optional mid-shift radio debrief with Dolores (Guided). It doubles as the heat-illness control (a real control, not decoration).
+
+### 6.5 Day loops (routes the level must support)
+| Day | Natural loop from the gate | Dynamic event location (late in the loop) |
+|---|---|---|
+| Mon | Gate → trailer → temp power → dumpster → building stakes → back | Delivery truck backing at the gate pad |
+| Tue | Gate → pipe laydown → **trench** (south → north) → excavator → spoil | Dump truck on the haul road east side, near the trench edge |
+| Wed | Gate → building ground → stair tower → **deck** → scaffold → cords | Material pallet landed at a guardrail gap |
+| Thu | Gate → shade tent → **crane pad** → roof via stair tower | Suspended load swinging over the walkway |
+| Fri | Gate → temp panel → **slab/pump truck under the line** → street tie-in | Boom raised toward the line while the foreman pushes |
+
+### 6.6 Evidence capture built into the space
+- **Area volumes** for each work area log `revisit_area` and dwell (BORIS *Revisiting Areas*).
+- **Hazard gaze targets** use the hazard bounds for head-gaze dwell (C1).
+- **The haul road volume** logs pedestrian exposure time.
+- **Idle detection** (60 s or more with no progress) is suppressed inside the reflection spaces.
+
+### 6.7 Comfort and accessibility (VR)
+- There are no forced vertical moves. **Stairs** reach the deck and roof; ladders are climbable in desktop mode and teleport-climb in VR.
+- Seated mode is available, and snap-turn is the default.
+- The longest walk on any day loop is 120 m or less (*starting value*; test: 90% of first-time players finish the loop inside the 10-minute shift).
