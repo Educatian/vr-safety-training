@@ -7,3 +7,7 @@ binding = "DB"
 database_name = "competent-person"
 database_id = "b0f24c75-b960-4a33-a663-fb5e38352a7f"
 migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "BUILD"
+bucket_name = "competent-person-build"

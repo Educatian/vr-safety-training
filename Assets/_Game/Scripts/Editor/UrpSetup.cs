@@ -30,6 +30,8 @@ namespace Jobsite.Editor
                 AssetDatabase.CreateAsset(pipeline, AssetPath);
             }
 
+            EnsurePostProcessData();
+
             // PC VR target (TechSpec): MSAA 4x, HDR, soft shadows, 80 m shadow distance.
             pipeline.msaaSampleCount = 4;
             pipeline.supportsHDR = true;
@@ -52,6 +54,19 @@ namespace Jobsite.Editor
                 AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
             Debug.Log($"[UrpSetup] URP active on {QualitySettings.names.Length} quality levels; re-imported {models.Count} models.");
+        }
+
+        // A renderer made with CreateInstance has no PostProcessData. The Editor quietly loads the default one,
+        // players do not: every post/final-blit material is missing and the whole frame renders pink (WebGL 2026-09-28).
+        public static void EnsurePostProcessData()
+        {
+            var data = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+            if (data == null || data.postProcessData != null) return;
+            var guid = AssetDatabase.FindAssets("t:PostProcessData", new[] { "Packages/com.unity.render-pipelines.universal" }).FirstOrDefault();
+            data.postProcessData = AssetDatabase.LoadAssetAtPath<PostProcessData>(AssetDatabase.GUIDToAssetPath(guid));
+            EditorUtility.SetDirty(data);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[URP] assigned default PostProcessData: " + (data.postProcessData != null));
         }
     }
 }
