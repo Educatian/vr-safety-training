@@ -34,7 +34,9 @@ namespace Jobsite.Runtime
                 (keys.wKey.isPressed ? 1 : 0) - (keys.sKey.isPressed ? 1 : 0));
             axis = Vector2.ClampMagnitude(axis, 1);
             fallSpeed = controller.isGrounded ? -2 : fallSpeed - 18 * Time.deltaTime;
-            controller.Move((transform.forward * axis.y * 3.2f + transform.right * axis.x * 3.2f + Vector3.up * fallSpeed) * Time.deltaTime);
+            // Walk 1.4 m/s, Shift to hurry 2.5 m/s (SiteLayout §2 starting values).
+            var speed = keys.leftShiftKey.isPressed ? 2.5f : 1.4f;
+            controller.Move((transform.forward * axis.y * speed + transform.right * axis.x * speed + Vector3.up * fallSpeed) * Time.deltaTime);
             if (keys.eKey.wasPressedThisFrame) director.Interact();
         }
         private void OnDisable() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }

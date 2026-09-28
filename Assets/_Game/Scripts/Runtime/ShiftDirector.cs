@@ -82,7 +82,9 @@ namespace Jobsite.Runtime
                 if (p.z <= 0) return false;
                 min = Vector2.Min(min, p); max = Vector2.Max(max, p);
             }
-            return min.x >= 0 && min.y >= 0 && max.x <= 1 && max.y <= 1 && (max.x - min.x) * (max.y - min.y) >= .15f;
+            // Fully in frame and the longer side spans >= 30% of the view. Area-based framing failed for
+            // tall, thin hazards (ladders, poles) that can never fill 15% of the frame while fully visible.
+            return min.x >= 0 && min.y >= 0 && max.x <= 1 && max.y <= 1 && Mathf.Max(max.x - min.x, max.y - min.y) >= .3f;
         }
         public void Report(EnergySource energy, int probability, int severity)
         {

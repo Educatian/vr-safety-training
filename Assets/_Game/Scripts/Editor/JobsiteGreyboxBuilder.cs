@@ -54,11 +54,13 @@ namespace Jobsite.Editor
             BuildSurroundings(root);
             BuildDayVariants(root, civil, layout);
             new GameObject("SitePhaseController").AddComponent<SitePhaseController>();
+            MondaySliceBuilder.Add(root);
 
             var spawn = new GameObject("PlayerSpawn").transform;
             spawn.position = new Vector3((float)layout["spawn"]["x"], 0f, (float)layout["spawn"]["y"]);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("[Greybox] Built " + ScenePath);
         }

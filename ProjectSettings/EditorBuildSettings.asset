@@ -6,8 +6,8 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/SafetyTraining/Scenes/SafetyTrainingExplorer.unity
-    guid: 689f372ed0660f144b39ea8ccd5e6ff9
+    path: Assets/_Game/Scenes/Jobsite.unity
+    guid: 5a71f7d08d4979549b83b7028edcd28f
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 9757b9d4e014184409b63466df8016c6, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 58863c2a633946546b3b9e179cebbe1d, type: 2}

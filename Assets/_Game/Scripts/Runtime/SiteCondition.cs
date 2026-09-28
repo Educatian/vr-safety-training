@@ -13,6 +13,9 @@ namespace Jobsite.Runtime
         [SerializeField] private CpArea area;
         [SerializeField] private int probability = 3;
         [SerializeField] private int severity = 3;
+        [SerializeField] private FocusFour focusFour;
+        [SerializeField] private ControlLevel bestControl = ControlLevel.Engineering;
+        [SerializeField] private float triggerAtSeconds = 510;
         [SerializeField] private GameObject unresolved;
         [SerializeField] private GameObject resolved;
         public string Id => conditionId;
@@ -20,10 +23,9 @@ namespace Jobsite.Runtime
         public string Explanation => explanation;
         public bool IsHazard => isHazard;
         public Bounds PhotoBounds => GetComponent<Collider>().bounds;
-        public HazardSpec Spec => new HazardSpec(conditionId, isHazard, energy,
-            area == CpArea.FallProtection ? FocusFour.Falls : FocusFour.None,
-            area, probability, severity, ControlLevel.Engineering,
-            triggerAtSeconds: 510, lapseAfterSeconds: 90);
+        public HazardSpec Spec => new HazardSpec(conditionId, isHazard, energy, focusFour,
+            area, probability, severity, bestControl,
+            triggerAtSeconds: triggerAtSeconds, lapseAfterSeconds: 90);
 
         public void Configure(string id, string title, string why, bool hazard,
             EnergySource source, CpArea category, int p, int s, GameObject before, GameObject after)
@@ -31,7 +33,17 @@ namespace Jobsite.Runtime
             conditionId = id; displayName = title; explanation = why; isHazard = hazard;
             energy = source; area = category; probability = p; severity = s;
             unresolved = before; resolved = after;
+            focusFour = area == CpArea.FallProtection || area == CpArea.Scaffold ? FocusFour.Falls
+                : area == CpArea.Excavation ? FocusFour.CaughtIn
+                : area == CpArea.StruckBy ? FocusFour.StruckBy
+                : area == CpArea.Electrical ? FocusFour.Electrocution : FocusFour.None;
             if (resolved != null) resolved.SetActive(false);
+        }
+
+        public void SetControlKey(ControlLevel best, float triggerAt)
+        {
+            bestControl = best;
+            triggerAtSeconds = triggerAt;
         }
 
         public void ShowControl()

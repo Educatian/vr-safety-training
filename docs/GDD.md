@@ -108,7 +108,7 @@ Morning radio brief (Ray: today's work; Dolores: tip in Guided)
 Look-alikes have only *Latent → Reported(false)*. Their cost is time and tablet-precision evidence, **never** a safety penalty. Reporting stays cheap.
 
 **Edge cases:**
-- Photo framing is a cone test from the tablet camera: the hazard bounds must be at least 15% of the frame and not occluded.
+- Photo framing is a cone test from the tablet camera: the hazard bounds must be fully in frame, the longer side must span at least 30% of the view (*starting value*; changed from 15% of the area, which ladders and poles could never meet), and nothing may occlude them.
 - Two hazards in one photo produce two reports.
 - Leaving the zone mid-install returns the prop to its start pose.
 - Lapse and trigger timers pause while the player is in the review or tablet menus.
