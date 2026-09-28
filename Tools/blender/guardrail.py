@@ -18,7 +18,9 @@ POST_X = 0.91
 TOE_TOP = 3.5 * 0.0254  # Top edge measured above the working surface.
 TOE_GAP = 0.005         # Authored clearance, less than the 1/4-inch maximum.
 DEPTH = 0.18     # Authored plate geometry, no anchorage/strength verification.
-THICK = 0.05     # Authored tube exterior, not a verified member specification.
+THICK = 0.038    # Square post 1.5 in; authored, not a verified member specification.
+RAIL_R = 0.0241  # 1-1/2 in nominal pipe, 1.900 in OD (ASME B36.10 size); authored member choice.
+TOE_T = 1.5 * 0.0254  # Nominal 2x4 on edge: actual 1.5 x 3.5 in, matching the 3.5 in toeboard height.
 VARIANTS = ('clean', 'service_worn', 'missing_midrail', 'missing_midrail_worn')
 
 
@@ -52,6 +54,19 @@ def box(collection, name, center, dimensions, mat, bevel=0.002):
     return obj
 
 
+def pipe(collection, name, center, length, radius, mat):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=radius, depth=length,
+                                        location=center, rotation=(0, math.pi / 2, 0))
+    obj = bpy.context.object
+    obj.name = name
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    for owner in list(obj.users_collection):
+        owner.objects.unlink(obj)
+    collection.objects.link(obj)
+    obj.data.materials.append(mat)
+    return obj
+
+
 def bolt(collection, x, y, mat):
     bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=0.009,
                                       depth=0.008, location=(x, y, 0.014))
@@ -63,41 +78,42 @@ def bolt(collection, x, y, mat):
     obj.data.materials.append(mat)
 
 
-def build(scene, variant, steel, worn, dark):
+def build(scene, variant, mats):
     collection = bpy.data.collections.new('SM_Guardrail_' + variant)
     scene.collection.children.link(collection)
-    finish = worn if variant in ('service_worn', 'missing_midrail_worn') else steel
+    worn = variant in ('service_worn', 'missing_midrail_worn')
+    paint = mats['paint_worn'] if worn else mats['paint']
+    galv, wood, dark = mats['galv'], (mats['wood_worn'] if worn else mats['wood']), mats['dark']
+    rail_len = 2 * POST_X + 0.12  # rails overhang posts slightly, as on site-assembled systems
     for x in (-POST_X, POST_X):
-        box(collection, 'Base plate - geometry only', (x, 0, 0.005),
-            (0.18, DEPTH, 0.01), finish)
-        box(collection, 'Post', (x, 0, (TOP + 0.01) / 2),
-            (THICK, THICK, TOP - 0.01), finish)
+        box(collection, 'Base plate - geometry only', (x, 0, 0.005), (0.18, DEPTH, 0.01), galv)
+        box(collection, 'Post', (x, 0, (TOP - 0.01) / 2 + 0.01), (THICK, THICK, TOP - 0.01 - RAIL_R), paint)
         for dx in (-0.06, 0.06):
             for dy in (-0.06, 0.06):
-                bolt(collection, x + dx, dy, dark)
-    box(collection, 'Top rail - top edge 42 inches', (0, 0, TOP - THICK / 2),
-        (2 * POST_X - THICK, THICK, THICK), finish)
+                bolt(collection, x + dx, dy, galv)
+    pipe(collection, 'Top rail - top edge 42 inches', (0, 0, TOP - RAIL_R), rail_len, RAIL_R, paint)
     if not variant.startswith('missing_midrail'):
-        box(collection, 'Midrail - midway', (0, 0, MID),
-            (2 * POST_X - THICK, THICK, THICK), finish)
+        pipe(collection, 'Midrail - midway', (0, 0, MID), rail_len, RAIL_R, paint)
     box(collection, 'Solid toeboard - source-grounded top edge',
-        (0, -0.035, (TOE_TOP + TOE_GAP) / 2),
-        (2 * POST_X, 0.015, TOE_TOP - TOE_GAP), finish, bevel=0.001)
-    clamp_heights = [TOP - THICK / 2]
+        (0, -THICK / 2 - TOE_T / 2 - 0.004, (TOE_TOP + TOE_GAP) / 2),
+        (2 * POST_X + 0.1, TOE_T, TOE_TOP - TOE_GAP), wood, bevel=0.002)
+    clamp_heights = [TOP - RAIL_R]
     if not variant.startswith('missing_midrail'):
         clamp_heights.append(MID)
     for x in (-POST_X, POST_X):
         for z in clamp_heights:
             box(collection, 'Illustrative clamp sleeve - connection unverified',
-                (x, 0, z), (0.065, 0.065, 0.045), finish, bevel=0.001)
+                (x, 0, z), (0.07, 0.06, 2 * RAIL_R), galv, bevel=0.003)  # flush with rail top edge
         box(collection, 'Illustrative toeboard bracket',
-            (x, -0.045, 0.04), (0.065, 0.018, 0.07), finish, bevel=0.001)
-    # Fine, geometry-based scuffs survive FBX export; no baked-in lighting or rust holes.
-    # All are inside the nominal overall bounds. Cosmetic wear is not a safe/unsafe cue.
-    if variant in ('service_worn', 'missing_midrail_worn'):
-        for i in range(8):
-            box(collection, 'Cosmetic scuff', (-0.72 + i * 0.2, -0.0252, TOP - 0.027),
-                (0.025 + (i % 3) * 0.01, 0.0003, 0.0015), dark, bevel=0)
+            (x, -THICK / 2 - 0.002, 0.045), (0.06, 0.004, 0.08), galv, bevel=0)
+    # Service wear: paint chips on rails and a mud line on the toeboard. Same wear logic on
+    # hazard and compliant variants (parity rule); wear is never the safe/unsafe cue.
+    if worn:
+        for i in range(10):
+            box(collection, 'Cosmetic paint chip', (-0.8 + i * 0.17, -RAIL_R + 0.0005, TOP - RAIL_R + (i % 3 - 1) * 0.008),
+                (0.012 + (i % 4) * 0.006, 0.0008, 0.006 + (i % 2) * 0.004), dark, bevel=0)
+        box(collection, 'Cosmetic mud line', (0, -THICK / 2 - TOE_T - 0.0045, 0.02),
+            (2 * POST_X + 0.08, 0.0006, 0.03), mats['mud'], bevel=0)
     collection['representation'] = 'training geometry; NOT strength/anchorage certified'
     collection['variant'] = variant
     collection['top_edge_m'] = TOP
@@ -181,10 +197,17 @@ def main():
     bpy.context.window.scene = scene
     scene.unit_settings.system = 'METRIC'
     scene.unit_settings.scale_length = 1
-    steel = material('Galvanized steel - illustrative', (0.42, 0.46, 0.49), 0.8, 0.4)
-    worn = material('Service-worn galvanized steel - illustrative', (0.37, 0.40, 0.42), 0.75, 0.58)
-    dark = material('Bolt and shallow scuff steel', (0.15, 0.17, 0.18), 0.75, 0.48)
-    collections = [build(scene, v, steel, worn, dark) for v in VARIANTS]
+    # Safety yellow (ANSI Z535.1 hue family) powder coat; linear-space approximations.
+    mats = {
+        'paint': material('M_SafetyYellowPowderCoat', (0.86, 0.55, 0.02), 0.0, 0.45),
+        'paint_worn': material('M_SafetyYellowPowderCoat_Worn', (0.72, 0.47, 0.05), 0.0, 0.62),
+        'galv': material('M_GalvanizedSteel', (0.55, 0.57, 0.58), 0.9, 0.42),
+        'wood': material('M_SPF_2x4', (0.62, 0.44, 0.25), 0.0, 0.7),
+        'wood_worn': material('M_SPF_2x4_Weathered', (0.45, 0.36, 0.26), 0.0, 0.82),
+        'dark': material('M_BareSteelChip', (0.18, 0.17, 0.16), 0.7, 0.55),
+        'mud': material('M_MudSplash', (0.20, 0.15, 0.10), 0.0, 0.9),
+    }
+    collections = [build(scene, v, mats) for v in VARIANTS]
     bpy.context.view_layer.update()
     reports = []
     for variant, collection in zip(VARIANTS, collections):

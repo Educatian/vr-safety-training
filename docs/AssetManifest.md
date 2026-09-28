@@ -27,3 +27,23 @@ Geometry targets and bounded official evidence: docs/GuardrailSpecs.json and doc
 ## Executed checks
 
 50/50 metadata tests passed using the saved CJS source in the Aside JavaScript runtime. Result: Captures/Validation/guardrail-metadata-tests.json. These are not Unity NUnit tests, Blender geometry tests, or rendering/performance measurements. Existing project logs report 108 EditMode tests passing at the prior run; no new Unity test run was performed.
+
+## 2026-09-28 build result (Blender 5.2.1, headless)
+
+The 4 FBX files were generated in `Assets/_Game/Art/Models/B-PROC/`.
+
+Measured on every variant:
+- overall size 2.0 × 0.18 × 1.0668 m
+- top edge 42 in
+- midrail at 21 in where present
+- toeboard top 3.5 in with a 5 mm gap
+- 1,016–1,440 triangles
+
+The look was revised for authenticity:
+- rails are safety-yellow powder-coated 1-1/2 in pipe (1.900 in OD)
+- posts are 1.5 in square tube
+- base plates, clamps and bolts are galvanized
+- the toeboard is a 2×4 set on edge
+- the worn variants add paint chips and a mud line, applied equally to hazard and compliant variants
+
+The clamp overshoot above 42 in was caught by the recipe's bounds check and fixed. The Unity import check is pending (next scene pass).
