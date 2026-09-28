@@ -1,0 +1,14 @@
+{
+  "name": "Jobsite.Tests",
+  "rootNamespace": "Jobsite.Tests",
+  "references": [
+    "Jobsite.Core"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false
+}
