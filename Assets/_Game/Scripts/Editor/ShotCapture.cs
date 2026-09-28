@@ -45,6 +45,9 @@ namespace Jobsite.Editor
                     go.transform.position = V(shot.pos);
                     go.transform.LookAt(V(shot.lookAt));
                 }
+                // Edit-mode capture: particles do not tick, so pre-warm them (e.g. silica dust).
+                foreach (var ps in UnityEngine.Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None))
+                    ps.Simulate(3f, true, true);
                 cam.Render();
                 RenderTexture.active = rt;
                 tex.ReadPixels(new Rect(0, 0, set.width, set.height), 0, 0);

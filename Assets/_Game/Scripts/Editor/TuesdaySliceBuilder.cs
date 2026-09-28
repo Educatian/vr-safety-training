@@ -58,11 +58,11 @@ namespace Jobsite.Editor
 
             // Dry-cutting concrete pipe at the laydown: visible silica dust.
             var silica = Condition(root, "tue-dry-cutting", "Dry cutting concrete pipe", true,
-                new Vector3(58.5f, 0.8f, 15f), new Vector3(2.5f, 1.8f, 2f),
+                new Vector3(55.6f, 0.9f, 15f), new Vector3(2f, 1.8f, 2f),
                 EnergySource.Chemical, CpArea.General, 4, 4, ControlLevel.Engineering, 540f, false,
                 "29 CFR 1926.1153 Table 1", "Use integrated water delivery when cutting concrete.", "Wet method", true);
-            Worker(silica.transform.Find("Unresolved"), new Vector3(58f, 0f, 15f), 90);
-            Dust(silica.transform.Find("Unresolved"), new Vector3(58.7f, 0.5f, 15f));
+            Worker(silica.transform.Find("Unresolved"), new Vector3(55.2f, 0f, 15f), 90); // at the pipe end, not inside the stack
+            Dust(silica.transform.Find("Unresolved"), new Vector3(55.9f, 0.5f, 15f));
 
             // Look-alikes: a correctly placed box and a competent-person inspection board.
             Condition(root, "tue-box-ok", "Trench box in place", false,
@@ -130,6 +130,13 @@ namespace Jobsite.Editor
             if (prefab == null) return;
             var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
             go.transform.SetPositionAndRotation(at, Quaternion.Euler(0, yaw, 0));
+            // Rocketbox ships its mesh objects inactive; enable the primary skinned mesh chain (as v1 did).
+            var skin = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
+            for (var current = skin != null ? skin.transform : null; current != null; current = current.parent)
+            {
+                current.gameObject.SetActive(true);
+                if (current == go.transform) break;
+            }
             go.AddComponent<SafetyTraining.Runtime.NpcRelaxedPose>();
         }
 
@@ -148,7 +155,8 @@ namespace Jobsite.Editor
             vel.x = new ParticleSystem.MinMaxCurve(0.4f, 0.9f); vel.y = new ParticleSystem.MinMaxCurve(0f, 0f); vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
             var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 0.5f, 1, 2.5f));
             var r = go.GetComponent<ParticleSystemRenderer>();
-            r.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")) { color = new Color(0.86f, 0.84f, 0.8f, 0.35f) };
+            // Built-in soft round particle material: an untextured quad renders as a hard beige square.
+            r.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Default-ParticleSystem.mat");
         }
     }
 }

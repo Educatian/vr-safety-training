@@ -58,7 +58,7 @@ namespace Jobsite.Editor
             MondaySliceBuilder.Add(root);
             var vehicles = Group(root, "Vehicles");
             VehicleSetup.Build(vehicles, "SM_CrewPickup_Rig", new Vector3(3.5f, 0.05f, 8f), 0f, 2600f);
-            var dump = VehicleSetup.Build(vehicles, "SM_DumpTruckTandem_Rig", new Vector3(60f, 0.05f, 22f), 0f, 14000f);
+            var dump = VehicleSetup.Build(vehicles, "SM_DumpTruckTandem_Rig", new Vector3(40f, 0.05f, 52f), 90f, 14000f); // north haul road, clear of pipe laydown
             if (dump != null) Tag(dump, WorkDay.Tue | WorkDay.Fri);
             var exc = VehicleSetup.BuildExcavator(vehicles, "SM_Excavator20t_Rig", new Vector3(62.5f, 0f, 30f), -90f);
             if (exc != null) Tag(exc, WorkDay.Tue | WorkDay.Wed);
