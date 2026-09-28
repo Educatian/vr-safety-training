@@ -55,3 +55,14 @@ Each task ends green: compile, errors-only console, test or screenshot, then com
 
 ## Status notes
 - 2026-09-28 Codex checkpoint: PropBible (5 props, OSHA-cited), guardrail B-PROC recipe + spec JSON (metadata tests 50/50), Tripo prop wrapper (dry-run default; shared cap 6,500), Monday desktop slice runtime scripts (ShiftDirector, FieldTablet, SiteCondition, SitePlayer; no scene yet).
+
+## M2b — Game systems added 2026-09-28 (user)
+- [ ] G1 Progression: XP from DaySession evidence, 4 levels, badges, level-gated unlocks (GDD §14).
+- [ ] G2 Hint economy: tokens, 3-tier hints, `hinted` evidence flag at half XP and 0.5 mastery.
+- [ ] G3 NPC behaviour state machine (Working/Walking/Reacting/Lapsing/SpeakingUp) plus named crew.
+- [ ] G4 OSHA feedback: HazardDefinition CFR fields, citation chip + Standard panel, debrief grouped by subpart (GDD §15).
+- [ ] G5 Topic pools beyond Focus Four: silica dust (with particle VFX), ground fault/leakage, noise, heat, HazCom, fire, tools, materials, vehicles, cranes, confined space (GDD §16).
+- [ ] G6 Vehicles: door open → enter → drive (WheelColliders) → exit; pre-use walk-around (GDD §17).
+- [ ] G7 Rigged crane (outriggers/slew/luff/telescope/hoist/pendulum load) + signal-person radial; excavator/backhoe/telehandler/lift/roller rigs via Tools/blender/rig_vehicle.py.
+- [ ] A1 Tripo Studio batch (27 models, 2026-09-28; web credits 3,200 → 1,715): download GLBs, Blender cleanup and scale, rig where listed.
+

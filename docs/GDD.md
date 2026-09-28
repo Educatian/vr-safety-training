@@ -198,3 +198,128 @@ External validation: the Hazard Safety Engineering Assessment (pre, post and 4 w
 - Connolly, T. M., Boyle, E. A., MacArthur, E., Hainey, T., & Boyle, J. M. (2012). A systematic literature review of empirical evidence on computer games and serious games. *Computers & Education, 59*(2), 661–686. https://doi.org/10.1016/j.compedu.2012.03.004
 - Habgood, M. P. J., & Ainsworth, S. E. (2011). Motivating children to learn effectively: Exploring the value of intrinsic integration in educational games. *Journal of the Learning Sciences, 20*(2), 169–206. https://doi.org/10.1080/10508406.2010.508029
 - Wouters, P., van Nimwegen, C., van Oostendorp, H., & van der Spek, E. D. (2013). A meta-analysis of the cognitive and motivational effects of serious games. *Journal of Educational Psychology, 105*(2), 249–265. https://doi.org/10.1037/a0031311
+
+
+---
+
+## 14. Progression, NPCs and bonus hints (game mechanics)
+
+**Levels.** XP comes from evidence, never from time spent.
+
+| Level | Unlocks | Scaffolding (fades with level; N9) |
+|---|---|---|
+| 1 Trainee | Mon–Tue, pickup truck | Dolores shadows; free hints; energy wheel suggests 3 candidates |
+| 2 Site Walker | Wed (deck/scaffold), dump-truck ride-along | Free hints end; hint tokens start |
+| 3 Safety Tech | Thu (roof + crane pick), crane signal-person role | Risk card no longer shows the expert range |
+| 4 Competent Person (per area) | Fri capstone, Week 2 transfer, equipment-yard practice | No cues; reflection prompts only |
+
+**XP sources.** All are deterministic and come from `DaySession` evidence:
+- hazard found (+HII)
+- correct energy tag
+- risk rating within ±1
+- highest feasible control, with a bonus for elimination or engineering
+- justified stop-work
+- a toolbox talk that orders the day's highest-severity finding first
+
+**Streak bonus.** Three correct reports in a row with no look-alike errors.
+
+Stop-work never costs XP (invariant).
+
+**Badges:**
+- Focus Four area badges: Falls, Caught-in, Struck-by, Electrical
+- "Stopped the Line"
+- "Zero Recordables Week"
+- "Hierarchy Hawk": 5 engineered controls in one day
+- "Clean Air": silica controls
+
+**Bonus hints (hint economy)**
+- **Earning tokens:** 1 token per streak and 1 per good explain-back. The Guided profile starts with 3.
+- **Spending tokens:** hints are tiered, and each tier costs 1 token:
+  1. Zone nudge ("Check the north deck edge.")
+  2. Energy nudge ("Think gravity.")
+  3. Dolores walks over and points.
+- **Effect on scoring:** a hinted find still counts toward HII, but its C1 evidence is flagged `hinted`. It earns half XP, and mastery counts it at 0.5. This fades support without punishing help-seeking.
+
+**NPCs**
+- **Crew:** Dolores (mentor), Ray (foreman), Marisol (ES), Tyler (new hire), Earl (veteran), plus 6–8 background workers.
+- **Behaviour state machine:** every NPC is in one of these states:
+  - Working: a task loop at a work area.
+  - Walking: on the walkway, or on the haul road when careless.
+  - Reacting: turns to the player on stop-work and stops the task.
+  - Lapsing: removes PPE or unclips when a weak control lapses; the change is visible.
+  - SpeakingUp: at high crew trust, self-reports a hazard over the radio.
+- **Operators:** the excavator, crane and trucks are NPC-driven along the day timeline. The player gives signals as the crane signal person, or orders a stop.
+
+## 15. OSHA-standard feedback (information delivery)
+
+Every piece of feedback is **anchored to the governing standard**. The deterministic engine owns the content. The LLM coach may paraphrase, but it must quote the citation card verbatim.
+
+**Feedback card.** At most 12 words, plus a citation chip, for example: `Unprotected edge over 6 ft — 29 CFR 1926.501(b)(1)`.
+
+Tapping the chip opens the **Standard panel**, which shows:
+1. The requirement in plain language.
+2. The numeric threshold(s).
+3. What compliant looks like, using a photo of the compliant look-alike from the same site.
+4. The hierarchy level chosen versus the best feasible level.
+
+**Timing.**
+- Critical errors get the card immediately.
+- The full Standard panel appears in the end-of-day review. Missed hazards there are grouped by energy source and by CFR subpart.
+
+**Source of truth.** The fields `HazardDefinition.cfr`, `.requirementPlain`, `.threshold` and `.compliantExample`. Every citation comes from `docs/PropBible.md` or the eCFR and carries a verification status. Unverified items show "SME check" in dev builds and are blocked from study builds.
+
+## 16. Topic coverage beyond the Focus Four (OSHA 10-Hour Construction scope)
+
+| Topic (29 CFR 1926) | In-game situation | Day |
+|---|---|---|
+| Silica / sand and concrete dust (1926.1153, Table 1) | Dry cutting pavers or concrete; dry sweeping; the haul road raising dust with no water truck running | Mon–Fri |
+| Electrical ground fault / leakage (1926.404(b)(1) GFCI or assured grounding; 1926.416 damaged equipment) | Tool on a non-GFCI outlet; a nicked cord lying in a puddle; a spider box missing its cover; a tripped GFCI "reset" by bypassing it | Mon, Wed, Fri |
+| Overhead power lines (1926.1408/1410; 1926.416) | Pump-truck boom or dump bed near the line | Fri |
+| PPE (Subpart E: 1926.95/100/102) | Missing hard hat or glasses; wrong glove for the task | All |
+| Noise (1926.52/101) | Cut-off saw used without hearing protection | Mon, Wed |
+| Heat illness (General Duty Clause; OSHA heat guidance) | Empty water station; no shade; a new worker who is not acclimatized | Mon, Thu |
+| Hazard communication (1926.59 → 1910.1200) | Unlabelled fuel or solvent container; SDS binder missing | Mon, Tue |
+| Fire protection (1926.150/151) | Blocked extinguisher; fuel stored near the generator exhaust; missing inspection tag | Mon, Thu |
+| Materials handling and storage (1926.250) | Unstable stack; material stored within 6 ft of the roof edge | Wed, Thu |
+| Hand and power tools (1926.300–307) | Guard removed from a saw; air hose with no whip check | Mon, Wed |
+| Motor vehicles and mechanized equipment (1926.600–602) | No backup alarm; seat belt unused; equipment left unattended with the bucket raised | Tue, Fri |
+| Cranes and rigging (Subpart CC; 1926.1419 signals) | Load over workers; no tagline; outrigger not on cribbing; no signal person | Thu |
+| Scaffolds (Subpart L), ladders and stairways (Subpart X) | See the §7 fall contexts | Wed–Thu |
+| Excavations (Subpart P) | Trench box, spoil, egress, water, competent-person inspection | Tue |
+| Concrete and masonry (1926.701(b) impalement) | Unprotected rebar dowels | Fri |
+| Confined spaces (Subpart AA) | Pump-station **wet well** entry with no permit, no atmosphere test and no attendant | Thu–Fri |
+
+The section numbers above are a design map only. Each one must be verified in PropBible and HazardDefinition before it ships (§15 rule).
+
+## 17. Vehicles and rigged equipment
+
+**Rideable vehicles:** crew pickup, dump truck, water truck, flatbed.
+1. Walk up to the vehicle; a door-handle prompt appears.
+2. Press E to open the hinged door (0.6 s animation).
+3. The view moves to the seated cab camera, the door closes and the engine starts.
+4. Drive with WheelColliders at site speed. The haul road limit is 8 mph, and speeding is logged.
+5. Press E again to park, open the door and exit.
+
+**Pre-use walk-around** (a mechanic under 1926.601/602). The player checks tires, lights, backup alarm, seat belt and fluid leaks. Driving without the walk-around is logged. A defect is planted in the walk-around to be found, for example a dead backup alarm.
+
+**Rigged crane** (rough-terrain crane and boom truck). The part hierarchy is:
+- `Carrier`
+  - `Outrigger×4`: extend and jack down onto cribbing.
+  - `Slew`: Y rotation.
+    - `Boom`: luff angle.
+      - `Tele1..n`: extend.
+      - `HoistLine` → `HookBlock` → `Load`: the load swings as a pendulum.
+
+The player drives the crane from the operator seat only in equipment-yard practice (Level 4). Otherwise an NPC operator runs it, and the player acts as the **signal person**, using a hand-signal radial based on the 1926.1419 chart: hoist, lower, swing, stop.
+
+**Other rigged machines:**
+- Excavator: slew, boom, stick, bucket, tracks.
+- Backhoe: loader arm, backhoe arm, stabilizers.
+- Telehandler: boom, forks.
+- Scissor and boom lifts: platform lift.
+- Roller: drum rotation and vibration.
+
+**Build route.**
+1. Generate the mesh in Tripo.
+2. Run `Tools/blender/rig_vehicle.py`. It splits the mesh into parts using authored cut volumes (one JSON file per model), sets pivots on the hinge and axle axes, names the hierarchy, and exports an FBX.
+3. Add the Unity `VehicleController` or `CraneRig` component.
