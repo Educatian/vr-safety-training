@@ -42,6 +42,10 @@ namespace Jobsite.Runtime
         public int HierarchyScore { get; private set; } = -1;
         public CrewMember TalkingTo { get; private set; }
         public bool EpisodeComplete { get; private set; }
+        public Career Career { get; private set; } = new Career();
+        public HintBank Hints { get; private set; } = new HintBank();
+        public int PointsAwarded { get; private set; }
+        public IReadOnlyList<Badge> BadgesEarned { get; private set; } = new Badge[0];
         public int Xp { get; private set; }
         public Episode Episode => EpisodeDirector.Selected ?? Episodes.Get(1);
 
@@ -53,6 +57,8 @@ namespace Jobsite.Runtime
             // The day's hazards are whatever SitePhaseController left active (Mon, Tue, Wed ...).
             conditions = FindObjectsByType<SiteCondition>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             Session = new DaySession(conditions.Select(c => c.Spec));
+            Career = CareerStore.Load();
+            Hints = new HintBank(Career.StartingHints);
             logPath = Path.Combine(Application.persistentDataPath, "jobsite-" + Guid.NewGuid().ToString("N") + ".jsonl");
             Log("session_start", "day", "conditions=" + conditions.Length);
             tablet.Refresh();
@@ -125,7 +131,7 @@ namespace Jobsite.Runtime
         {
             if (MenuOpen || Finished) return;
             var ray = player.View.ViewportPointToRay(new Vector3(.5f, .5f));
-            if (!Physics.Raycast(ray, out var hit, 5f, ~0, QueryTriggerInteraction.Collide)) { Say("Move closer. Center it in your view."); return; }
+            if (!Physics.Raycast(ray, out var hit, Career.PhotoRange, ~0, QueryTriggerInteraction.Collide)) { Say("Move closer. Center it in your view."); return; }
 
             var station = hit.collider.GetComponentInParent<CheckInStation>();
             if (station != null) { station.Use(this); return; }
@@ -243,11 +249,35 @@ namespace Jobsite.Runtime
             Log("toolbox_talk", "day", choice.ToString());
             Say(choice == 0 ? "Controls first, verified in the field. That's the job." : "Tomorrow: controls first. Speed and PPE alone are insufficient.");
             if (Xp > PlayerPrefs.GetInt(EpisodeDirector.Key(Episode), -1)) { PlayerPrefs.SetInt(EpisodeDirector.Key(Episode), Xp); PlayerPrefs.Save(); }
+            BadgesEarned = Badges.Earned(Session, conditions.Select(c => c.Spec));
+            PointsAwarded = Career.Award(Xp, BadgesEarned.Count);
+            CareerStore.Save(Career);
             EpisodeComplete = true;
             Log("episode_complete", "ep" + Episode.Number, "xp=" + Xp);
             StartCoroutine(EpisodeDirector.Epilogue(this));
             tablet.Refresh();
         }
+
+        // ---------- hints (GDD §14/§19): Dolores points you toward the nearest hazard you have not found ----------
+        public void UseHint()
+        {
+            if (Current != Phase.Shift) return;
+            var target = conditions.Where(c => c.IsHazard && Session.GetState(c.Id) == HazardState.Latent)
+                .OrderBy(c => Vector3.Distance(c.transform.position, player.transform.position)).FirstOrDefault();
+            if (target == null) { Say("Dolores: You've found everything I'd flag. Check your controls."); return; }
+            if (!Hints.TrySpend()) { Say("No hint tokens left. A logbook in the gear locker adds one per shift."); return; }
+            var tier = Session.UseHint(target.Id);
+            var spec = target.Spec;
+            Say(Career.HintText(tier, target.DisplayName, spec.Energy, spec.FocusFour, Where(spec.Area)));
+            Log("hint", target.Id, "tier=" + tier);
+            tablet.Refresh();
+        }
+
+        static string Where(CpArea area) => area switch
+        {
+            CpArea.Excavation => "trench", CpArea.FallProtection => "pump-house deck", CpArea.Scaffold => "scaffold",
+            CpArea.Electrical => "temporary power", CpArea.StruckBy => "equipment", _ => "trailers",
+        };
 
         // ---------- crew conversation ----------
         private void StartTalk(CrewMember crew)

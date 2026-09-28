@@ -22,6 +22,38 @@ namespace Jobsite.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator GearLocker_BuyTester_ThenReadingAndHintOnSite()
+        {
+            CareerStore.Save(new Career(lifetimeXp: 1200, points: 900));
+            EpisodeDirector.Selected = null; EpisodeDirector.SkipIntro = false;
+            yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
+            yield return null;
+            var eps = Object.FindFirstObjectByType<EpisodeDirector>();
+            eps.ShowTab(EpisodeDirector.Tab.Gear);
+            Assert.That(eps.Buy(GearId.GfciTester), Is.EqualTo(BuyResult.Bought));
+            Assert.That(eps.Buy(GearId.LaserMeasure), Is.EqualTo(BuyResult.Bought));
+            yield return null;
+            Shot(eps.CinematicCamera, "07_gear_locker");
+            eps.ShowTab(EpisodeDirector.Tab.Crew);
+            yield return null;
+            Shot(eps.CinematicCamera, "08_crew");
+
+            EpisodeDirector.SkipIntro = true;
+            EpisodeDirector.Play(Episodes.Get(1));
+            yield return null; yield return null;
+            var director = Object.FindFirstObjectByType<ShiftDirector>();
+            Assert.That(director.Career.Has(GearId.GfciTester), Is.True, "purchase persists across the scene load");
+            var outlet = director.Conditions.First(c => c.Id == "mon-no-gfci");
+            Assert.That(outlet.Reading(GearId.GfciTester), Does.Contain("not GFCI"));
+            director.Begin();
+            var tokens = director.Hints.Tokens;
+            director.UseHint();
+            Assert.That(director.Hints.Tokens, Is.EqualTo(tokens - 1));
+            Assert.That(director.Notice, Does.StartWith("Dolores:"));
+            CareerStore.Reset();
+        }
+
+        [UnityTest]
         public IEnumerator Menu_ThenEpisode2Intro_LoadsTrenchDay()
         {
             EpisodeDirector.Selected = null; EpisodeDirector.SkipIntro = false;

@@ -9,7 +9,8 @@ namespace Jobsite.Core
         public string Speaker { get; }
         public string Text { get; }
         public float Seconds { get; }
-        public Line(string speaker, string text, float seconds = 4.5f) { Speaker = speaker; Text = text; Seconds = seconds; }
+        public string IfFound { get; }   // epilogue: only plays if the learner reported this hazard (story follows play)
+        public Line(string speaker, string text, float seconds = 4.5f, string ifFound = null) { Speaker = speaker; Text = text; Seconds = seconds; IfFound = ifFound; }
     }
 
     // Camera shot for an intro flythrough: moves from -> to while looking at a target (site metres).
@@ -56,7 +57,8 @@ namespace Jobsite.Core
                 new[]
                 {
                     new Line("", "Loblolly Creek Lift Station · Autauga County, Alabama · Monday, 6:40 AM"),
-                    new Line("Dolores", "Morning. As of today you're the competent person on this job. That means you see it, you own it."),
+                    new Line("Dolores", "Morning. Hank's gone fishing for good. As of today you're the competent person on this job."),
+                    new Line("Dolores", "That means you see it, you own it. Even when it's your old crew."),
                     new Line("Ray", "And it means we still pour Friday. Power's live, crews are plugging in. Don't slow me down."),
                     new Line("Dolores", "Sign in, suit up, and walk the temporary power. Anything that can bite a crew, you photograph it."),
                 },
@@ -78,7 +80,8 @@ namespace Jobsite.Core
                 new[]
                 {
                     new Line("", "Tuesday, 7:05 AM · Force-main trench, station 2+40"),
-                    new Line("Ray", "Excavator's been digging since six. We're behind already."),
+                    new Line("Ray", "Earl's been digging since six. We're behind already."),
+                    new Line("Ray", "Your buddy Marcus is down there setting pipe. Luis is cutting. Nobody needs a babysitter."),
                     new Line("Dolores", "Red clay, rained last night. Until we test it, we treat it as Type C. A cubic yard weighs as much as a car."),
                     new Line("Dolores", "Check the box, the spoil, the way out, and who's standing in that swing radius."),
                 },
@@ -90,7 +93,8 @@ namespace Jobsite.Core
                 },
                 new[]
                 {
-                    new Line("Dolores", "Trenches don't warn you. A protective system at five feet, spoil two feet back, a ladder within 25."),
+                    new Line("Marcus", "Two minutes, I said. ...Yeah. Okay. Thanks, I guess.", ifFound: "tue-no-protective-system"),
+                    new Line("Dolores", "Trenches don't warn you. I learned that the hard way in 2009. Protective system at five feet, spoil two feet back, a ladder within 25."),
                     new Line("Ray", "Deck's formed on the pump house. Crew's up top tomorrow. Holes everywhere."),
                 },
                 QuizBank.ToolboxTrench, QuizBank.EndOfDayTrench),
@@ -102,6 +106,7 @@ namespace Jobsite.Core
                     new Line("", "Wednesday, 9:20 AM · Pump-house deck, 14 ft above grade"),
                     new Line("Dolores", "Falls are still the number one killer in our trade. Every single year."),
                     new Line("Ray", "Rails went up yesterday. Mostly."),
+                    new Line("Tasha", "Mostly. I've got my crew tied off. Yours I can't speak for, Ray."),
                     new Line("Dolores", "'Mostly' is how people end up on the slab. Walk the edge. Look down every hole."),
                 },
                 new[]
@@ -113,6 +118,7 @@ namespace Jobsite.Core
                 new[]
                 {
                     new Line("Dolores", "Midrails, covers that are secured and marked, ladders three feet past the landing. Boring saves lives."),
+                    new Line("Ray", "The midrail was mine. Fixed it myself. Don't make it a thing.", ifFound: "wed-missing-midrail"),
                     new Line("Ray", "Crane shows up tomorrow for the roof steel. Big pick."),
                 },
                 QuizBank.ToolboxFalls, QuizBank.EndOfDayFalls),

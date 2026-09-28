@@ -66,6 +66,7 @@ namespace Jobsite.Editor
             TuesdaySliceBuilder.Add(gameplay);
             WednesdaySliceBuilder.Add(gameplay);
             GateAndCrewBuilder.Add(gameplay);
+            InstrumentReadings.Apply();
         }
 
         // ---------- conditions ----------

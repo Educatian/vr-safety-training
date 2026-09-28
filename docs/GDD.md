@@ -339,3 +339,21 @@ The week is split into topic-scoped episodes. Each can be run on its own, so an 
 Flow: episode select (orbit over the site) → title card (Higgsfield key art, `Resources/Episodes/EP*.jpg`) → narrated in-engine flythrough (letterboxed, speaker plates, skippable) → gate check-in → topic toolbox quiz → shift → topic closing quiz → epilogue radio lines that hook the next episode → best XP stored per episode.
 
 Data lives in `Scripts/Core/Episodes.cs`, and the runtime is `EpisodeDirector`. The intros are in-engine rather than generated video: a Higgsfield clip costs 35 credits and would not match the playable site.
+
+## 19. Career: points, rewards, hints, gear
+
+- **Safety Points (SP)** = episode XP + 100 per badge (Stopped the Line, Zero Recordables, Hierarchy Hawk). Lifetime XP sets level/rank: Trainee → Crew Lead → Site Lead → Competent Person.
+- **Gear locker** (menu tab): real CP instruments bought with SP, some gated by level. They add **information, not protection**, and the learner still decides:
+
+| Gear | SP | Lv | Effect |
+|---|---|---|---|
+| CP logbook | 100 | 1 | +1 hint token per shift |
+| Laser distance meter | 150 | 1 | photo range 5 → 8 m; measured heights, gaps, depths |
+| Receptacle / GFCI tester | 150 | 1 | GFCI-protected or not on temporary outlets |
+| Pocket penetrometer | 250 | 2 | soil strength reading → Type A/B/C |
+| Real-time dust monitor | 300 | 2 | respirable-dust reading at silica tasks |
+
+- Readings are authored per condition (`Editor/InstrumentReadings.cs`). Look-alikes read "OK", so an instrument confirms a judgement rather than replacing it.
+- **Hints** come from Dolores over the radio, one tier per token: area → energy / Focus Four → the condition. A hinted find earns half XP (existing rule). The base is 1 token per shift, and the logbook adds 1.
+- Costs and levels are starting values. Target: one clean episode buys about one item. Tune after playtests.
+- Career persists in PlayerPrefs (IndexedDB on WebGL) through `CareerStore`.

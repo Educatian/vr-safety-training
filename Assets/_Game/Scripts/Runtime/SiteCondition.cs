@@ -1,3 +1,4 @@
+using System.Linq;
 using Jobsite.Core;
 using UnityEngine;
 
@@ -21,6 +22,8 @@ namespace Jobsite.Runtime
         [SerializeField] private string requirementPlain;
         [SerializeField] private string threshold;
         [SerializeField] private bool cfrVerified;
+        [SerializeField] private GearId[] instruments = new GearId[0];   // gear that yields a reading here
+        [SerializeField] private string[] readings = new string[0];
         [SerializeField] private GameObject unresolved;
         [SerializeField] private GameObject resolved;
         public string Id => conditionId;
@@ -35,6 +38,23 @@ namespace Jobsite.Runtime
         public string Cfr => cfr;
         public string RequirementPlain => requirementPlain;
         public string Threshold => threshold;
+
+        public void SetReading(GearId instrument, string text)
+        {
+            var i = System.Array.IndexOf(instruments, instrument);
+            if (i < 0) { instruments = instruments.Append(instrument).ToArray(); readings = readings.Append(text).ToArray(); }
+            else readings[i] = text;
+        }
+
+        // Authored reading for this instrument; the laser falls back to the measured size of the condition.
+        public string Reading(GearId instrument)
+        {
+            var i = System.Array.IndexOf(instruments, instrument);
+            if (i >= 0) return readings[i];
+            if (instrument != GearId.LaserMeasure) return null;
+            var s = PhotoBounds.size * 3.281f;
+            return $"Measured {Mathf.Max(s.x, s.z):F1} ft wide x {s.y:F1} ft high.";
+        }
 
         public void SetStandard(string citation, string requirement, string limit, bool verified)
         {

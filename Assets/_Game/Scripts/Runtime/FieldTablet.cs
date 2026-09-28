@@ -52,7 +52,7 @@ namespace Jobsite.Runtime
             (frame != null ? frame : content).gameObject.SetActive(director.MenuOpen);
             foreach (Transform child in content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
             if (!director.MenuOpen) return;
-            Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp}", 22, Accent);
+            Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp} · {Career.Rank(director.Career.Level)}", 22, Accent);
             if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
             if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
             if (director.Finished) { Closing(); return; }
@@ -60,6 +60,7 @@ namespace Jobsite.Runtime
             {
                 Label("SITE WALK", 34, Color.white);
                 Label("Center a condition. Move close. Press E.");
+                Button($"Hint from Dolores · {director.Hints.Tokens} left (half XP on that find)", director.UseHint);
                 Button("Return to site", director.ToggleTablet);
                 Button("Finish shift", director.EndShift);
                 return;
@@ -67,6 +68,11 @@ namespace Jobsite.Runtime
             var target = director.Selected;
             var state = director.Session.GetState(target.Id);
             Label(target.DisplayName, 32, Color.white);
+            foreach (var gear in director.Career.Owned)
+            {
+                var reading = target.Reading(gear);
+                if (reading != null) Label(GearCatalog.Get(gear).Name + ": " + reading, 19, new Color(.55f, .85f, 1f));
+            }
             if (state == HazardState.Latent || state == HazardState.Lapsed)
             {
                 Label("Energy source", 20, Accent);
@@ -141,6 +147,9 @@ namespace Jobsite.Runtime
             if (director.EpisodeComplete)
             {
                 Label($"EPISODE {director.Episode.Number} COMPLETE · {director.Xp} XP", 26, Accent);
+                foreach (var b in director.BadgesEarned) Label("BADGE · " + BadgeName(b) + $"  +{Career.BadgeBonus} SP", 22, Color.white);
+                Label($"+{director.PointsAwarded} Safety Points · {director.Career.Points} SP to spend in the gear locker", 22, Ink);
+                Label($"Level {director.Career.Level} · {Career.Rank(director.Career.Level)}", 22, Ink);
                 Button("Episode select", EpisodeDirector.BackToMenu, null, true);
                 return;
             }
@@ -178,6 +187,11 @@ namespace Jobsite.Runtime
             var field = go.GetComponent<InputField>(); field.textComponent = text; field.placeholder = ph; field.lineType = InputField.LineType.SingleLine;
             return field;
         }
+
+        static string BadgeName(Badge b) => b switch
+        {
+            Badge.StoppedTheLine => "Stopped the Line", Badge.ZeroRecordablesDay => "Zero Recordables", _ => "Hierarchy Hawk",
+        };
 
         // OSHA citation chip + plain-language requirement (GDD §15).
         private void Standard(SiteCondition target)

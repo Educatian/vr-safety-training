@@ -61,7 +61,9 @@ namespace Jobsite.Editor
             go.AddComponent<NpcRelaxedPose>();                 // idle weight shift + explain/point gestures
             var capsule = go.AddComponent<CapsuleCollider>();  // E ray target
             capsule.center = new Vector3(0, 0.9f, 0); capsule.height = 1.8f; capsule.radius = 0.35f;
-            go.AddComponent<CrewMember>().Configure(name, role, facts, config);
+            var crew = go.AddComponent<CrewMember>();
+            crew.Configure(name, role, facts, config);
+            crew.SetCharacter(name.ToLowerInvariant());
         }
 
         static LlmEndpointConfig EnsureConfig()

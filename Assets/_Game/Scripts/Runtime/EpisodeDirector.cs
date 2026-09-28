@@ -70,30 +70,111 @@ namespace Jobsite.Runtime
 
         public Camera CinematicCamera => cine;
 
-        // ---------- episode select ----------
+        // ---------- episode select / gear locker / crew ----------
+        public enum Tab { Episodes, Gear, Crew }
+        private RectTransform body;
+        private Text profile;
+        private Career career;
+
         private void ShowMenu()
         {
             Current = State.Menu;
             Rig(true);
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            career = CareerStore.Load();
             var root = canvas.transform;
-            Panel(root, "Shade", Vector2.zero, Vector2.one, new Color(0.03f, 0.04f, 0.05f, 0.55f));
-            Text(root, "COMPETENT PERSON", 64, Accent, new Vector2(0.06f, 0.83f), new Vector2(0.94f, 0.94f), TextAnchor.MiddleLeft);
-            Text(root, "One week on the Loblolly Creek Lift Station. Pick a topic to train.", 30, Color.white, new Vector2(0.06f, 0.76f), new Vector2(0.94f, 0.83f), TextAnchor.MiddleLeft);
+            Panel(root, "Shade", Vector2.zero, Vector2.one, new Color(0.03f, 0.04f, 0.05f, 0.6f));
+            Text(root, "COMPETENT PERSON", 64, Accent, new Vector2(0.06f, 0.85f), new Vector2(0.6f, 0.95f), TextAnchor.MiddleLeft);
+            Text(root, "One week on the Loblolly Creek Lift Station, Autauga County, Alabama.", 28, Color.white, new Vector2(0.06f, 0.79f), new Vector2(0.7f, 0.85f), TextAnchor.MiddleLeft);
+            profile = Text(root, "", 26, Color.white, new Vector2(0.6f, 0.85f), new Vector2(0.94f, 0.95f), TextAnchor.MiddleRight);
+            var tabs = new[] { (Tab.Episodes, "EPISODES"), (Tab.Gear, "GEAR LOCKER"), (Tab.Crew, "CREW") };
+            for (var i = 0; i < tabs.Length; i++)
+            {
+                var (tab, label) = tabs[i];
+                var b = Panel(root, "Tab" + label, new Vector2(0.06f + i * 0.13f, 0.72f), new Vector2(0.18f + i * 0.13f, 0.775f), new Color(.15f, .18f, .19f, .95f));
+                Text(b, label, 24, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+                b.gameObject.AddComponent<Button>().onClick.AddListener(() => ShowTab(tab));
+            }
+            body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.7f), new Color(0, 0, 0, 0));
+            ShowTab(Tab.Episodes);
+            StartCoroutine(Orbit());
+        }
+
+        public void ShowTab(Tab tab)
+        {
+            foreach (Transform c in body) Destroy(c.gameObject);
+            profile.text = $"Level {career.Level} · {Career.Rank(career.Level)}\n{career.Points} Safety Points · {career.LifetimeXp} XP";
+            if (tab == Tab.Episodes) EpisodeCards();
+            else if (tab == Tab.Gear) GearCards();
+            else CrewCards();
+        }
+
+        private void GearCards()
+        {
+            Text(body, "Real instruments a competent person carries. They give you readings, not protection: you still make the call.", 24, new Color(.85f, .88f, .88f), new Vector2(0, 0.92f), new Vector2(1, 1), TextAnchor.MiddleLeft);
+            var n = GearCatalog.All.Count;
+            for (var i = 0; i < n; i++)
+            {
+                var g = GearCatalog.All[i];
+                float x0 = i * 1f / n, x1 = x0 + 1f / n - 0.012f;
+                var card = Panel(body, g.Id.ToString(), new Vector2(x0, 0), new Vector2(x1, 0.9f), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Art(card, "Gear/" + g.Id, new Vector2(0.1f, 0.58f), new Vector2(0.9f, 0.97f), new Rect(0, 0, 1, 1), true);
+                Text(card, g.Name, 30, Color.white, new Vector2(0.06f, 0.46f), new Vector2(0.94f, 0.57f), TextAnchor.MiddleLeft);
+                Text(card, g.Effect, 21, new Color(.55f, .85f, 1f), new Vector2(0.06f, 0.28f), new Vector2(0.94f, 0.46f), TextAnchor.UpperLeft);
+                Text(card, g.RealWorld, 16, new Color(.6f, .66f, .66f), new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.28f), TextAnchor.UpperLeft);
+                var owned = career.Has(g.Id);
+                var locked = career.Level < g.MinLevel;
+                var can = !owned && !locked && career.Points >= g.Cost;
+                var label = owned ? "OWNED" : locked ? $"NEEDS LEVEL {g.MinLevel}" : $"BUY · {g.Cost} SP";
+                var button = Panel(card, "Buy", new Vector2(0.06f, 0.03f), new Vector2(0.94f, 0.12f), can ? Accent : new Color(.25f, .27f, .28f));
+                Text(button, label, 22, can ? new Color(.08f, .08f, .08f) : new Color(.7f, .7f, .7f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+                if (can) button.gameObject.AddComponent<Button>().onClick.AddListener(() => Buy(g.Id));
+            }
+        }
+
+        public BuyResult Buy(GearId id)
+        {
+            var result = career.Buy(id);
+            if (result == BuyResult.Bought) CareerStore.Save(career);
+            ShowTab(Tab.Gear);
+            return result;
+        }
+
+        private void CrewCards()
+        {
+            Text(body, Cast.Player, 22, new Color(.85f, .88f, .88f), new Vector2(0, 0.88f), new Vector2(1, 1), TextAnchor.MiddleLeft);
+            const int cols = 4;
+            for (var i = 0; i < Cast.All.Count; i++)
+            {
+                var c = Cast.All[i];
+                float x0 = i % cols * 1f / cols, x1 = x0 + 1f / cols - 0.01f, y1 = 0.86f - i / cols * 0.44f, y0 = y1 - 0.42f;
+                var card = Panel(body, c.Id, new Vector2(x0, y0), new Vector2(x1, y1), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Art(card, "Cast/" + c.Id, new Vector2(0.02f, 0.05f), new Vector2(0.3f, 0.95f), new Rect(0.2f, 0, 0.6f, 1), true);
+                Text(card, c.Name, 26, Color.white, new Vector2(0.33f, 0.8f), new Vector2(0.98f, 0.97f), TextAnchor.MiddleLeft);
+                Text(card, $"{c.Age} · {c.Role}", 18, Accent, new Vector2(0.33f, 0.66f), new Vector2(0.98f, 0.8f), TextAnchor.UpperLeft);
+                Text(card, c.Backstory, 15, new Color(.82f, .85f, .85f), new Vector2(0.33f, 0.16f), new Vector2(0.98f, 0.66f), TextAnchor.UpperLeft);
+                Text(card, "Wants " + c.Want, 15, new Color(.55f, .85f, 1f), new Vector2(0.33f, 0.02f), new Vector2(0.98f, 0.16f), TextAnchor.UpperLeft);
+            }
+        }
+
+        private static void Art(RectTransform parent, string resource, Vector2 min, Vector2 max, Rect uv, bool lit)
+        {
+            var tex = Resources.Load<Texture2D>(resource);
+            if (tex == null) return;
+            var img = new GameObject("Art", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+            img.transform.SetParent(parent, false); Stretch(img.rectTransform, min, max);
+            img.texture = tex; img.uvRect = uv; img.color = lit ? Color.white : new Color(.35f, .35f, .35f);
+        }
+
+        private void EpisodeCards()
+        {
             var n = Episodes.All.Count;
             for (var i = 0; i < n; i++)
             {
                 var ep = Episodes.All[i];
-                float x0 = 0.06f + i * 0.88f / n, x1 = x0 + 0.88f / n - 0.012f;
-                var card = Panel(root, "EP" + ep.Number, new Vector2(x0, 0.12f), new Vector2(x1, 0.72f), new Color(0.07f, 0.09f, 0.1f, 0.92f));
-                var art = Resources.Load<Texture2D>("Episodes/EP" + ep.Number);
-                if (art != null)
-                {
-                    var img = new GameObject("Art", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
-                    img.transform.SetParent(card, false); Stretch(img.rectTransform, new Vector2(0, 0.52f), Vector2.one);
-                    img.texture = art; img.uvRect = new Rect(0.2f, 0, 0.6f, 1); // centre-crop 16:9 into the card
-                    img.color = ep.Playable ? Color.white : new Color(.35f, .35f, .35f);
-                }
+                float x0 = i * 1f / n, x1 = x0 + 1f / n - 0.012f;
+                var card = Panel(body, "EP" + ep.Number, new Vector2(x0, 0), new Vector2(x1, 1), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Art(card, "Episodes/EP" + ep.Number, new Vector2(0, 0.52f), Vector2.one, new Rect(0.2f, 0, 0.6f, 1), ep.Playable);
                 Text(card, $"EPISODE {ep.Number}", 22, Accent, new Vector2(0.06f, 0.43f), new Vector2(0.94f, 0.5f), TextAnchor.MiddleLeft);
                 Text(card, ep.Title, 38, Color.white, new Vector2(0.06f, 0.34f), new Vector2(0.94f, 0.44f), TextAnchor.MiddleLeft);
                 Text(card, ep.Topic, 22, new Color(.8f, .84f, .84f), new Vector2(0.06f, 0.22f), new Vector2(0.94f, 0.34f), TextAnchor.UpperLeft);
@@ -104,7 +185,6 @@ namespace Jobsite.Runtime
                 Text(button, label, 22, ep.Playable ? new Color(.08f, .08f, .08f) : new Color(.6f, .6f, .6f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
                 if (ep.Playable) button.gameObject.AddComponent<Button>().onClick.AddListener(() => Play(ep));
             }
-            StartCoroutine(Orbit());
         }
 
         private IEnumerator Orbit()
@@ -220,6 +300,7 @@ namespace Jobsite.Runtime
             if (Selected == null) yield break;
             foreach (var line in Selected.Epilogue)
             {
+                if (line.IfFound != null && shift.Session.GetState(line.IfFound) == HazardState.Latent) continue;
                 shift.Say((line.Speaker.Length > 0 ? line.Speaker + ": " : "") + line.Text);
                 yield return new WaitForSeconds(line.Seconds);
             }

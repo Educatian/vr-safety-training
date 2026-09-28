@@ -13,6 +13,7 @@ namespace Jobsite.Runtime
     // and can never change DaySession state. Offline fallback keeps the game playable without a key.
     public sealed class CrewMember : MonoBehaviour
     {
+        [SerializeField] private string characterId = "";   // Core.Cast id -> backstory, voice, episode beat
         [SerializeField] private string displayName = "Dolores";
         [SerializeField] private string role = "veteran site safety manager and your mentor";
         [TextArea, SerializeField] private string facts = "";
@@ -30,6 +31,11 @@ namespace Jobsite.Runtime
 
         public void Configure(string name, string npcRole, string groundedFacts, LlmEndpointConfig config)
         { displayName = name; role = npcRole; facts = groundedFacts; endpoint = config; }
+
+        public void SetCharacter(string id) => characterId = id;
+
+        private string Persona() => string.IsNullOrEmpty(characterId) ? role
+            : Jobsite.Core.Cast.Get(characterId).Persona(EpisodeDirector.Selected?.Number ?? 1);
 
         private void Awake()
         {
@@ -73,8 +79,8 @@ namespace Jobsite.Runtime
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(endpoint.TimeoutSeconds));
                 var reply = await service.ReplyAsync(new ConversationRequest
                 {
-                    siteName = "Municipal pump station jobsite, Tuscaloosa County, Alabama",
-                    npcRole = $"{displayName}, {role}",
+                    siteName = "Loblolly Creek Lift Station (municipal sewer pump station), Autauga County, Alabama",
+                    npcRole = $"{displayName}, {Persona()}",
                     safetyFacts = facts + " " + selectedContext,
                     progress = "",
                     transcript = string.Join("\n", transcript.GetRange(Math.Max(0, transcript.Count - 8), Math.Min(8, transcript.Count))),
