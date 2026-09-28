@@ -57,3 +57,8 @@ The clamp overshoot above 42 in was caught by the recipe's bounds check and fixe
 - Cleaned in Blender (`Tools/blender/cleanup_batch.py`): vehicles 12k tris + LOD1 (~5k), textures 1024. All 19 vehicles and large props are on budget.
 - **Follow-up (over the web budget):** small props are still 9k-50k tris against a 1.5-3k target, because collapse decimation stalls on Tripo's dense detail. Offenders: GFCI spider box 48k, tool bag 50k, water cooler 32k, saw 26k, harness 20k, extinguisher 14k, SRL 11k, cone 9k. Fix with Tripo Studio Smart Mesh (low-poly regeneration) or a Blender remesh + texture bake. Texture size is capped in Unity (512 props / 1024 vehicles, crunch).
 - Rigs (`Tools/blender/rig_vehicle.py` + `Tools/tripo/rig_specs.json`): crew pickup (door, 4 wheels, cab interior), tandem dump truck (bed, door, 6 wheels), excavator (House > Boom > Stick > Bucket), RT crane (House > Boom > Tele1, hook). Tripo shells are hollow, so part cuts leave small gaps at fused joints; this is acceptable at site viewing distance.
+
+## Treeline impostor (2026-09-28)
+- Poly Haven `pine_tree_01` (CC0) is 17.2M tris / 648 MB FBX — unusable on the web (140 trees ≈ 2.4B tris). Source kept outside the repo at `C:\Users\jewoo\GameDev\_asset_cache\pine_tree_01\`.
+- `Tools/blender/pine_impostor.py` renders it (Cycles, alpha) → `Assets/_Game/Art/Textures/Impostors/T_PineImpostor.png` (3-variant atlas, 1536×1024).
+- Builder scatters crossed-quad impostors (4 tris/tree, no shadows, static-batched).

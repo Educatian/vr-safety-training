@@ -37,10 +37,12 @@ namespace Jobsite.Core
         public System.Func<IReadOnlyList<QuizItem>> ToolboxQuiz { get; }
         public System.Func<IReadOnlyList<QuizItem>> ClosingQuiz { get; }
         public bool Playable { get; }                 // false = hazards not built yet
+        public float[] Zone { get; }                  // today's work zone x0,z0,x1,z1 (m); null = whole parcel
 
         public Episode(int number, string title, string topic, int day, string[] standards, Line[] coldOpen, CameraShot[] shots, Line[] epilogue,
-            System.Func<IReadOnlyList<QuizItem>> toolbox, System.Func<IReadOnlyList<QuizItem>> closing, bool playable = true)
+            System.Func<IReadOnlyList<QuizItem>> toolbox, System.Func<IReadOnlyList<QuizItem>> closing, bool playable = true, float[] zone = null)
         {
+            Zone = zone;
             Number = number; Title = title; Topic = topic; DayIndex = day; Standards = standards;
             ColdOpen = coldOpen; Shots = shots; Epilogue = epilogue; ToolboxQuiz = toolbox; ClosingQuiz = closing; Playable = playable;
         }
@@ -73,7 +75,7 @@ namespace Jobsite.Core
                     new Line("Dolores", "Cords and outlets are the quiet killers. GFCI on every temporary circuit, damaged cords out of service."),
                     new Line("Ray", "Tomorrow we open the cut for the force main. Five feet and deeper. You'll want to be there."),
                 },
-                QuizBank.GateToolboxTalk, QuizBank.EndOfDayPower),
+                QuizBank.GateToolboxTalk, QuizBank.EndOfDayPower, zone: new[] { -4f, -4f, 42f, 42f }),
 
             new Episode(2, "The Cut", "Excavation · trenching · silica · struck-by", 1,
                 new[] { "1926.652(a)(1)", "1926.651(j)(2)", "1926.651(c)(2)", "1926.1153" },
@@ -97,7 +99,7 @@ namespace Jobsite.Core
                     new Line("Dolores", "Trenches don't warn you. I learned that the hard way in 2009. Protective system at five feet, spoil two feet back, a ladder within 25."),
                     new Line("Ray", "Deck's formed on the pump house. Crew's up top tomorrow. Holes everywhere."),
                 },
-                QuizBank.ToolboxTrench, QuizBank.EndOfDayTrench),
+                QuizBank.ToolboxTrench, QuizBank.EndOfDayTrench, zone: new[] { -4f, -4f, 80f, 58f }),
 
             new Episode(3, "The Edge", "Falls · floor holes · guardrails · ladders", 2,
                 new[] { "1926.501(b)(1)", "1926.502(b)", "1926.502(i)", "1926.1053(b)(1)" },
@@ -121,7 +123,7 @@ namespace Jobsite.Core
                     new Line("Ray", "The midrail was mine. Fixed it myself. Don't make it a thing.", ifFound: "wed-missing-midrail"),
                     new Line("Ray", "Crane shows up tomorrow for the roof steel. Big pick."),
                 },
-                QuizBank.ToolboxFalls, QuizBank.EndOfDayFalls),
+                QuizBank.ToolboxFalls, QuizBank.EndOfDayFalls, zone: new[] { -4f, -4f, 60f, 48f }),
 
             new Episode(4, "The Pick", "Cranes · rigging · roof work", 3,
                 new[] { "1926.1402", "1926.1419", "1926.1424", "1926.501(b)(10)" },

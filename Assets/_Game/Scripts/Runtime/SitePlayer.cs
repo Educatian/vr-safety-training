@@ -58,7 +58,21 @@ namespace Jobsite.Runtime
             controller.Move((transform.forward * axis.y * speed + transform.right * axis.x * speed + Vector3.up * fallSpeed) * Time.deltaTime);
             if (axis.sqrMagnitude > 0.01f && controller.isGrounded && (stepClock += Time.deltaTime * speed) > 1.05f)
             { stepClock = 0; AudioDirector.Play("step_" + (stepIndex++ % 3), 0.5f); }
+            KeepInZone();
             if (keys.eKey.wasPressedThisFrame) director.Interact();
+        }
+
+        // Today's controlled work zone (per episode): walking out is stopped with a reason, not an invisible wall.
+        private float zoneWarnAt;
+        private void KeepInZone()
+        {
+            var z = director.Episode.Zone;
+            if (z == null) return;
+            var p = transform.position;
+            var inside = new Vector3(Mathf.Clamp(p.x, z[0], z[2]), p.y, Mathf.Clamp(p.z, z[1], z[3]));
+            if ((inside - p).sqrMagnitude < 1e-4f) return;
+            controller.enabled = false; transform.position = inside; controller.enabled = true;
+            if (Time.time > zoneWarnAt) { director.Say("Dolores: That's outside today's work zone. Stay with your crews."); zoneWarnAt = Time.time + 5; }
         }
 
         private static void Release() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }

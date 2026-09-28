@@ -1,0 +1,102 @@
+[
+ {
+  "key": "vo_ep1_open_1",
+  "speaker": "Dolores",
+  "text": "Morning. Hank's gone fishing for good. As of today you're the competent person on this job."
+ },
+ {
+  "key": "vo_ep1_open_2",
+  "speaker": "Dolores",
+  "text": "That means you see it, you own it. Even when it's your old crew."
+ },
+ {
+  "key": "vo_ep1_open_3",
+  "speaker": "Ray",
+  "text": "And it means we still pour Friday. Power's live, crews are plugging in. Don't slow me down."
+ },
+ {
+  "key": "vo_ep1_open_4",
+  "speaker": "Dolores",
+  "text": "Sign in, suit up, and walk the temporary power. Anything that can bite a crew, you photograph it."
+ },
+ {
+  "key": "vo_ep1_epi_0",
+  "speaker": "Dolores",
+  "text": "Cords and outlets are the quiet killers. GFCI on every temporary circuit, damaged cords out of service."
+ },
+ {
+  "key": "vo_ep1_epi_1",
+  "speaker": "Ray",
+  "text": "Tomorrow we open the cut for the force main. Five feet and deeper. You'll want to be there."
+ },
+ {
+  "key": "vo_ep2_open_1",
+  "speaker": "Ray",
+  "text": "Earl's been digging since six. We're behind already."
+ },
+ {
+  "key": "vo_ep2_open_2",
+  "speaker": "Ray",
+  "text": "Your buddy Marcus is down there setting pipe. Luis is cutting. Nobody needs a babysitter."
+ },
+ {
+  "key": "vo_ep2_open_3",
+  "speaker": "Dolores",
+  "text": "Red clay, rained last night. Until we test it, we treat it as Type C. A cubic yard weighs as much as a car."
+ },
+ {
+  "key": "vo_ep2_open_4",
+  "speaker": "Dolores",
+  "text": "Check the box, the spoil, the way out, and who's standing in that swing radius."
+ },
+ {
+  "key": "vo_ep2_epi_0",
+  "speaker": "Marcus",
+  "text": "Two minutes, I said. ...Yeah. Okay. Thanks, I guess."
+ },
+ {
+  "key": "vo_ep2_epi_1",
+  "speaker": "Dolores",
+  "text": "Trenches don't warn you. I learned that the hard way in 2009. Protective system at five feet, spoil two feet back, a ladder within 25."
+ },
+ {
+  "key": "vo_ep2_epi_2",
+  "speaker": "Ray",
+  "text": "Deck's formed on the pump house. Crew's up top tomorrow. Holes everywhere."
+ },
+ {
+  "key": "vo_ep3_open_1",
+  "speaker": "Dolores",
+  "text": "Falls are still the number one killer in our trade. Every single year."
+ },
+ {
+  "key": "vo_ep3_open_2",
+  "speaker": "Ray",
+  "text": "Rails went up yesterday. Mostly."
+ },
+ {
+  "key": "vo_ep3_open_3",
+  "speaker": "Tasha",
+  "text": "Mostly. I've got my crew tied off. Yours I can't speak for, Ray."
+ },
+ {
+  "key": "vo_ep3_open_4",
+  "speaker": "Dolores",
+  "text": "'Mostly' is how people end up on the slab. Walk the edge. Look down every hole."
+ },
+ {
+  "key": "vo_ep3_epi_0",
+  "speaker": "Dolores",
+  "text": "Midrails, covers that are secured and marked, ladders three feet past the landing. Boring saves lives."
+ },
+ {
+  "key": "vo_ep3_epi_1",
+  "speaker": "Ray",
+  "text": "The midrail was mine. Fixed it myself. Don't make it a thing."
+ },
+ {
+  "key": "vo_ep3_epi_2",
+  "speaker": "Ray",
+  "text": "Crane shows up tomorrow for the roof steel. Big pick."
+ }
+]

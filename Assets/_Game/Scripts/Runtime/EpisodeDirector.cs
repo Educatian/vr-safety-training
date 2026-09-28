@@ -263,7 +263,7 @@ namespace Jobsite.Runtime
 
             // Remaining lines play over the camera shots; the line index advances on its own clock.
             var line = 1; var lineClock = 0f;
-            if (ep.ColdOpen.Count > 1) Say(ep.ColdOpen[line]);
+            if (ep.ColdOpen.Count > 1) { Say(ep.ColdOpen[line]); Voice(ep, "open", line); }
             foreach (var shot in ep.Shots)
             {
                 for (var t = 0f; t < shot.Seconds && !skip; t += Time.deltaTime)
@@ -272,18 +272,19 @@ namespace Jobsite.Runtime
                     cine.transform.position = Vector3.Lerp(Vec(shot.From), Vec(shot.To), k);
                     cine.transform.rotation = Quaternion.LookRotation(Vec(shot.LookAt) - cine.transform.position);
                     lineClock += Time.deltaTime;
-                    if (line + 1 < ep.ColdOpen.Count && lineClock >= ep.ColdOpen[line].Seconds) { line++; lineClock = 0; Say(ep.ColdOpen[line]); }
+                    if (line + 1 < ep.ColdOpen.Count && lineClock >= Seconds(ep, "open", line)) { line++; lineClock = 0; Say(ep.ColdOpen[line]); Voice(ep, "open", line); }
                     yield return null;
                 }
             }
             // Let the last line finish if the shots ran short.
-            while (!skip && line < ep.ColdOpen.Count && lineClock < ep.ColdOpen[line].Seconds) { lineClock += Time.deltaTime; yield return null; }
+            while (!skip && line < ep.ColdOpen.Count && lineClock < Seconds(ep, "open", line)) { lineClock += Time.deltaTime; yield return null; }
             EndIntro();
         }
 
         private void EndIntro()
         {
             StopAllCoroutines();
+            EndVoice();
             Rig(false);
             Current = State.Playing;
             var shift = FindFirstObjectByType<ShiftDirector>();
@@ -305,6 +306,25 @@ namespace Jobsite.Runtime
 
         private IEnumerator Wait(float seconds) { for (var t = 0f; t < seconds && !skip; t += Time.deltaTime) yield return null; }
 
+        // Voice-over (Higgsfield TTS, Resources/Audio/VO/vo_ep{n}_{open|epi}_{i}); captions stay on screen either way.
+        static AudioClip VoClip(Episode ep, string kind, int i) => Resources.Load<AudioClip>($"Audio/VO/vo_ep{ep.Number}_{kind}_{i}");
+        static float Seconds(Episode ep, string kind, int i)
+        {
+            var lines = kind == "open" ? ep.ColdOpen : ep.Epilogue;
+            var clip = VoClip(ep, kind, i);
+            return Mathf.Max(lines[i].Seconds, clip != null ? clip.length + 0.5f : 0);
+        }
+        private static AudioSource voice;
+        static void Voice(Episode ep, string kind, int i)
+        {
+            var clip = VoClip(ep, kind, i);
+            if (clip == null) return;
+            if (voice == null) { voice = new GameObject("Voice").AddComponent<AudioSource>(); voice.spatialBlend = 0; }
+            voice.Stop(); voice.volume = GameSettings.VoiceVolume; voice.clip = clip; voice.Play();
+        }
+
+        private void EndVoice() { if (voice != null) voice.Stop(); }
+
         private void Say(Line line)
         {
             Caption = line.Text; Speaker = line.Speaker;
@@ -316,11 +336,13 @@ namespace Jobsite.Runtime
         public static IEnumerator Epilogue(ShiftDirector shift)
         {
             if (Selected == null) yield break;
-            foreach (var line in Selected.Epilogue)
+            for (var i = 0; i < Selected.Epilogue.Count; i++)
             {
+                var line = Selected.Epilogue[i];
                 if (line.IfFound != null && !shift.Session.GetEvidence(line.IfFound).Detected) continue;
                 shift.Say((line.Speaker.Length > 0 ? line.Speaker + ": " : "") + line.Text);
-                yield return new WaitForSeconds(line.Seconds);
+                Voice(Selected, "epi", i);
+                yield return new WaitForSeconds(Seconds(Selected, "epi", i));
             }
         }
 

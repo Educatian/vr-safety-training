@@ -68,6 +68,18 @@ namespace Jobsite.Editor
             var spawn = new GameObject("PlayerSpawn").transform;
             spawn.position = new Vector3((float)layout["spawn"]["x"], 0f, (float)layout["spawn"]["y"]);
 
+            // Small imported props (tools, cones, coolers, barricades) cull when tiny on screen; people and vehicles never do.
+            var culled = 0;
+            foreach (var go in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).Select(tr => tr.gameObject)
+                         .Where(g => PrefabUtility.IsOutermostPrefabInstanceRoot(g)).ToList())
+            {
+                if (go.GetComponentInChildren<SkinnedMeshRenderer>(true) != null || go.GetComponentInParent<VehicleController>(true) != null) continue;
+                var rs = go.GetComponentsInChildren<Renderer>(true);
+                if (rs.Length == 0) continue;
+                var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+                if (b.size.magnitude < 3.5f) { CullWhenSmall(go); culled++; }
+            }
+            Debug.Log($"[Greybox] distance-cull LODGroups: {culled}");
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
@@ -433,7 +445,6 @@ namespace Jobsite.Editor
         static void BuildSurroundings(Transform root)
         {
             var group = Group(root, "Surroundings_Alabama");
-            var pine = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-LIB/pine_tree_01/pine_tree_01_1k.fbx");
             var shrub = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-LIB/shrub_01/shrub_01_1k.fbx");
             var hydrant = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-LIB/fire_hydrant/fire_hydrant_1k.fbx");
             var rng = new System.Random(20260928); // deterministic dressing
@@ -451,15 +462,98 @@ namespace Jobsite.Editor
                 }
             }
             // Pine stand behind the north line and the east/west edges; the street side stays open.
-            Scatter(pine, 80, -40, 170, 90, 140, 0.9f, 1.4f);
-            Scatter(pine, 30, 132, 175, -5, 90, 0.9f, 1.4f);
-            Scatter(pine, 30, -60, -16, -5, 90, 0.9f, 1.4f);
+            // Web budget: the Poly Haven pine is 17M tris, so the distant stand uses Blender-rendered impostors
+            // (Tools/blender/pine_impostor.py -> 3 variants, 2 crossed quads = 4 tris per tree).
+            var impostors = PineImpostors();
+            void Stand(int count, float x0, float x1, float z0, float z1)
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    var go = new GameObject("PineImpostor", typeof(MeshFilter), typeof(MeshRenderer));
+                    go.transform.SetParent(group, false);
+                    go.transform.position = new Vector3(R(x0, x1), 0, R(z0, z1));
+                    go.transform.rotation = Quaternion.Euler(0, R(0, 360), 0);
+                    go.transform.localScale = Vector3.one * R(0.9f, 1.4f);
+                    go.GetComponent<MeshFilter>().sharedMesh = impostors[rng.Next(impostors.Length)];
+                    var r = go.GetComponent<MeshRenderer>();
+                    r.sharedMaterial = ImpostorMaterial();
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+                }
+            }
+            Stand(80, -40, 170, 90, 140);
+            Stand(30, 132, 175, -5, 90);
+            Stand(30, -60, -16, -5, 90);
             Scatter(shrub, 50, -10, 130, 84, 90, 0.8f, 1.5f);
             if (hydrant != null)
             {
                 var h = (GameObject)PrefabUtility.InstantiatePrefab(hydrant, group);
                 h.transform.position = new Vector3(30, 0, -2.5f);
             }
+        }
+
+        // Two crossed quads per variant; UVs pick a column of the 3-tree atlas. 1024 px = 20.4 m tall, 512 px wide.
+        static Mesh[] PineImpostors()
+        {
+            const string dir = "Assets/_Game/Art/Models/Impostors";
+            System.IO.Directory.CreateDirectory(dir);
+            var meshes = new Mesh[3];
+            const float h = 20.4f, w = 10.2f;
+            for (var k = 0; k < 3; k++)
+            {
+                var path = $"{dir}/PineImpostor_{k}.asset";
+                var m = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+                if (m == null) { m = new Mesh { name = "PineImpostor_" + k }; AssetDatabase.CreateAsset(m, path); }
+                float u0 = k / 3f, u1 = (k + 1) / 3f;
+                var v = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
+                for (var q = 0; q < 2; q++)
+                {
+                    var right = q == 0 ? Vector3.right : Vector3.forward;
+                    var b = v.Count;
+                    v.AddRange(new[] { -right * w / 2, right * w / 2, right * w / 2 + Vector3.up * h, -right * w / 2 + Vector3.up * h });
+                    uv.AddRange(new[] { new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1) });
+                    tri.AddRange(new[] { b, b + 2, b + 1, b, b + 3, b + 2, b, b + 1, b + 2, b, b + 2, b + 3 });   // both faces
+                }
+                m.Clear(); m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(tri, 0);
+                m.RecalculateNormals(); m.RecalculateBounds();
+                EditorUtility.SetDirty(m);
+                meshes[k] = m;
+            }
+            AssetDatabase.SaveAssets();
+            return meshes;
+        }
+
+        // Lighting is baked into the impostor render, so draw it unlit with alpha clip (lit quads go black when backlit).
+        static Material ImpostorMaterial()
+        {
+            const string path = "Assets/_Game/Art/Materials/M_PineImpostor.mat";
+            const string tex = "Assets/_Game/Art/Textures/Impostors/T_PineImpostor.png";
+            var importer = (TextureImporter)AssetImporter.GetAtPath(tex);
+            if (!importer.alphaIsTransparency || !importer.mipMapsPreserveCoverage || importer.maxTextureSize != 1024)
+            {
+                importer.alphaIsTransparency = true; importer.mipMapsPreserveCoverage = true; importer.alphaTestReferenceValue = 0.4f;
+                importer.maxTextureSize = 1024; importer.SaveAndReimport();
+            }
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Unlit")); AssetDatabase.CreateAsset(m, path); }
+            m.shader = Shader.Find("Universal Render Pipeline/Unlit");
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(tex));
+            m.SetColor("_BaseColor", new Color(0.92f, 0.95f, 0.98f));   // a touch of distance haze
+            m.SetFloat("_AlphaClip", 1); m.SetFloat("_Cutoff", 0.4f); m.EnableKeyword("_ALPHATEST_ON");
+            m.SetFloat("_Cull", 0);
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        // Web budget: small props stop drawing once they are a few pixels tall (LODGroup cull only, no extra meshes).
+        public static void CullWhenSmall(GameObject go, float screenHeight = 0.012f)
+        {
+            if (go == null || go.GetComponent<LODGroup>() != null) return;
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return;
+            var lod = go.AddComponent<LODGroup>();
+            lod.SetLODs(new[] { new LOD(screenHeight, renderers) });
+            lod.RecalculateBounds();
         }
 
         // URP's FBX material preprocessor leaves foliage opaque (needle cards render as white slabs)
