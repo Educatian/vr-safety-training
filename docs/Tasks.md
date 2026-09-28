@@ -52,3 +52,6 @@ Each task ends green: compile, errors-only console, test or screenshot, then com
 - [ ] T5.1 Gauntlet critic loop, 3 rounds max, until no high-severity defects remain.
 - [ ] T5.2 PlayMode smoke test: complete every zone in desktop mode through scripted input.
 - [ ] T5.3 Windows build, README and docs images refreshed, then PR `revamp/v2 → main`.
+
+## Status notes
+- 2026-09-28 Codex checkpoint: PropBible (5 props, OSHA-cited), guardrail B-PROC recipe + spec JSON (metadata tests 50/50), Tripo prop wrapper (dry-run default; shared cap 6,500), Monday desktop slice runtime scripts (ShiftDirector, FieldTablet, SiteCondition, SitePlayer; no scene yet).
