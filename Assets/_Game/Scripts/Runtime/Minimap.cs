@@ -15,7 +15,8 @@ namespace Jobsite.Runtime
         const float LocalSpan = 36f;                     // metres shown across the corner map
 
         [SerializeField] private RawImage map;
-        [SerializeField] private RectTransform frame, arrow;
+        [SerializeField] private RectTransform frame, arrow, scale;
+        [SerializeField] private RawImage bezel;
         private readonly List<(Transform target, RectTransform dot, SiteCondition condition)> marks = new List<(Transform, RectTransform, SiteCondition)>();
         private ShiftDirector director;
         private SitePlayer player;
@@ -31,7 +32,20 @@ namespace Jobsite.Runtime
             frame.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.07f, 0.85f);
             map = new GameObject("Plan", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
             map.transform.SetParent(frame, false); Fill(map.rectTransform);
-            map.texture = Resources.Load<Texture2D>("UI/Minimap");
+            map.texture = Resources.Load<Texture2D>("UI/Minimap");   // plan fallback; Start swaps in the day's drone survey
+            bezel = new GameObject("Bezel", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+            bezel.transform.SetParent(frame.parent, false);
+            bezel.texture = Resources.Load<Texture2D>("UI/MinimapBezel"); bezel.raycastTarget = false;
+            scale = new GameObject("Scale", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
+            scale.SetParent(frame, false); scale.GetComponent<Image>().color = Color.white;
+            scale.anchorMin = scale.anchorMax = scale.pivot = new Vector2(0, 0); scale.anchoredPosition = new Vector2(14, 14);
+            scale.sizeDelta = new Vector2(300f * 10f / LocalSpan, 5);
+            var label = new GameObject("ScaleText", typeof(RectTransform), typeof(Text), typeof(Outline)).GetComponent<Text>();
+            label.transform.SetParent(scale, false);
+            label.rectTransform.anchorMin = new Vector2(0, 1); label.rectTransform.anchorMax = new Vector2(1, 1);
+            label.rectTransform.pivot = new Vector2(0, 0); label.rectTransform.sizeDelta = new Vector2(0, 22); label.rectTransform.anchoredPosition = new Vector2(0, 2);
+            label.font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.text = "10 m"; label.fontSize = 18; label.color = Color.white; label.raycastTarget = false;
             arrow = Dot(new Color(0.9f, 0.2f, 0.17f), 18, "");
             var nose = new GameObject("Heading", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
             nose.SetParent(arrow, false); nose.anchorMin = nose.anchorMax = new Vector2(0.5f, 1); nose.pivot = new Vector2(0.5f, 0);
@@ -43,6 +57,9 @@ namespace Jobsite.Runtime
         {
             director = FindFirstObjectByType<ShiftDirector>();
             player = FindFirstObjectByType<SitePlayer>();
+            var phases = FindFirstObjectByType<SitePhaseController>();
+            var aerial = phases != null ? Resources.Load<Texture2D>("UI/Aerial_" + phases.Day) : null;
+            if (aerial != null) map.texture = aerial;
             foreach (var crew in FindObjectsByType<CrewMember>(FindObjectsSortMode.None))
                 marks.Add((crew.transform, Dot(new Color(0.2f, 0.7f, 1f), 16, crew.DisplayName.Substring(0, 1)), null));
         }
@@ -63,6 +80,10 @@ namespace Jobsite.Runtime
             frame.anchorMin = frame.anchorMax = frame.pivot = full ? new Vector2(0.5f, 0.5f) : new Vector2(1, 1);
             frame.anchoredPosition = full ? Vector2.zero : new Vector2(-24, -24);
             frame.sizeDelta = full ? new Vector2(1500, 1500 * H / W) : new Vector2(300, 300);
+            // Rugged bezel (same kit as the tablet) wraps the corner map only; the scale bar only makes sense zoomed in.
+            var b = bezel.rectTransform; b.anchorMin = b.anchorMax = b.pivot = new Vector2(1, 1);
+            b.anchoredPosition = new Vector2(-24 + 300f * 26 / 460, -24 + 300f * 26 / 460); b.sizeDelta = Vector2.one * 300f * 512 / 460;
+            bezel.gameObject.SetActive(!full); scale.gameObject.SetActive(!full);
         }
 
         private void Update()
@@ -72,6 +93,7 @@ namespace Jobsite.Runtime
             var k = Keyboard.current;
             if (k != null && k.mKey.wasPressedThisFrame) Toggle();
             frame.gameObject.SetActive(director == null || !director.MenuOpen || full);
+            bezel.gameObject.SetActive(frame.gameObject.activeSelf && !full);
 
             var p = player.transform.position;
             Rect view = full ? new Rect(0, 0, 1, 1)

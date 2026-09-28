@@ -300,7 +300,7 @@ namespace Jobsite.Runtime
             if (Selected == null) yield break;
             foreach (var line in Selected.Epilogue)
             {
-                if (line.IfFound != null && shift.Session.GetState(line.IfFound) == HazardState.Latent) continue;
+                if (line.IfFound != null && !shift.Session.GetEvidence(line.IfFound).Detected) continue;
                 shift.Say((line.Speaker.Length > 0 ? line.Speaker + ": " : "") + line.Text);
                 yield return new WaitForSeconds(line.Seconds);
             }

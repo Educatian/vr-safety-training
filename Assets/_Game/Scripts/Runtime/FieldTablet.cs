@@ -127,14 +127,16 @@ namespace Jobsite.Runtime
         {
             Label("SHIFT CLOSED", 34, Color.white);
             Label($"Hazards found {director.Session.HazardIdentificationIndex:P0} · Precision {director.Session.ReportPrecision:P0}");
-            Label($"Crew trust {director.Session.CrewTrust:+0;-0;0} · Incidents {director.Session.NearMisses + director.Session.Recordables} · Level {XpRules.Level(director.Xp)}");
+            Label($"Crew trust {director.Session.CrewTrust:+0;-0;0} · Incidents {director.Session.NearMisses + director.Session.Recordables} · +{director.Xp} XP");
             foreach (var condition in director.Conditions)
                 if (condition.IsHazard)
                 {
                     var st = director.Session.GetState(condition.Id);
-                    Label((st == HazardState.Latent ? "MISSED  " : "") + condition.DisplayName + " · " + st, 20,
-                        st == HazardState.Latent ? new Color(1f, .45f, .35f) : Ink);
-                    if (st == HazardState.Latent && !string.IsNullOrEmpty(condition.Cfr))
+                    // Missed = never reported, whatever the timer did to it (an unreported hazard can still become an incident).
+                    var missed = !director.Session.GetEvidence(condition.Id).Detected;
+                    Label((missed ? "MISSED  " : "") + condition.DisplayName + " · " + st, 20,
+                        missed ? new Color(1f, .45f, .35f) : Ink);
+                    if (missed && !string.IsNullOrEmpty(condition.Cfr))
                         Label("   " + condition.Cfr + " — " + condition.Threshold, 18, Accent);
                 }
             var quiz = director.Quiz;

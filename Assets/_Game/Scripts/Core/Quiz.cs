@@ -89,8 +89,8 @@ namespace Jobsite.Core
         public static IReadOnlyList<QuizItem> EndOfDayPower() => new[]
         {
             new QuizItem("mon-gfci", "Which temporary receptacles need GFCI protection?",
-                new[] { "Only outdoor ones", "120 V, 15/20/30 A receptacles not part of permanent wiring", "Only ones feeding power tools over 1 hp", "None if cords are inspected" }, 1,
-                "All 120 V single-phase 15, 20 and 30 A temporary receptacles, unless an assured grounding program is used.", "29 CFR 1926.404(b)(1)(ii)"),
+                new[] { "Only outdoor ones", "120 V, 15 A and 20 A receptacles not part of permanent wiring", "Only ones feeding power tools over 1 hp", "None if cords are inspected" }, 1,
+                "All 120 V single-phase 15 A and 20 A receptacles that are not permanent wiring, unless an assured grounding program is used.", "29 CFR 1926.404(b)(1)(ii)"),
             new QuizItem("mon-frayed", "A cord has a split jacket with conductors showing. What do you do?",
                 new[] { "Tape it and keep working", "Remove it from service", "Use it only on GFCI", "Flag it for Friday" }, 1,
                 "Worn or frayed cords shall not be used. Tag it out and replace it.", "29 CFR 1926.416(e)(1)"),
