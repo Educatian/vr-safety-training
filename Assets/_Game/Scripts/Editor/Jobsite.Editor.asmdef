@@ -1,0 +1,13 @@
+{
+  "name": "Jobsite.Editor",
+  "rootNamespace": "Jobsite.Editor",
+  "references": [
+    "Jobsite.Core",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "autoReferenced": false
+}

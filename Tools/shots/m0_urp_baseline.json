@@ -1,0 +1,9 @@
+{
+  "scene": "Assets/SafetyTraining/Scenes/SafetyTrainingExplorer.unity",
+  "outDir": "Captures/m0_urp_baseline",
+  "shots": [
+    { "name": "01_construction_site", "target": "Construction Site", "offset": [0.7, 0.5, -1] },
+    { "name": "02_scaffold_tower", "target": "Scaffold Tower", "offset": [1, 0.3, -1] },
+    { "name": "03_lobby", "target": "Construction Safety Module Selection Lobby", "offset": [0, 0.6, -1] }
+  ]
+}
