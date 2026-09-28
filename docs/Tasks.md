@@ -3,16 +3,16 @@
 Each task ends green: compile, errors-only console, test or screenshot, then commit `[T#] ...`.
 
 ## M0 — Foundation
-- [ ] T0.1 Upgrade the project to Unity 6000.3.25f1. Resolve API updater changes and get the existing EditMode tests green.
-- [ ] T0.2 Add URP with PC and XR renderer assets. Convert materials (Rocketbox and Poly Haven) and fix pink shaders.
+- [x] T0.1 Upgrade the project to Unity 6000.3.25f1. Resolve API updater changes and get the existing EditMode tests green.
+- [x] T0.2 Add URP with PC and XR renderer assets. Convert materials (Rocketbox and Poly Haven) and fix pink shaders.
 - [ ] T0.3 Install the MCP for Unity bridge (stdio 6400) and verify `unity status` returns ready.
-- [ ] T0.4 Add a project `CLAUDE.md` from the template and commit.
+- [x] T0.4 Add a project `CLAUDE.md` from the template and commit.
 
 ## M1 — Core + greybox
-- [ ] T1.1 `Jobsite.Core`: add `EnergySource`, `ControlLevel`, `HazardDefinition`, the **hazard state machine** (Latent/Reported/Controlled/Lapsed/Stopped/Incident, with seeded lapse and trigger timers), the **DaySession** meters (Safety record, Schedule, Crew trust) and **CP mastery** per area (C1–C6). EditMode tests cover every GDD §5.3 transition, the §6 abuse cases, PPE lapse, the stop-work rule that never costs CP rating, and HII.
+- [x] T1.1 `Jobsite.Core`: add `EnergySource`, `ControlLevel`, `HazardDefinition`, the **hazard state machine** (Latent/Reported/Controlled/Lapsed/Stopped/Incident, with seeded lapse and trigger timers), the **DaySession** meters (Safety record, Schedule, Crew trust) and **CP mastery** per area (C1–C6). EditMode tests cover every GDD §5.3 transition, the §6 abuse cases, PPE lapse, the stop-work rule that never costs CP rating, and HII.
 - [ ] T1.2 Add ScriptableObjects: `DayDefinition` (phase, foreground area, hazard pools, live-event timeline, lapse/trigger windows) and `HazardDefinition` (expert P×S key, feasible control levels, CFR, explanation). Author Mon–Fri plus Week 2. Add a seeded sampler.
-- [ ] T1.3a HF-LAYOUT: top-down site plan and 5 zone mood boards (gate + A–D), with sightlines, hazard hiding spots and look-alike placement. User signs off before greybox.
-- [ ] T1.3 Greybox `Assets/_Game/Scenes/Jobsite.unity` with **per-day site phase states** (Mon mobilization → Fri pour), switched by `SitePhaseController`. Walkable in XR and desktop.
+- [x] T1.3a HF-LAYOUT: top-down site plan and 5 zone mood boards (gate + A–D), with sightlines, hazard hiding spots and look-alike placement. User signs off before greybox.
+- [~] T1.3 (greybox v1 built from layout JSON: Alabama site, pump station + 4-storey Bldg B; phase switching pending) Greybox `Assets/_Game/Scenes/Jobsite.unity` with **per-day site phase states** (Mon mobilization → Fri pour), switched by `SitePhaseController`. Walkable in XR and desktop.
 - [ ] T1.4 Port the placement mechanic to `ControlTaskInteractable`, then add the tie-off and two-hand variants.
 - [ ] T1.5 **Tablet** (diegetic): photo capture (cone and occlusion validity), energy-wheel tag, risk-matrix card, Fix/Assign/Stop with the resource board, and a "why?" 3-option. Radio stop-work. 12 words per card at most.
 - [ ] T1.8 Monday: trailer orientation (2D) and the profile pick (Guided shadow day vs. Field solo), with Dolores's cues fading through Wednesday.
@@ -24,7 +24,7 @@ Each task ends green: compile, errors-only console, test or screenshot, then com
 - [ ] T1.7 Delete the v1 generators, generated assets and the old scene. Tests stay green.
 
 ## M2 — Asset wave 1: falls + trench (compliance geometry)
-- [ ] T2.1 B-PROC `Tools/blender/guardrail.py`: parametric guardrail with a 42″ top rail, 21″ midrail and 3.5″ toeboard, plus posts and clamps.
+- [x] T2.1 B-PROC `Tools/blender/guardrail.py`: parametric guardrail with a 42″ top rail, 21″ midrail and 3.5″ toeboard, plus posts and clamps.
 - [ ] T2.2 B-PROC: hole cover (plywood with a "HOLE" stencil and cleats), extension ladder (rungs, rails, feet, 3 ft extension), and frame scaffold (base plates, mudsills, planks, guardrails).
 - [ ] T2.3 B-PROC: aluminium trench box with spreaders, a trench-cut ground mesh with a spoil pile, and a sloped bench.
 - [ ] T2.3b Tripo prop wrapper `Tools/tripo/tripo_prop.py`: image→model with no rig. Reuses the charpipe key, ledger and budget cap, and has a dry-run plan mode.

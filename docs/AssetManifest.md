@@ -47,3 +47,6 @@ The look was revised for authenticity:
 - the worn variants add paint chips and a mud line, applied equally to hazard and compliant variants
 
 The clamp overshoot above 42 in was caught by the recipe's bounds check and fixed. The Unity import check is pending (next scene pass).
+- 2026-09-28 Poly Haven CC0 textures (2K jpg: diff/nor_gl/rough): brown_mud_dry, muddy_tracks, gravel_road, excavated_soil_wall, brown_mud_02 — https://polyhaven.com/license
+- 2026-09-28 Poly Haven CC0: HDRI kloofendal_48d_partly_cloudy_puresky (2k, sky only — replaces construction_yard HDRI whose non-US apartment backdrop broke authenticity); textures withered_grass, stony_dirt_path
+- 2026-09-28 Poly Haven CC0 (Alabama context): textures red_dirt_mud_01, red_laterite_soil_stones, sparse_grass; models pine_tree_01, shrub_01, fire_hydrant (B-LIB, 1k fbx)

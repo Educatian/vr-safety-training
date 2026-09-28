@@ -9,5 +9,9 @@
   "includePlatforms": [
     "Editor"
   ],
-  "autoReferenced": false
+  "autoReferenced": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
+  ]
 }

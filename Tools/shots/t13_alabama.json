@@ -1,0 +1,12 @@
+{
+  "scene": "Assets/_Game/Scenes/Jobsite.unity",
+  "outDir": "Captures/t13_alabama",
+  "shots": [
+    { "name": "01_aerial_overview", "pos": [-25, 48, -35], "lookAt": [60, 0, 38], "fov": 55 },
+    { "name": "02_gate_eye_level", "pos": [12, 1.7, -2.5], "lookAt": [18, 1.2, 25], "fov": 70 },
+    { "name": "03_bldgB_ground", "pos": [84, 1.7, 8], "lookAt": [104, 8, 29], "fov": 70 },
+    { "name": "04_bldgB_L3_edge", "pos": [100, 9.7, 30], "lookAt": [80, 4, 10], "fov": 75 },
+    { "name": "05_bldgB_roof_warning_line", "pos": [96, 17.7, 34], "lookAt": [112, 16, 22], "fov": 75 },
+    { "name": "06_trench_edge_eye_level", "pos": [63.8, 1.7, 14], "lookAt": [66, -0.8, 30], "fov": 70 }
+  ]
+}

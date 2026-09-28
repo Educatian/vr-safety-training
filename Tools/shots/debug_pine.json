@@ -1,0 +1,2 @@
+{ "scene": "Assets/_Game/Scenes/Jobsite.unity", "outDir": "Captures/debug", "width": 1000, "height": 700,
+  "shots": [ { "name": "pine_close", "pos": [20, 4, 76], "lookAt": [20, 8, 100], "fov": 60 } ] }
