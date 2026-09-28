@@ -83,6 +83,7 @@ namespace Jobsite.Editor
             var c = go.AddComponent<SiteCondition>();
             c.Configure(id, title, why, hazard, EnergySource.Electrical, CpArea.Electrical, hazard ? 3 : 1, hazard ? 4 : 1, before.gameObject, after.gameObject);
             c.SetControlKey(ControlLevel.Engineering, 480f);
+            if (hazard) c.SetStandard("29 CFR 1926.416(e)(1)", "Worn or frayed cords must not be used.", "Remove from service", false);
             return c;
         }
 
@@ -104,6 +105,7 @@ namespace Jobsite.Editor
             c.Configure(id, title, hazard ? "Handheld tool on an unprotected circuit. Use GFCI protection." : "GFCI-protected temporary power.",
                 hazard, EnergySource.Electrical, CpArea.Electrical, hazard ? 3 : 1, hazard ? 5 : 1, before.gameObject, after.gameObject);
             c.SetControlKey(ControlLevel.Engineering, 540f);
+            c.SetStandard("29 CFR 1926.404(b)(1)", "Use GFCIs or an assured grounding program on temporary power.", "120 V, 15/20 A receptacles", true);
             return c;
         }
 
@@ -124,6 +126,7 @@ namespace Jobsite.Editor
                 "Rails must extend 3 ft above the landing and the ladder must be secured.", true,
                 EnergySource.Gravity, CpArea.FallProtection, 3, 4, before.gameObject, after.gameObject);
             c.SetControlKey(ControlLevel.Engineering, 450f);
+            c.SetStandard("29 CFR 1926.1053(b)(1)", "Side rails extend above the landing, or the ladder is secured with a grab device.", "3 ft above landing", true);
             return c;
         }
 
@@ -144,6 +147,7 @@ namespace Jobsite.Editor
                 "Heat: water, rest and shade are the control here.", true,
                 EnergySource.Temperature, CpArea.General, 4, 3, before.gameObject, after.gameObject);
             c.SetControlKey(ControlLevel.Administrative, 540f);
+            c.SetStandard("OSH Act 5(a)(1) General Duty; OSHA heat guidance", "Provide water, rest and shade; acclimatize new workers.", "About 1 cup every 15-20 min", false);
             return c;
         }
 

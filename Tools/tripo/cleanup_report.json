@@ -1,0 +1,26 @@
+[
+ {
+  "name": "SM_TrafficCone28in",
+  "size_m": [
+   0.38,
+   0.36,
+   0.72
+  ],
+  "tris_in": 1892706,
+  "tris": 6790,
+  "bbox_growth": 1.016,
+  "mb": 6.9
+ },
+ {
+  "name": "SM_CrewPickup",
+  "size_m": [
+   6.2,
+   3.0,
+   2.56
+  ],
+  "tris_in": 1874061,
+  "tris": 11999,
+  "bbox_growth": 1.0,
+  "mb": 7.1
+ }
+]

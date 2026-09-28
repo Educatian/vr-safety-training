@@ -16,6 +16,10 @@ namespace Jobsite.Runtime
         [SerializeField] private FocusFour focusFour;
         [SerializeField] private ControlLevel bestControl = ControlLevel.Engineering;
         [SerializeField] private float triggerAtSeconds = 510;
+        [SerializeField] private string cfr;
+        [SerializeField] private string requirementPlain;
+        [SerializeField] private string threshold;
+        [SerializeField] private bool cfrVerified;
         [SerializeField] private GameObject unresolved;
         [SerializeField] private GameObject resolved;
         public string Id => conditionId;
@@ -25,7 +29,16 @@ namespace Jobsite.Runtime
         public Bounds PhotoBounds => GetComponent<Collider>().bounds;
         public HazardSpec Spec => new HazardSpec(conditionId, isHazard, energy, focusFour,
             area, probability, severity, bestControl,
-            triggerAtSeconds: triggerAtSeconds, lapseAfterSeconds: 90);
+            triggerAtSeconds: triggerAtSeconds, lapseAfterSeconds: 90)
+            .WithStandard(cfr, requirementPlain, threshold, cfrVerified);
+        public string Cfr => cfr;
+        public string RequirementPlain => requirementPlain;
+        public string Threshold => threshold;
+
+        public void SetStandard(string citation, string requirement, string limit, bool verified)
+        {
+            cfr = citation; requirementPlain = requirement; threshold = limit; cfrVerified = verified;
+        }
 
         public void Configure(string id, string title, string why, bool hazard,
             EnergySource source, CpArea category, int p, int s, GameObject before, GameObject after)

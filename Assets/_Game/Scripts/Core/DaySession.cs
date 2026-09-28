@@ -62,6 +62,8 @@ namespace Jobsite.Core
         public int TrueReports { get; private set; }
         public int FalseReports { get; private set; }
         public float StoppedSeconds { get; private set; }
+        public int StreakBonuses { get; private set; }
+        private int streak;
 
         public HazardState GetState(string id) => entries[id].State;
         public HazardEvidence GetEvidence(string id) => entries[id].Evidence;
@@ -86,6 +88,7 @@ namespace Jobsite.Core
             if (!e.Spec.IsHazard)
             {
                 FalseReports++;
+                streak = 0;
                 if (++e.FalseReports == 2)
                     CrewTrust--; // only a repeated false alarm on the same object costs trust
                 return ReportOutcome.FalseReport;
@@ -101,6 +104,8 @@ namespace Jobsite.Core
                     e.Evidence.TagCorrect = tag == e.Spec.Energy;
                     e.Evidence.RiskDeviation = Math.Abs(probability - e.Spec.Probability) +
                                                Math.Abs(severity - e.Spec.Severity);
+                    e.Evidence.Hinted = e.Evidence.HintTier > 0;
+                    if (++streak % XpRules.StreakLength == 0) StreakBonuses++;
                     return ReportOutcome.Reported;
                 case HazardState.Lapsed:
                     e.State = HazardState.Reported;
@@ -110,6 +115,16 @@ namespace Jobsite.Core
                 default:
                     return ReportOutcome.AlreadyReported;
             }
+        }
+
+        // Escalating hint for an unfound hazard; returns the tier given (1-3), or 0 if none applies.
+        // The token spend lives in HintBank; this only records the evidence consequence.
+        public int UseHint(string id)
+        {
+            if (!entries.TryGetValue(id, out var e) || !e.Spec.IsHazard || e.State != HazardState.Latent)
+                return 0;
+            e.Evidence.HintTier = Math.Min(3, e.Evidence.HintTier + 1);
+            return e.Evidence.HintTier;
         }
 
         public ControlOutcome ChooseControl(string id, ControlLevel level)
@@ -229,7 +244,7 @@ namespace Jobsite.Core
             score += 0.15f * (1f - ev.RiskDeviation / 8f);
             score += 0.25f * ControlQuality(spec, ev);
             if (!spec.RequiresStopWork || ev.StopWorkCalled) score += 0.10f;
-            return score;
+            return ev.Hinted ? score * 0.5f : score;
         }
 
         static float ControlQuality(HazardSpec spec, HazardEvidence ev)

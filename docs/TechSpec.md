@@ -1,5 +1,12 @@
 # Tech Spec — v2 revamp
 
+> **Platform decision (2026-09-28, user):** the game ships **on the web**, as a Unity WebGL/WebGPU build in desktop browsers. WebXR is an optional later target and fits the NIOSH RoofSafe-XR concept. Web budgets take precedence over the PC VR numbers below:
+> - vehicles: 12k tris + LOD1 about 5k, 1024 px textures
+> - props: 3k tris (small props 1.5k), 512 px textures
+> - build: Brotli compression, DXT + crunch textures, managed stripping High, no MSAA, soft shadows only on the sun at 40 m distance
+> - streaming: day-phase content streamed via Addressables, so each day downloads only its own props
+> - download target: first load 60 MB or less, 25 MB or less per additional day
+
 ## Engine and packages
 
 - Unity **6000.0.75f1 → 6000.3.25f1** (6.3 LTS).

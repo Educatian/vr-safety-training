@@ -51,6 +51,18 @@ namespace Jobsite.Core
         public float LapseAfterSeconds { get; }  // how long a weak control holds
         public bool RequiresStopWork { get; }
         public bool IsHighSeverity => Severity >= 4;
+
+        // OSHA-anchored feedback (GDD §15). Cfr is shown verbatim on the citation chip.
+        public string Cfr { get; private set; } = "";
+        public string RequirementPlain { get; private set; } = "";
+        public string Threshold { get; private set; } = "";
+        public bool CfrVerified { get; private set; }
+
+        public HazardSpec WithStandard(string cfr, string requirementPlain, string threshold, bool verified)
+        {
+            Cfr = cfr ?? ""; RequirementPlain = requirementPlain ?? ""; Threshold = threshold ?? ""; CfrVerified = verified;
+            return this;
+        }
     }
 
     // Evidence for one real hazard, feeding CP mastery (GDD §4, C1-C5).
@@ -65,5 +77,7 @@ namespace Jobsite.Core
         public int Lapses;
         public bool StopWorkCalled;
         public bool BecameIncident;
+        public bool Hinted;                     // found after a hint: half detect XP, 0.5 mastery (GDD §14)
+        public int HintTier;                    // 0 none, 1 zone, 2 energy, 3 Dolores points
     }
 }

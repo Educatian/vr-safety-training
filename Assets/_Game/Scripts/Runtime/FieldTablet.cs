@@ -74,6 +74,8 @@ namespace Jobsite.Runtime
                         var st = director.Session.GetState(condition.Id);
                         Label((st == HazardState.Latent ? "MISSED  " : "") + condition.DisplayName + " · " + st, 20,
                             st == HazardState.Latent ? new Color(1f, .45f, .35f) : Ink);
+                        if (st == HazardState.Latent && !string.IsNullOrEmpty(condition.Cfr))
+                            Label("   " + condition.Cfr + " — " + condition.Threshold, 18, Accent);
                     }
                 Label("Tomorrow's toolbox talk opens with:", 22, Accent);
                 Button("Protect edges. Clear access. Verify controls.", () => director.ExplainBack(0));
@@ -102,6 +104,7 @@ namespace Jobsite.Runtime
             else
             {
                 Label("Reported · " + state, 22, Ink);
+                Standard(target);
                 if (state == HazardState.Reported || state == HazardState.Stopped)
                 {
                     Button("Fix · engineered control", () => director.Control(ControlLevel.Engineering), Icon("control_Engineering"));
@@ -112,6 +115,14 @@ namespace Jobsite.Runtime
             }
             Button("Return to site", director.ToggleTablet);
             Button("Finish shift", director.EndShift);
+        }
+
+        // OSHA citation chip + plain-language requirement (GDD §15).
+        private void Standard(SiteCondition target)
+        {
+            if (string.IsNullOrEmpty(target.Cfr)) return;
+            Label(target.Cfr + "  ·  " + target.Threshold, 20, Accent);
+            Label(target.RequirementPlain, 20, Ink);
         }
 
         static string Dots(int n) => new string('●', n) + new string('○', 5 - n);
