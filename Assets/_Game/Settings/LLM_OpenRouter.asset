@@ -17,4 +17,4 @@ MonoBehaviour:
   apiKeyEnvironmentVariable: OPENROUTER_API_KEY
   timeoutSeconds: 25
   apiKeyFile: .env
-  webProxyEndpoint: 
+  webProxyEndpoint: /api/chat

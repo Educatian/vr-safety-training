@@ -11,7 +11,7 @@ namespace Jobsite.Core
     public static class XpRules
     {
         public const int Detect = 100, Tag = 25, RiskClose = 25, BestControl = 40, EngineeredBonus = 20,
-            JustifiedStop = 50, StreakBonus = 50, StreakLength = 3;
+            JustifiedStop = 30, StreakBonus = 50, StreakLength = 3;
 
         public static readonly int[] LevelThresholds = { 0, 400, 1100, 2200 }; // L1 Trainee .. L4 Competent Person
 

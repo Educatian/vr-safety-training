@@ -61,7 +61,7 @@ namespace Jobsite.Runtime
                 canvas = go.GetComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = cine; canvas.planeDistance = 0.3f;
                 var scaler = go.GetComponent<CanvasScaler>();
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = 1;
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; scaler.referenceResolution = new Vector2(1920, 1080) / GameSettings.TextScale; scaler.matchWidthOrHeight = 1;
             }
             if (cine != null) { cine.gameObject.SetActive(on); canvas.gameObject.SetActive(on); }
             if (player != null) { player.enabled = !on; player.View.enabled = !on; var l = player.View.GetComponent<AudioListener>(); if (l) l.enabled = !on; }
@@ -95,6 +95,11 @@ namespace Jobsite.Runtime
                 Text(b, label, 24, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
                 b.gameObject.AddComponent<Button>().onClick.AddListener(() => ShowTab(tab));
             }
+            // Roster sign-in: pseudonymous codes from the instructor. Blank = practice (nothing reaches a class report).
+            Field(root, "CLASS CODE", GameSettings.ClassCode, v => GameSettings.ClassCode = v, new Vector2(0.56f, 0.72f), new Vector2(0.74f, 0.775f));
+            Field(root, "STUDENT ID", GameSettings.LearnerId, v => GameSettings.LearnerId = v, new Vector2(0.76f, 0.72f), new Vector2(0.94f, 0.775f));
+            Text(root, "Play data (no names) goes to your course's report. AI crew chat asks first. Esc = pause/settings.", 18, new Color(.7f, .75f, .75f),
+                new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.06f), TextAnchor.MiddleLeft);
             body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.7f), new Color(0, 0, 0, 0));
             ShowTab(Tab.Episodes);
             StartCoroutine(Orbit());
@@ -155,6 +160,19 @@ namespace Jobsite.Runtime
                 Text(card, c.Backstory, 15, new Color(.82f, .85f, .85f), new Vector2(0.33f, 0.16f), new Vector2(0.98f, 0.66f), TextAnchor.UpperLeft);
                 Text(card, "Wants " + c.Want, 15, new Color(.55f, .85f, 1f), new Vector2(0.33f, 0.02f), new Vector2(0.98f, 0.16f), TextAnchor.UpperLeft);
             }
+        }
+
+        private void Field(Transform parent, string placeholder, string value, System.Action<string> save, Vector2 min, Vector2 max)
+        {
+            var box = Panel(parent, placeholder, min, max, new Color(.1f, .12f, .13f, .95f));
+            var text = Text(box, "", 24, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleLeft);
+            text.rectTransform.offsetMin = new Vector2(14, 0);
+            text.supportRichText = false;
+            var hint = Text(box, placeholder, 22, new Color(1, 1, 1, .4f), Vector2.zero, Vector2.one, TextAnchor.MiddleLeft);
+            hint.rectTransform.offsetMin = new Vector2(14, 0);
+            var field = box.gameObject.AddComponent<InputField>();
+            field.textComponent = text; field.placeholder = hint; field.characterLimit = 24; field.text = value;
+            field.onEndEdit.AddListener(v => { save(v); PlayerPrefs.Save(); });
         }
 
         private static void Art(RectTransform parent, string resource, Vector2 min, Vector2 max, Rect uv, bool lit)

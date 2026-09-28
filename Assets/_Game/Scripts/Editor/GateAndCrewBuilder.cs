@@ -73,7 +73,7 @@ namespace Jobsite.Editor
             var config = AssetDatabase.LoadAssetAtPath<LlmEndpointConfig>(ConfigPath);
             if (config == null) { config = ScriptableObject.CreateInstance<LlmEndpointConfig>(); AssetDatabase.CreateAsset(config, ConfigPath); }
             // Editor/desktop read the key from the gitignored project .env; web builds must use the proxy (Tools/proxy).
-            config.ConfigureOpenRouter("anthropic/claude-haiku-4.5", "OPENROUTER_API_KEY", ".env", config.WebProxyEndpoint);
+            config.ConfigureOpenRouter("anthropic/claude-haiku-4.5", "OPENROUTER_API_KEY", ".env", "/api/chat");   // web: same-origin Pages Function
             EditorUtility.SetDirty(config);
             AssetDatabase.SaveAssets();
             return config;

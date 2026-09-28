@@ -30,6 +30,15 @@ namespace Jobsite.Core
 
         public QuizSession(IEnumerable<QuizItem> items) => this.items = items.ToList();
 
+        // Shuffled option order per session (removes the authored answer-position bias); scoring follows the shuffle.
+        public QuizSession(IEnumerable<QuizItem> items, int seed) : this(items.Select((q, i) => Shuffled(q, new Random(seed + i * 7919)))) { }
+
+        static QuizItem Shuffled(QuizItem q, Random rng)
+        {
+            var order = Enumerable.Range(0, q.Options.Length).OrderBy(_ => rng.Next()).ToArray();
+            return new QuizItem(q.Id, q.Prompt, order.Select(k => q.Options[k]).ToArray(), Array.IndexOf(order, q.Correct), q.Explanation, q.Cfr);
+        }
+
         public IReadOnlyList<QuizItem> Items => items;
         public int Index { get; private set; }
         public QuizItem Current => Index < items.Count ? items[Index] : null;

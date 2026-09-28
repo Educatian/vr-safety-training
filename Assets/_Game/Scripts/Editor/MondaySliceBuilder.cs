@@ -54,6 +54,8 @@ namespace Jobsite.Editor
 
             var director = new GameObject("ShiftDirector").AddComponent<ShiftDirector>();
             director.gameObject.AddComponent<EpisodeDirector>();
+            director.gameObject.AddComponent<Telemetry>();
+            director.gameObject.AddComponent<AudioDirector>();
             var radio = director.gameObject.AddComponent<AudioSource>();
             var tablet = BuildTablet(cam, out var panel, out var radioText, out var frame, out var flash);
             tablet.Configure(director, panel, radioText, radioText.font, frame, flash);
@@ -219,6 +221,8 @@ namespace Jobsite.Editor
             flash = flashGo.GetComponent<Image>(); flash.color = Color.clear; flash.raycastTarget = false;
 
             canvasGo.AddComponent<Minimap>().Build(canvasGo.transform);
+            canvasGo.AddComponent<Hud>();
+            canvasGo.AddComponent<PauseMenu>();
             var tablet = canvasGo.AddComponent<FieldTablet>();
             tablet.name = "TabletCanvas";
             radioText.name = "RadioLine";

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Competent Person · Instructor</title>
+<style>
+  :root { --bg:#0e1113; --panel:#171b1e; --ink:#e7ecea; --muted:#9aa5a2; --accent:#ffc61a; --line:#2a3033; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:26px; margin:0 0 4px; color:var(--accent); letter-spacing:.02em; }
+  p.lead { color:var(--muted); margin:0 0 20px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  h2 { font-size:17px; margin:0 0 10px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .row > div { flex:1 1 200px; }
+  input { width:100%; padding:9px 10px; border-radius:6px; border:1px solid var(--line); background:#0b0d0f; color:var(--ink); font:inherit; }
+  button { padding:9px 16px; border-radius:6px; border:0; background:var(--accent); color:#111; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:600; }
+  .ok { color:#7fd18b; } .bad { color:#ff8a7a; } .muted { color:var(--muted); }
+  code { background:#0b0d0f; padding:2px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Competent Person · Instructor</h1>
+  <p class="lead">Give students a class code and a student ID (not their name). They enter both on the game's title screen.
+    Completion codes are signed by this server; paste one below to check it.</p>
+
+  <section>
+    <h2>Check a completion code</h2>
+    <div class="row">
+      <div><label for="code">Code (e.g. CP2-ABCD-EFGH)</label><input id="code" autocomplete="off"></div>
+      <button id="verify">Verify</button>
+    </div>
+    <p id="verifyOut" class="muted"></p>
+  </section>
+
+  <section>
+    <h2>Class report</h2>
+    <div class="row">
+      <div><label for="cls">Class code</label><input id="cls" autocomplete="off"></div>
+      <div><label for="key">Instructor key</label><input id="key" type="password" autocomplete="off"></div>
+      <button id="load">Load</button>
+      <button id="csv" class="ghost">Download events CSV</button>
+    </div>
+    <p id="status" class="muted"></p>
+    <h2>Completions</h2>
+    <div class="scroll"><table id="comp"></table></div>
+    <h2 style="margin-top:16px">Activity by student and episode</h2>
+    <div class="scroll"><table id="act"></table></div>
+  </section>
+  <p class="muted">Training records only; not an OSHA 10/30 card or a competent-person designation.</p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+try { $("key").value = sessionStorage.getItem("cp_key") || ""; $("cls").value = localStorage.getItem("cp_cls") || ""; } catch {}
+const pct = (v) => (v == null ? "" : Math.round(v * 100) + "%");
+function table(el, rows, cols) {
+  el.innerHTML = "";
+  if (!rows.length) { el.innerHTML = '<tr><td class="muted">No data yet.</td></tr>'; return; }
+  const head = el.insertRow(); cols.forEach(([k, label]) => { const th = document.createElement("th"); th.textContent = label; head.appendChild(th); });
+  rows.forEach((r) => { const tr = el.insertRow(); cols.forEach(([k, , fmt]) => { tr.insertCell().textContent = fmt ? fmt(r[k]) : (r[k] ?? ""); }); });
+}
+$("verify").onclick = async () => {
+  const code = $("code").value.trim().toUpperCase();
+  const r = await fetch("/api/verify?code=" + encodeURIComponent(code)).then((x) => x.json()).catch(() => ({ valid: false }));
+  $("verifyOut").className = r.valid ? "ok" : "bad";
+  $("verifyOut").textContent = r.valid
+    ? `Valid · student ${r.learner || "(practice)"} · class ${r.class_code || "-"} · episode ${r.episode} · ${r.xp} XP · hazards found ${pct(r.hii)} · quiz ${r.quiz_correct}/${r.quiz_total} · ${r.received} UTC`
+    : "Not a valid code.";
+};
+async function load() {
+  const cls = $("cls").value.trim().toUpperCase(), key = $("key").value;
+  try { sessionStorage.setItem("cp_key", key); localStorage.setItem("cp_cls", cls); } catch {}
+  $("status").textContent = "Loading…";
+  const res = await fetch("/api/report?class=" + encodeURIComponent(cls), { headers: { "X-Instructor-Key": key } });
+  if (!res.ok) { $("status").textContent = res.status === 401 ? "Wrong instructor key." : "Could not load (" + res.status + ")."; return; }
+  const d = await res.json();
+  $("status").textContent = `Class ${d.class}: ${d.completions.length} completions.`;
+  table($("comp"), d.completions, [["learner", "Student"], ["episode", "Ep"], ["code", "Code"], ["xp", "XP"], ["hii", "Hazards found", pct],
+    ["precision", "Report precision", pct], ["incidents", "Incidents"], ["quiz_correct", "Quiz ✓"], ["quiz_total", "of"], ["received", "When (UTC)"]]);
+  table($("act"), d.activity, [["learner", "Student"], ["episode", "Ep"], ["sessions", "Sessions"], ["reports", "Reports"], ["hints", "Hints"],
+    ["stops", "Stop-work"], ["installs", "Fixes"], ["incidents", "Incidents"], ["last_seen", "Last seen (UTC)"]]);
+}
+$("load").onclick = load;
+$("csv").onclick = async () => {
+  const cls = $("cls").value.trim().toUpperCase();
+  const res = await fetch("/api/report?format=csv&class=" + encodeURIComponent(cls), { headers: { "X-Instructor-Key": $("key").value } });
+  if (!res.ok) { $("status").textContent = "Could not download (" + res.status + ")."; return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(await res.blob()); a.download = cls + "_events.csv"; a.click();
+};
+</script>
+</body>
+</html>

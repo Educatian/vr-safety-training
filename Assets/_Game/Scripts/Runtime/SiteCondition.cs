@@ -81,6 +81,18 @@ namespace Jobsite.Runtime
             triggerAtSeconds = triggerAt;
         }
 
+        public EnergySource Energy => energy;
+
+        // Replay variety (GDD §6): this run the crew did it right, so the hazard shows as its compliant twin.
+        public void MakeCompliant()
+        {
+            ShowControl();
+            isHazard = false;
+            explanation = "This one is compliant today: " + (string.IsNullOrEmpty(requirementPlain) ? "the control is in place." : requirementPlain);
+        }
+
+        public void ShiftTrigger(float seconds) => triggerAtSeconds = Mathf.Clamp(triggerAtSeconds + seconds, 240f, 580f);
+
         public void ShowControl()
         {
             if (unresolved != null) unresolved.SetActive(false);

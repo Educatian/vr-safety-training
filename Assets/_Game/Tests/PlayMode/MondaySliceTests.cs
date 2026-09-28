@@ -21,7 +21,7 @@ namespace Jobsite.PlayTests
         [UnitySetUp]
         public IEnumerator LoadScene()
         {
-            EpisodeDirector.Selected = Episodes.Get(1); EpisodeDirector.SkipIntro = true;
+            EpisodeDirector.Selected = Episodes.Get(1); ShiftDirector.SampleHazards = false; EpisodeDirector.SkipIntro = true;
             yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Single);
             yield return null;
             director = Object.FindFirstObjectByType<ShiftDirector>();

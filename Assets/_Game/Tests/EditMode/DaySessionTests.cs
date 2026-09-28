@@ -108,12 +108,17 @@ namespace Jobsite.Tests
             day.Report("swing", EnergySource.Motion, 3, 3);
 
             Assert.That(day.StopWork("swing"), Is.EqualTo(StopOutcome.Justified));
-            day.Advance(500f);
+            day.Advance(100f);
 
             Assert.That(day.GetState("swing"), Is.EqualTo(HazardState.Stopped));
             Assert.That(day.NearMisses, Is.Zero);
-            Assert.That(day.StoppedSeconds, Is.EqualTo(500f));
             Assert.That(day.CrewTrust, Is.EqualTo(1));
+
+            // The hold runs out: the crew restarts, exposure resumes until a real control goes in.
+            var events = day.Advance(40f);
+            Assert.That(events.Any(e => e.Kind == DayEventKind.StopLifted), Is.True);
+            Assert.That(day.GetState("swing"), Is.EqualTo(HazardState.Reported));
+            Assert.That(day.StoppedSeconds, Is.EqualTo(DaySession.StopHoldSeconds).Within(0.01f));
         }
 
         [Test]

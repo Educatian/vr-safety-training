@@ -84,6 +84,7 @@ namespace Jobsite.Runtime
             else
             {
                 Label("Reported · " + state, 22, Ink);
+                if (!string.IsNullOrEmpty(director.LastFeedback)) Label(director.LastFeedback, 20, new Color(.55f, .85f, 1f));
                 Standard(target);
                 if (state == HazardState.Reported || state == HazardState.Stopped)
                 {
@@ -152,6 +153,10 @@ namespace Jobsite.Runtime
                 foreach (var b in director.BadgesEarned) Label("BADGE · " + BadgeName(b) + $"  +{Career.BadgeBonus} SP", 22, Color.white);
                 Label($"+{director.PointsAwarded} Safety Points · {director.Career.Points} SP to spend in the gear locker", 22, Ink);
                 Label($"Level {director.Career.Level} · {Career.Rank(director.Career.Level)}", 22, Ink);
+                Label("COMPLETION RECORD", 22, Accent);
+                Label($"Student {(string.IsNullOrEmpty(GameSettings.LearnerId) ? "(practice, not signed in)" : GameSettings.LearnerId)} · Class {(string.IsNullOrEmpty(GameSettings.ClassCode) ? "-" : GameSettings.ClassCode)} · {System.DateTime.Now:yyyy-MM-dd}", 20, Ink);
+                Label("Completion code: " + (director.CompletionCode ?? "sending..."), 26, Color.white);
+                Label("Give this code to your instructor. Training record only: not an OSHA 10/30 card or a competent-person designation.", 17, Ink);
                 Button("Episode select", EpisodeDirector.BackToMenu, null, true);
                 return;
             }
@@ -164,6 +169,15 @@ namespace Jobsite.Runtime
         private void Chat(CrewMember crew)
         {
             Label(crew.DisplayName, 30, Color.white);
+            if (GameSettings.AiConsent < 0)
+            {
+                Label("Crew replies are written by an AI service (OpenRouter, Anthropic Claude). What you type is sent there to answer you. " +
+                      "Do not type names or personal information. The game logs only that you asked, never the text.", 19, Ink);
+                Button("OK, use AI replies", () => { GameSettings.AiConsent = 1; PlayerPrefs.Save(); Refresh(); }, null, true);
+                Button("No thanks, use built-in answers", () => { GameSettings.AiConsent = 0; PlayerPrefs.Save(); Refresh(); });
+                Button("Close (Tab)", director.EndTalk);
+                return;
+            }
             var lines = crew.Transcript;
             for (var i = System.Math.Max(0, lines.Count - 6); i < lines.Count; i++)
                 Label(lines[i], 19, lines[i].StartsWith("You:") ? Accent : Ink);
@@ -239,7 +253,8 @@ namespace Jobsite.Runtime
             var text = go.GetComponent<Text>(); text.font = font; text.fontSize = size;
             text.color = color ?? Ink; text.text = value;
             text.alignment = TextAnchor.MiddleLeft; text.raycastTarget = false;
-            go.GetComponent<LayoutElement>().preferredHeight = size + 14;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Overflow;
+            go.GetComponent<LayoutElement>().minHeight = size + 14;
         }
 
         private void Button(string title, UnityEngine.Events.UnityAction action, Sprite icon = null, bool primary = false)
@@ -247,8 +262,9 @@ namespace Jobsite.Runtime
             var go = new GameObject(title, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
             go.transform.SetParent(content, false);
             go.GetComponent<Image>().color = primary ? Accent : Chip;
-            go.GetComponent<LayoutElement>().preferredHeight = 58;
-            go.GetComponent<Button>().onClick.AddListener(action);
+            // ~40 characters per line at 24 px on the tablet screen; long answers get taller buttons instead of clipping.
+            go.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(58, 22 + Mathf.CeilToInt(title.Length / 40f) * 28);
+            go.GetComponent<Button>().onClick.AddListener(() => { AudioDirector.Play("click"); action(); });
             var left = 16f;
             if (icon != null)
             {
@@ -264,6 +280,7 @@ namespace Jobsite.Runtime
             var rect = label.GetComponent<RectTransform>(); rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = new Vector2(left, 0); rect.offsetMax = new Vector2(-10, 0);
             var text = label.GetComponent<Text>(); text.font = font; text.fontSize = 24; text.color = primary ? new Color(.08f, .08f, .08f) : Color.white;
             text.text = title; text.alignment = TextAnchor.MiddleLeft; text.raycastTarget = false;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
         }
     }
 }

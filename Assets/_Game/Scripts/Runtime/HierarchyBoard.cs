@@ -28,6 +28,8 @@ namespace Jobsite.Runtime
                 var slot = Panel(rt, $"Slot{i + 1}", new Vector2(0, 1), new Vector2(0.52f, 1), new Vector2(0, -8 - i * 62), 56, new Color(1, 1, 1, 0.06f));
                 Text(slot, $"{i + 1}", font, 18, new Color(1f, .78f, .1f), TextAnchor.MiddleLeft, 8);
                 board.slots.Add(slot);
+                var target = slot;   // tap/keyboard alternative to dragging: select a card, then a slot
+                slot.gameObject.AddComponent<Button>().onClick.AddListener(() => board.PlacePicked(target));
             }
             board.pile = Panel(rt, "Pile", new Vector2(0.55f, 1), new Vector2(1, 1), new Vector2(0, -8), 5 * 62 - 6, new Color(0, 0, 0, 0));
             var names = HierarchyOrdering.Correct.OrderBy(n => (n.GetHashCode() * 7919) & 0xffff).ToList(); // stable shuffle
@@ -36,7 +38,9 @@ namespace Jobsite.Runtime
                 var card = Panel(board.pile, names[i], new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -i * 62), 56, new Color(.19f, .26f, .27f));
                 Text(card, names[i], font, 22, Color.white, TextAnchor.MiddleCenter, 0);
                 card.gameObject.AddComponent<CanvasGroup>();
-                card.gameObject.AddComponent<DragCard>().Init(board, names[i]);
+                var drag = card.gameObject.AddComponent<DragCard>();
+                drag.Init(board, names[i]);
+                card.gameObject.AddComponent<Button>().onClick.AddListener(() => board.Pick(drag));
             }
             var check = Panel(rt, "Check", new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 30), 50, new Color(1f, .78f, .1f));
             check.pivot = new Vector2(0.5f, 0);
@@ -71,6 +75,22 @@ namespace Jobsite.Runtime
         }
 
         internal RectTransform Pile => pile;
+
+        private DragCard picked;
+        public void Pick(DragCard card)
+        {
+            if (picked != null) picked.Highlight(false);
+            picked = card == picked ? null : card;
+            if (picked != null) picked.Highlight(true);
+        }
+
+        public void PlacePicked(RectTransform slot)
+        {
+            if (picked == null) return;
+            picked.Highlight(false);
+            Drop(picked, slot);
+            picked = null;
+        }
 
         static RectTransform Panel(RectTransform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pos, float height, Color color)
         {
@@ -125,6 +145,8 @@ namespace Jobsite.Runtime
             rt.anchoredPosition = Vector2.zero; rt.offsetMin = new Vector2(rt.offsetMin.x, 3); rt.offsetMax = new Vector2(-3, -3);
             GetComponent<Image>().color = new Color(.23f, .34f, .36f);
         }
+
+        public void Highlight(bool on) => GetComponent<Image>().color = on ? new Color(1f, .78f, .1f, .55f) : new Color(.19f, .26f, .27f);
 
         public void ReturnHome()
         {

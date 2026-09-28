@@ -24,7 +24,7 @@ namespace Jobsite.PlayTests
         [UnityTest]
         public IEnumerator Gate_CheckInBriefingQuiz_ThenShift()
         {
-            EpisodeDirector.Selected = Episodes.Get(1); EpisodeDirector.SkipIntro = true;
+            EpisodeDirector.Selected = Episodes.Get(1); ShiftDirector.SampleHazards = false; EpisodeDirector.SkipIntro = true;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var director = Object.FindFirstObjectByType<ShiftDirector>();
@@ -46,7 +46,7 @@ namespace Jobsite.PlayTests
             yield return null;
             Shot("02_toolbox_quiz");
 
-            director.AnswerQuiz(1); director.AnswerQuiz(1); director.AnswerQuiz(2);
+            while (!director.Quiz.Done) director.AnswerQuiz(director.Quiz.Current.Correct);   // options are shuffled per session
             Assert.That(director.Quiz.Done, Is.True);
             Assert.That(director.Quiz.CorrectCount, Is.EqualTo(3));
             director.Begin();
@@ -57,7 +57,7 @@ namespace Jobsite.PlayTests
         [UnityTest]
         public IEnumerator Crew_Dolores_AnswersAQuestion()
         {
-            EpisodeDirector.Selected = Episodes.Get(1); EpisodeDirector.SkipIntro = true;
+            EpisodeDirector.Selected = Episodes.Get(1); ShiftDirector.SampleHazards = false; EpisodeDirector.SkipIntro = true; GameSettings.AiConsent = 1;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var dolores = Object.FindObjectsByType<CrewMember>(FindObjectsSortMode.None).First(c => c.DisplayName == "Dolores");

@@ -75,6 +75,7 @@ namespace Jobsite.Runtime
             try
             {
                 if (endpoint == null) throw new InvalidOperationException("no endpoint");
+                if (GameSettings.AiConsent != 1) throw new InvalidOperationException("AI chat declined");
                 var service = new OpenAiCompatibleConversationService(endpoint);
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(endpoint.TimeoutSeconds));
                 var reply = await service.ReplyAsync(new ConversationRequest
@@ -92,7 +93,9 @@ namespace Jobsite.Runtime
             catch (Exception e)
             {
                 Debug.LogWarning($"[Crew] {displayName} offline: {e.GetType().Name}");
-                answer = offlineLine;
+                // Built-in answer: the grounded fact for what you photographed, else the authored facts, else the generic prompt.
+                answer = !string.IsNullOrWhiteSpace(selectedContext) ? "Here's the rule: " + selectedContext.Trim()
+                    : !string.IsNullOrWhiteSpace(facts) ? facts.Split('.')[0] + "." : offlineLine;
             }
             Thinking = false;
             transcript.Add($"{displayName}: {answer}");

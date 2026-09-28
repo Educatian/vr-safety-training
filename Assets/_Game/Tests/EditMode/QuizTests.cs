@@ -1,3 +1,4 @@
+using System.Linq;
 using Jobsite.Core;
 using NUnit.Framework;
 
@@ -38,6 +39,20 @@ namespace Jobsite.Tests
                 Assert.That(item.Explanation, Is.Not.Empty);
             foreach (var item in QuizBank.EndOfDayTrench())
                 Assert.That(item.Cfr, Does.StartWith("29 CFR"));
+        }
+
+        [Test]
+        public void SeededSession_ShufflesOptions_ButScoresTheSameAnswer()
+        {
+            var plain = QuizBank.ToolboxTrench();
+            var s = new QuizSession(plain, seed: 12345);
+            var positions = s.Items.Select(q => q.Correct).ToList();
+            for (var i = 0; i < plain.Count; i++)
+                Assert.That(s.Items[i].Options[s.Items[i].Correct], Is.EqualTo(plain[i].Options[plain[i].Correct]));
+            foreach (var q in s.Items.ToList()) Assert.That(s.Answer(q.Correct), Is.True);
+            Assert.That(s.CorrectCount, Is.EqualTo(plain.Count));
+            var spread = Enumerable.Range(0, 20).Select(k => new QuizSession(plain, k).Items[0].Correct).Distinct().Count();
+            Assert.That(spread, Is.GreaterThan(1), "answer position varies across sessions");
         }
     }
 }

@@ -48,6 +48,11 @@ namespace Jobsite.Runtime
         public IReadOnlyList<Badge> BadgesEarned { get; private set; } = new Badge[0];
         public int Xp { get; private set; }
         public Episode Episode => EpisodeDirector.Selected ?? Episodes.Get(1);
+        public static bool SampleHazards = true;           // tests switch this off for a fixed answer key
+        public int Seed { get; private set; }
+        public string LastFeedback { get; private set; } = "";
+        public string CompletionCode { get; private set; }
+        public Telemetry Telemetry { get; private set; }
 
         public void Configure(SiteCondition[] targets, SitePlayer explorer, FieldTablet ui, AudioSource speaker)
         { conditions = targets; player = explorer; tablet = ui; radio = speaker; }
@@ -56,12 +61,28 @@ namespace Jobsite.Runtime
         {
             // The day's hazards are whatever SitePhaseController left active (Mon, Tue, Wed ...).
             conditions = FindObjectsByType<SiteCondition>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            Seed = Environment.TickCount & 0x7fffffff;
+            if (SampleHazards) Sample(new System.Random(Seed));
             Session = new DaySession(conditions.Select(c => c.Spec));
+            Telemetry = GetComponent<Telemetry>() ?? gameObject.AddComponent<Telemetry>();
+            Telemetry.Episode = Episode.Number; Telemetry.Seed = SampleHazards ? Seed : 0;
             Career = CareerStore.Load();
             Hints = new HintBank(Career.StartingHints);
             logPath = Path.Combine(Application.persistentDataPath, "jobsite-" + Guid.NewGuid().ToString("N") + ".jsonl");
-            Log("session_start", "day", "conditions=" + conditions.Length);
+            Log("session_start", "ep" + Episode.Number, "conditions=" + conditions.Length + " seed=" + (SampleHazards ? Seed : 0));
             tablet.Refresh();
+        }
+
+        // One real hazard shows its compliant twin each run and incident timers shift, so a replay is not a memory test.
+        private void Sample(System.Random rng)
+        {
+            var hazards = conditions.Where(c => c.IsHazard).ToList();
+            if (hazards.Count > 2)
+            {
+                var keep = HazardPoolSampler.Sample(hazards.Select(c => c.Spec).ToList(), hazards.Count - 1, 0, rng.Next()).Select(s => s.Id).ToHashSet();
+                foreach (var c in hazards.Where(c => !keep.Contains(c.Id))) c.MakeCompliant();
+            }
+            foreach (var c in conditions.Where(c => c.IsHazard)) c.ShiftTrigger(rng.Next(-45, 46));
         }
 
         private void Update()
@@ -70,7 +91,11 @@ namespace Jobsite.Runtime
             Session.Paused = MenuOpen;
             foreach (var ev in Session.Advance(Time.deltaTime))
             {
-                Say(ev.Kind == DayEventKind.Lapsed ? "Temporary control lapsed. Revisit your report." : "Near-miss reported. Secure the area; review follows.");
+                var name = conditions.FirstOrDefault(c => c.Id == ev.HazardId)?.DisplayName ?? "the crew";
+                Say(ev.Kind == DayEventKind.Lapsed ? "Temporary control lapsed. Revisit your report."
+                    : ev.Kind == DayEventKind.StopLifted ? $"Ray: We can't sit all day. Crew's back at it: {name}. Get a real fix in."
+                    : "Near-miss reported. Secure the area; review follows.");
+                if (ev.Kind == DayEventKind.NearMiss || ev.Kind == DayEventKind.Recordable) AudioDirector.Play("alarm");
                 Log(ev.Kind.ToString(), ev.HazardId, "");
             }
             if (Session.Clock >= 600) EndShift();
@@ -84,7 +109,7 @@ namespace Jobsite.Runtime
             if (CheckInComplete)
             {
                 Current = Phase.Briefing; MenuOpen = true;
-                Quiz = new QuizSession(Episode.ToolboxQuiz());
+                Quiz = new QuizSession(Episode.ToolboxQuiz(), Seed);
                 Say("Checked in. Dolores: order the controls, then three quick questions.");
             }
             else Say($"Checked in: {string.Join(", ", checkedIn)}. {Enum.GetValues(typeof(CheckInStation.Kind)).Length - checkedIn.Count} to go.");
@@ -147,7 +172,7 @@ namespace Jobsite.Runtime
             if (Carrying) { Place(target, hit.point); return; }
             if (target == null) { Say("Photograph a condition, or pick up materials at the rack."); return; }
             if (!PhotoValid(target)) { Say("Move closer. Keep the whole condition in your frame."); return; }
-            selected = target; MenuOpen = true; tablet.Flash(); tablet.Refresh(); Log("photo", target.Id, "valid-frame"); Ping();
+            selected = target; MenuOpen = true; LastFeedback = ""; AudioDirector.Play("shutter"); tablet.Flash(); tablet.Refresh(); Log("photo", target.Id, "valid-frame"); Ping();
         }
 
         private void Collect()
@@ -182,6 +207,7 @@ namespace Jobsite.Runtime
                 Destroy(carriedVisual); carriedVisual = null; pendingInstall = null;
                 Xp += XpRules.BestControl + XpRules.EngineeredBonus;
                 Say("Control installed. Crew can continue safely.");
+                AudioDirector.Play("success");
                 Log("install_success", goal.Id, "Engineering");
             }
         }
@@ -206,7 +232,16 @@ namespace Jobsite.Runtime
             if (selected == null || Finished) return;
             var outcome = Session.Report(selected.Id, energy, probability, severity);
             if (outcome == ReportOutcome.Reported) Xp += XpRules.HazardXp(selected.Spec, Session.GetEvidence(selected.Id));
-            Say(outcome == ReportOutcome.FalseReport ? selected.Explanation : "Report recorded. Choose your control.");
+            // Corrective feedback on the tag and the rating (the engine already knows both).
+            var spec = selected.Spec;
+            LastFeedback = outcome != ReportOutcome.Reported ? "" :
+                (energy == spec.Energy ? $"Energy: {energy} - correct." : $"Energy: you tagged {energy}; the source here is {spec.Energy}.") + "\n" +
+                (Math.Abs(probability - spec.Probability) + Math.Abs(severity - spec.Severity) <= 2
+                    ? $"Risk P{probability} x S{severity}: close to the site assessment (P{spec.Probability} x S{spec.Severity})."
+                    : $"Risk P{probability} x S{severity}; site assessment is P{spec.Probability} x S{spec.Severity}. " +
+                      (severity < spec.Severity ? "Think about the worst credible outcome." : "Weigh how likely it is today."));
+            if (outcome == ReportOutcome.Reported) AudioDirector.Play("success");
+            Say(outcome == ReportOutcome.FalseReport ? selected.Explanation : outcome == ReportOutcome.Reported ? "Report recorded. Check the feedback, then choose your control." : "Report recorded. Choose your control.");
             Log("report", selected.Id, outcome + ":" + energy + ":" + probability + ":" + severity); tablet.Refresh();
         }
 
@@ -229,7 +264,7 @@ namespace Jobsite.Runtime
             if (selected == null || Finished) return;
             var result = Session.StopWork(selected.Id);
             if (result == StopOutcome.Justified) Xp += XpRules.JustifiedStop;
-            Say(result == StopOutcome.Justified ? "Work stopped. Your safety rating is protected." : "Report an active hazard before stopping this crew.");
+            Say(result == StopOutcome.Justified ? $"Work stopped for about {DaySession.StopHoldSeconds / 60:0} min. Get a control in before Ray restarts the crew." : "Report an active hazard before stopping this crew.");
             Log("stop_work", selected.Id, result.ToString()); tablet.Refresh();
         }
 
@@ -237,7 +272,7 @@ namespace Jobsite.Runtime
         {
             if (Current != Phase.Shift) return;
             Current = Phase.Closed; MenuOpen = true; Session.Paused = true;
-            Quiz = new QuizSession(Episode.ClosingQuiz());
+            Quiz = new QuizSession(Episode.ClosingQuiz(), Seed + 1);
             Say("Shift closed. Review what your crew needed.");
             Log("shift_end", "day", "HII=" + Session.HazardIdentificationIndex.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " xp=" + Xp);
             tablet.Refresh();
@@ -255,6 +290,11 @@ namespace Jobsite.Runtime
             EpisodeComplete = true;
             Log("episode_complete", "ep" + Episode.Number, "xp=" + Xp);
             StartCoroutine(EpisodeDirector.Epilogue(this));
+            Telemetry.Complete(new Telemetry.Completion
+            {
+                episode = Episode.Number, xp = Xp, hii = Session.HazardIdentificationIndex, precision = Session.ReportPrecision,
+                incidents = Session.NearMisses + Session.Recordables, quizCorrect = Quiz?.CorrectCount ?? 0, quizTotal = Quiz?.Items.Count ?? 0,
+            }, code => { CompletionCode = code ?? "offline"; tablet.Refresh(); });
             tablet.Refresh();
         }
 
@@ -309,11 +349,33 @@ namespace Jobsite.Runtime
         }
 
         public void Say(string text) { notice = text; Ping(); }
-        private void Ping() { if (radio != null && radio.clip != null) radio.Play(); }
+        private void Ping() => AudioDirector.Play("radio");
+
+        // HUD prompt for whatever the crosshair is on (same ray and range as Interact).
+        public string AimPrompt(out bool actionable)
+        {
+            actionable = false;
+            if (MenuOpen || Finished || player == null) return "";
+            var ray = player.View.ViewportPointToRay(new Vector3(.5f, .5f));
+            if (!Physics.Raycast(ray, out var hit, Career.PhotoRange, ~0, QueryTriggerInteraction.Collide)) return "";
+            actionable = true;
+            var station = hit.collider.GetComponentInParent<CheckInStation>();
+            if (station != null) return "E  " + (station.name == "SignInBoard" ? "Sign in" : "Take the " + station.name);
+            var crew = hit.collider.GetComponentInParent<CrewMember>();
+            if (crew != null) return "E  Talk to " + crew.DisplayName;
+            if (Current != Phase.Shift) { actionable = false; return ""; }
+            if (hit.collider.GetComponentInParent<VehicleController>() != null) return "E  Get in";
+            if (hit.collider.GetComponentInParent<ControlSupply>() != null) return pendingInstall != null ? "E  Pick up the kit" : "Supply rack";
+            if (Carrying) return "E  Set the kit down here";
+            var target = hit.collider.GetComponentInParent<SiteCondition>();
+            if (target != null) return PhotoValid(target) ? "E  Photograph" : "Step back: fit it all in frame";
+            actionable = false; return "";
+        }
 
         [Serializable] private sealed class EventRow { public string timestamp; public string kind; public string condition; public string detail; public float shiftSeconds; }
         private void Log(string kind, string id, string detail)
         {
+            Telemetry?.Add(kind, id, detail, Session?.Clock ?? 0);
             if (logPath == null) return;
             try { File.AppendAllText(logPath, JsonUtility.ToJson(new EventRow { timestamp = DateTime.UtcNow.ToString("O"), kind = kind, condition = id, detail = detail, shiftSeconds = Session?.Clock ?? 0 }) + "\n"); }
             catch (IOException e) { Debug.LogWarning("Jobsite log unavailable: " + e.GetType().Name); }

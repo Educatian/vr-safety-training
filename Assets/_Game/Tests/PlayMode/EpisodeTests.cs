@@ -25,7 +25,7 @@ namespace Jobsite.PlayTests
         public IEnumerator GearLocker_BuyTester_ThenReadingAndHintOnSite()
         {
             CareerStore.Save(new Career(lifetimeXp: 1200, points: 900));
-            EpisodeDirector.Selected = null; EpisodeDirector.SkipIntro = false;
+            EpisodeDirector.Selected = null; ShiftDirector.SampleHazards = false; EpisodeDirector.SkipIntro = false;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var eps = Object.FindFirstObjectByType<EpisodeDirector>();
@@ -69,7 +69,7 @@ namespace Jobsite.PlayTests
         [UnityTest]
         public IEnumerator Menu_ThenEpisode2Intro_LoadsTrenchDay()
         {
-            EpisodeDirector.Selected = null; EpisodeDirector.SkipIntro = false;
+            EpisodeDirector.Selected = null; ShiftDirector.SampleHazards = false; EpisodeDirector.SkipIntro = false;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var eps = Object.FindFirstObjectByType<EpisodeDirector>();

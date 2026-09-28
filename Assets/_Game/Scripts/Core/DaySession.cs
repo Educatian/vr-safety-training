@@ -7,7 +7,7 @@ namespace Jobsite.Core
     public enum ReportOutcome { Reported, ReReportedAfterLapse, AlreadyReported, FalseReport, NotReportable, Unknown }
     public enum ControlOutcome { Installing, Assigned, NotFeasible, InvalidState, Unknown }
     public enum StopOutcome { Justified, Unjustified, InvalidState, Unknown }
-    public enum DayEventKind { Lapsed, NearMiss, Recordable }
+    public enum DayEventKind { Lapsed, NearMiss, Recordable, StopLifted }
 
     public readonly struct DayEvent
     {
@@ -29,12 +29,15 @@ namespace Jobsite.Core
     {
         // Starting values (GDD §5.2) — tune via playtest, not guesswork.
         public const float CompetentThreshold = 0.7f;
+        // A stop holds this long; then the foreman restarts the crew unless a control is on the way.
+        public const float StopHoldSeconds = 120f;
 
         sealed class Entry
         {
             public HazardSpec Spec;
             public HazardState State;
             public float LapseAt = float.PositiveInfinity;
+            public float StopUntil;
             public int FalseReports;
             public readonly HazardEvidence Evidence = new HazardEvidence();
         }
@@ -180,6 +183,7 @@ namespace Jobsite.Core
                 return StopOutcome.InvalidState;
 
             e.State = HazardState.Stopped;
+            e.StopUntil = Clock + StopHoldSeconds;
             e.Evidence.StopWorkCalled = true;
             CrewTrust++;
             return StopOutcome.Justified;
@@ -205,8 +209,11 @@ namespace Jobsite.Core
 
                 if (e.State == HazardState.Stopped)
                 {
-                    StoppedSeconds += deltaSeconds; // stopped work cannot hurt anyone
-                    continue;
+                    // Stopped work cannot hurt anyone, but it costs schedule and it does not last.
+                    StoppedSeconds += Math.Min(deltaSeconds, Math.Max(0f, e.StopUntil - (Clock - deltaSeconds)));
+                    if (Clock < e.StopUntil) continue;
+                    e.State = HazardState.Reported;
+                    events.Add(new DayEvent(DayEventKind.StopLifted, e.Spec.Id, Clock));
                 }
 
                 if (e.State == HazardState.Controlled && Clock >= e.LapseAt)
