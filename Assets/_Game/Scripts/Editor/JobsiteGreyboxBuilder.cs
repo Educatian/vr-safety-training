@@ -397,10 +397,14 @@ namespace Jobsite.Editor
             {
                 var b = rs[0].bounds;
                 foreach (var r in rs) b.Encapsulate(r.bounds);
-                var col = go.AddComponent<BoxCollider>();
-                col.center = go.transform.InverseTransformPoint(b.center);
-                col.size = go.transform.InverseTransformVector(b.size);
-                col.size = new Vector3(Mathf.Abs(col.size.x), Mathf.Abs(col.size.y), Mathf.Abs(col.size.z));
+                // World-aligned child collider: the FBX root carries an axis-conversion rotation/scale,
+                // so a collider on the root inflates and swallowed neighbouring interactables.
+                var proxy = new GameObject("Collider");
+                proxy.transform.SetParent(go.transform, true);
+                proxy.transform.SetPositionAndRotation(b.center, Quaternion.identity);
+                proxy.transform.localScale = Vector3.one;
+                var s = proxy.transform.lossyScale;
+                proxy.AddComponent<BoxCollider>().size = new Vector3(b.size.x / s.x, b.size.y / s.y, b.size.z / s.z);
             }
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
             return go;

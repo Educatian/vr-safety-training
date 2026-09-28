@@ -35,7 +35,7 @@ namespace Jobsite.Editor
                 WaterStation(root, new Vector3(6.5f, 0, 36.6f)),
             };
 
-            var rack = Box(root, "SupplyRack", new Vector3(14.5f, 0.9f, 16.2f), new Vector3(2f, 1.8f, 0.6f), new Color(0.2f, 0.32f, 0.45f));
+            var rack = Box(root, "SupplyRack", new Vector3(17.2f, 0.9f, 15.4f), new Vector3(2f, 1.8f, 0.6f), new Color(0.2f, 0.32f, 0.45f));
             rack.AddComponent<BoxCollider>(); // Box() strips colliders; the rack must be hit by the E ray
             rack.AddComponent<ControlSupply>();
 
@@ -54,8 +54,8 @@ namespace Jobsite.Editor
 
             var director = new GameObject("ShiftDirector").AddComponent<ShiftDirector>();
             var radio = director.gameObject.AddComponent<AudioSource>();
-            var tablet = BuildTablet(cam, out var panel, out var radioText);
-            tablet.Configure(director, panel, radioText, Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+            var tablet = BuildTablet(cam, out var panel, out var radioText, out var frame, out var flash);
+            tablet.Configure(director, panel, radioText, radioText.font, frame, flash);
             sitePlayer.Configure(cam, director);
             director.Configure(conditions, sitePlayer, tablet, radio);
 
@@ -148,8 +148,17 @@ namespace Jobsite.Editor
         }
 
         // ---------- tablet UI (screen-space camera so captures include it) ----------
-        static FieldTablet BuildTablet(Camera cam, out RectTransform panel, out Text radioText)
+        static FieldTablet BuildTablet(Camera cam, out RectTransform screen, out Text radioText, out RectTransform frame, out Image flash)
         {
+            foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/_Game/Resources/UI" }))
+            {
+                var imp = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
+                if (imp.textureType == TextureImporterType.Sprite) continue;
+                imp.textureType = TextureImporterType.Sprite; imp.alphaIsTransparency = true; imp.mipmapEnabled = false;
+                imp.SaveAndReimport();
+            }
+            var font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
             var canvasGo = new GameObject("TabletCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             var canvas = canvasGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceCamera;
@@ -159,33 +168,51 @@ namespace Jobsite.Editor
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
 
-            var panelGo = new GameObject("TabletPanel", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
-            panelGo.transform.SetParent(canvasGo.transform, false);
-            panel = panelGo.GetComponent<RectTransform>();
-            panel.anchorMin = panel.anchorMax = new Vector2(1, 0.5f);
-            panel.pivot = new Vector2(1, 0.5f);
-            panel.sizeDelta = new Vector2(620, 820);
-            panel.anchoredPosition = new Vector2(-40, 0);
-            panelGo.GetComponent<Image>().color = new Color(0.07f, 0.09f, 0.1f, 0.94f);
-            var layout = panelGo.GetComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(28, 28, 28, 28);
-            layout.spacing = 10;
+            // Rugged tablet frame (880x1168 art); the screen rect was measured from the art.
+            var frameGo = new GameObject("TabletFrame", typeof(RectTransform), typeof(Image));
+            frameGo.transform.SetParent(canvasGo.transform, false);
+            frame = frameGo.GetComponent<RectTransform>();
+            frame.anchorMin = frame.anchorMax = new Vector2(1, 0.5f);
+            frame.pivot = new Vector2(1, 0.5f);
+            frame.sizeDelta = new Vector2(780, 1035);
+            frame.anchoredPosition = new Vector2(-30, 0);
+            var frameImg = frameGo.GetComponent<Image>();
+            frameImg.sprite = Resources.Load<Sprite>("UI/tablet_frame");
+            frameImg.color = frameImg.sprite != null ? Color.white : new Color(0.07f, 0.09f, 0.1f, 0.94f);
+
+            var screenGo = new GameObject("Screen", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
+            screenGo.transform.SetParent(frameGo.transform, false);
+            screen = screenGo.GetComponent<RectTransform>();
+            screen.anchorMin = new Vector2(0.131f, 0.158f); screen.anchorMax = new Vector2(0.867f, 0.869f);
+            screen.offsetMin = screen.offsetMax = Vector2.zero;
+            screenGo.GetComponent<Image>().color = new Color(0.05f, 0.07f, 0.08f, 0.97f);
+            var layout = screenGo.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(22, 22, 22, 22);
+            layout.spacing = 8;
             layout.childForceExpandHeight = false;
             layout.childControlHeight = true;
             layout.childControlWidth = true;       // cards span the tablet; default 100 px truncated text
             layout.childForceExpandWidth = true;
 
-            var radioGo = new GameObject("RadioLine", typeof(RectTransform), typeof(Text));
+            var radioGo = new GameObject("RadioLine", typeof(RectTransform), typeof(Text), typeof(Shadow));
             radioGo.transform.SetParent(canvasGo.transform, false);
             var rr = radioGo.GetComponent<RectTransform>();
-            rr.anchorMin = new Vector2(0.05f, 0.03f); rr.anchorMax = new Vector2(0.62f, 0.1f);
+            rr.anchorMin = new Vector2(0.04f, 0.03f); rr.anchorMax = new Vector2(0.58f, 0.11f);
             rr.offsetMin = rr.offsetMax = Vector2.zero;
             radioText = radioGo.GetComponent<Text>();
-            radioText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            radioText.fontSize = 26;
-            radioText.color = new Color(0.96f, 0.85f, 0.55f);
+            radioText.font = font;
+            radioText.fontSize = 34;
+            radioText.color = new Color(1f, 0.85f, 0.45f);
 
-            return canvasGo.AddComponent<FieldTablet>();
+            var flashGo = new GameObject("PhotoFlash", typeof(RectTransform), typeof(Image));
+            flashGo.transform.SetParent(canvasGo.transform, false);
+            var fr = flashGo.GetComponent<RectTransform>(); fr.anchorMin = Vector2.zero; fr.anchorMax = Vector2.one; fr.offsetMin = fr.offsetMax = Vector2.zero;
+            flash = flashGo.GetComponent<Image>(); flash.color = Color.clear; flash.raycastTarget = false;
+
+            var tablet = canvasGo.AddComponent<FieldTablet>();
+            tablet.name = "TabletCanvas";
+            radioText.name = "RadioLine";
+            return tablet;
         }
 
         // ---------- helpers ----------

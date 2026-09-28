@@ -69,7 +69,7 @@ namespace Jobsite.Runtime
                 return;
             }
             if (!PhotoValid(target)) { Say("Move closer. Keep the condition inside your frame."); return; }
-            selected = target; MenuOpen = true; tablet.Refresh(); Log("photo", target.Id, "valid-frame"); Ping();
+            selected = target; MenuOpen = true; tablet.Flash(); tablet.Refresh(); Log("photo", target.Id, "valid-frame"); Ping();
         }
         public bool PhotoValid(SiteCondition target)
         {

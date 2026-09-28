@@ -51,3 +51,4 @@ The clamp overshoot above 42 in was caught by the recipe's bounds check and fixe
 - 2026-09-28 Poly Haven CC0: HDRI kloofendal_48d_partly_cloudy_puresky (2k, sky only — replaces construction_yard HDRI whose non-US apartment backdrop broke authenticity); textures withered_grass, stony_dirt_path
 - 2026-09-28 Poly Haven CC0 (Alabama context): textures red_dirt_mud_01, red_laterite_soil_stones, sparse_grass; models pine_tree_01, shrub_01, fire_hydrant (B-LIB, 1k fbx)
 - 2026-09-28 Higgsfield (gpt_image_2_5) albedo textures ×8 → seamless + luminance normals via Tools/hf/make_pbr.py: TrailerSiding, DumpsterSteel, ToiletHDPE, Galvanized, Plywood, Windscreen, ConcreteSlab, MetalDeck (Assets/_Game/Art/Textures/HF/)
+- 2026-09-28 UI: Higgsfield tablet frame + energy/control icon sheets (sliced to Assets/_Game/Resources/UI); font Barlow Condensed SemiBold (SIL OFL 1.1, Google Fonts)

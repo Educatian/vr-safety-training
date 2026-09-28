@@ -39,13 +39,15 @@ namespace Jobsite.PlayTests
 
             // Ladder: photograph -> report -> engineered fix -> collect at rack -> install.
             Photograph("mon-trailer-ladder", 3.5f, Vector3.right); // between trailers A and B
+            yield return new WaitForSecondsRealtime(0.25f); // let the shutter flash fade
             Capture("03_ladder_photographed_tablet");
             director.Report(EnergySource.Gravity, 3, 4);
             director.Control(ControlLevel.Engineering);
             Assert.That(director.Session.GetState("mon-trailer-ladder"), Is.EqualTo(HazardState.Installing));
             Face(GameObject.Find("SupplyRack").transform.position, 2.2f);
+            Physics.Raycast(player.View.ViewportPointToRay(new Vector3(.5f, .5f)), out var rackHit, 5f);
             director.Interact();
-            Assert.That(director.Carrying, Is.True, director.Notice);
+            Assert.That(director.Carrying, Is.True, director.Notice + " | ray hit: " + (rackHit.collider ? rackHit.collider.transform.parent.name + " " + rackHit.collider.bounds + " at " + rackHit.point + " from " + player.View.transform.position : "nothing"));
             Face(Condition("mon-trailer-ladder").PhotoBounds.center, 3.5f, Vector3.right);
             director.Interact();
             Assert.That(director.Session.GetState("mon-trailer-ladder"), Is.EqualTo(HazardState.Controlled), director.Notice);
@@ -68,6 +70,7 @@ namespace Jobsite.PlayTests
             director.Report(EnergySource.Electrical, 3, 4);
             director.StopWork();
             Assert.That(director.Session.GetState("mon-damaged-cord"), Is.EqualTo(HazardState.Stopped));
+            yield return new WaitForSecondsRealtime(0.25f);
             Capture("05_stop_work_radio");
 
             director.EndShift();
@@ -94,7 +97,7 @@ namespace Jobsite.PlayTests
             cc.enabled = false;
             var side = approach ?? Vector3.back;
             var from = new Vector3(target.x, 0, target.z) + side * distance;
-            if (Physics.Raycast(new Vector3(from.x, 30f, from.z), Vector3.down, out var hit, 60f)) from.y = hit.point.y;
+            from.y = 0.05f; // the site is graded flat; a downward ray could land on a trailer roof
             player.transform.position = from;
             player.transform.rotation = Quaternion.LookRotation(-side);
             player.View.transform.LookAt(target);
