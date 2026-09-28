@@ -62,6 +62,7 @@ namespace Jobsite.Editor
             var events = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             foreach (var go in new[] { player, director.gameObject, tablet.gameObject, events, rack })
                 go.transform.SetParent(gameplay, true);
+            TuesdaySliceBuilder.Add(gameplay);
         }
 
         // ---------- conditions ----------
@@ -257,6 +258,34 @@ namespace Jobsite.Editor
             var box = go.AddComponent<BoxCollider>();
             box.center = go.transform.InverseTransformPoint(worldCenter);
             box.size = size;
+        }
+    }
+
+    // Shared primitives for other day builders (Tuesday etc.).
+    public static class MondaySliceBuilderAccess
+    {
+        public static GameObject Box(Transform parent, string name, Vector3 center, Vector3 size, Color color)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, true);
+            go.transform.position = center;
+            go.transform.localScale = size;
+            var m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            m.SetColor("_BaseColor", color);
+            go.GetComponent<Renderer>().sharedMaterial = m;
+            return go;
+        }
+
+        public static void Cone(Transform parent, Vector3 at)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/TR-3D/SM_TrafficCone28in.fbx");
+            if (prefab == null) { Box(parent, "Cone", at + Vector3.up * 0.35f, new Vector3(0.3f, 0.7f, 0.3f), new Color(1f, 0.4f, 0f)); return; }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            go.transform.position = at;
+            go.transform.rotation = prefab.transform.rotation;
+            TripoImport.Apply(go, "SM_TrafficCone28in");
         }
     }
 }

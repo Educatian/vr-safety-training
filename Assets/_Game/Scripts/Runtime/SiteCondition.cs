@@ -16,6 +16,7 @@ namespace Jobsite.Runtime
         [SerializeField] private FocusFour focusFour;
         [SerializeField] private ControlLevel bestControl = ControlLevel.Engineering;
         [SerializeField] private float triggerAtSeconds = 510;
+        [SerializeField] private bool requiresStopWork;
         [SerializeField] private string cfr;
         [SerializeField] private string requirementPlain;
         [SerializeField] private string threshold;
@@ -29,7 +30,7 @@ namespace Jobsite.Runtime
         public Bounds PhotoBounds => GetComponent<Collider>().bounds;
         public HazardSpec Spec => new HazardSpec(conditionId, isHazard, energy, focusFour,
             area, probability, severity, bestControl,
-            triggerAtSeconds: triggerAtSeconds, lapseAfterSeconds: 90)
+            triggerAtSeconds: triggerAtSeconds, lapseAfterSeconds: 90, requiresStopWork: requiresStopWork)
             .WithStandard(cfr, requirementPlain, threshold, cfrVerified);
         public string Cfr => cfr;
         public string RequirementPlain => requirementPlain;
@@ -53,8 +54,9 @@ namespace Jobsite.Runtime
             if (resolved != null) resolved.SetActive(false);
         }
 
-        public void SetControlKey(ControlLevel best, float triggerAt)
+        public void SetControlKey(ControlLevel best, float triggerAt, bool stopWorkRequired = false)
         {
+            requiresStopWork = stopWorkRequired;
             bestControl = best;
             triggerAtSeconds = triggerAt;
         }

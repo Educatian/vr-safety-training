@@ -33,7 +33,7 @@ namespace Jobsite.Runtime
         private Vector3[] teleRest;
 
         public Signal Current { get; set; } = Signal.Stop;
-        public bool OutriggersSet => outrigger01 >= 1f;
+        public bool OutriggersSet => outriggers == null || outriggers.Length == 0 || outrigger01 >= 1f; // model ships with outriggers deployed
         public float BoomAngle => boomAngle;
         public float LineLength => lineLength;
         public Vector3 HookPosition => hookBlock != null ? hookBlock.position : transform.position;

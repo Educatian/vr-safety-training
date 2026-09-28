@@ -11,7 +11,7 @@ namespace Jobsite.Runtime
         public enum State { Parked, Opening, Seated, Exiting }
 
         [SerializeField] private Transform door;            // pivot on the hinge axis (local Y)
-        [SerializeField] private float doorOpenAngle = -65f;
+        [SerializeField] private float doorOpenAngle = 65f; // Blender -60 (right-handed) == Unity +60 (left-handed)
         [SerializeField] private Transform seat;            // driver eye point
         [SerializeField] private Transform exitPoint;
         [SerializeField] private WheelCollider[] steerWheels;
@@ -34,6 +34,10 @@ namespace Jobsite.Runtime
         public bool Speeding => SpeedMph > siteSpeedLimitMph;
         public int SpeedingEvents { get; private set; }
         private bool wasSpeeding;
+        private float debugThrottle;
+
+        // Test hook (PlayMode): drive without a keyboard device.
+        private void DebugThrottle(float value) => debugThrottle = value;
 
         public void Configure(Transform doorPivot, Transform seatPoint, Transform exit, WheelCollider[] steer, WheelCollider[] drive, Transform[] visuals)
         {
@@ -83,8 +87,9 @@ namespace Jobsite.Runtime
             var keys = Keyboard.current;
             var driving = state == State.Seated && keys != null;
             var throttle = driving ? (keys.wKey.isPressed ? 1f : 0f) - (keys.sKey.isPressed ? 1f : 0f) : 0f;
-            var steer = driving ? (keys.dKey.isPressed ? 1f : 0f) - (keys.aKey.isPressed ? 1f : 0f) : 0f;
-            var braking = !driving || (keys != null && keys.spaceKey.isPressed);
+            if (state == State.Seated && debugThrottle != 0f) { throttle = debugThrottle; driving = true; }
+            var steer = driving && keys != null ? (keys.dKey.isPressed ? 1f : 0f) - (keys.aKey.isPressed ? 1f : 0f) : 0f;
+            var braking = !driving || (keys != null && keys.spaceKey.isPressed && debugThrottle == 0f);
             foreach (var w in steerWheels) w.steerAngle = steer * maxSteer;
             foreach (var w in driveWheels)
             {
@@ -107,9 +112,11 @@ namespace Jobsite.Runtime
                 driverParent = driver.transform.parent;
                 if (cc) cc.enabled = false;
                 driver.enabled = false;
-                driver.transform.SetParent(seat, false);
-                driver.transform.localPosition = new Vector3(0, -1.7f, 0); // eye camera sits at +1.7
-                driver.transform.localRotation = Quaternion.identity;
+                // World-space seat: the SeatEye empty carries the FBX axis-conversion rotation, so a local
+                // placement put the eye under the chassis looking at the ground.
+                driver.transform.SetParent(seat, true);
+                driver.transform.SetPositionAndRotation(seat.position - Vector3.up * 1.7f, Quaternion.LookRotation(transform.forward, Vector3.up));
+                driver.View.transform.localRotation = Quaternion.identity;
             }
             else
             {

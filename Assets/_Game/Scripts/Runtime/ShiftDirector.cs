@@ -55,6 +55,8 @@ namespace Jobsite.Runtime
             if (!Started || MenuOpen || Finished) return;
             var ray = player.View.ViewportPointToRay(new Vector3(.5f, .5f));
             if (!Physics.Raycast(ray, out var hit, 5f, ~0, QueryTriggerInteraction.Collide)) { Say("Move closer. Center the condition in your view."); return; }
+            var vehicle = hit.collider.GetComponentInParent<VehicleController>();
+            if (vehicle != null) { vehicle.Interact(player); Log("vehicle_enter", vehicle.name, ""); return; }
             if (hit.collider.GetComponentInParent<ControlSupply>() != null)
             {
                 if (pendingInstall == null) { Say("Choose an engineered fix before collecting materials."); return; }

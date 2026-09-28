@@ -29,6 +29,7 @@ namespace Jobsite.Editor
         public static void Build()
         {
             var layout = JObject.Parse(File.ReadAllText("Tools/layout/site_layout.json"));
+            TripoImport.Run();
             Directory.CreateDirectory(MatDir);
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
             Mats.Clear();
@@ -55,6 +56,14 @@ namespace Jobsite.Editor
             BuildDayVariants(root, civil, layout);
             new GameObject("SitePhaseController").AddComponent<SitePhaseController>();
             MondaySliceBuilder.Add(root);
+            var vehicles = Group(root, "Vehicles");
+            VehicleSetup.Build(vehicles, "SM_CrewPickup_Rig", new Vector3(3.5f, 0.05f, 8f), 0f, 2600f);
+            var dump = VehicleSetup.Build(vehicles, "SM_DumpTruckTandem_Rig", new Vector3(60f, 0.05f, 22f), 0f, 14000f);
+            if (dump != null) Tag(dump, WorkDay.Tue | WorkDay.Fri);
+            var exc = VehicleSetup.BuildExcavator(vehicles, "SM_Excavator20t_Rig", new Vector3(62.5f, 0f, 30f), -90f);
+            if (exc != null) Tag(exc, WorkDay.Tue | WorkDay.Wed);
+            var crane = VehicleSetup.BuildCrane(vehicles, "SM_RtMobileCrane_Rig", new Vector3(48f, 0f, 46f), 0f);
+            if (crane != null) Tag(crane, WorkDay.Thu);
 
             var spawn = new GameObject("PlayerSpawn").transform;
             spawn.position = new Vector3((float)layout["spawn"]["x"], 0f, (float)layout["spawn"]["y"]);
@@ -358,14 +367,8 @@ namespace Jobsite.Editor
                 new Vector3(tw + 0.4f, TrenchDepth + 0.06f, th), Mat("M_RedClayGraded", "red_dirt_mud_01", 5f));
             Tag(fill, WorkDay.Mon | WorkDay.Thu | WorkDay.Fri);
 
-            // Thu: boom truck on the crane pad lifting a rooftop unit toward Bldg B (placeholder).
-            var crane = Group(days, "Crane_BoomTruck_PH");
-            Tag(crane.gameObject, WorkDay.Thu);
+            // Thu: the rigged rough-terrain crane is placed with the vehicles (VehicleSetup.BuildCrane).
             var white = Color("M_CraneWhite", new Color(0.85f, 0.85f, 0.82f));
-            Box(crane, "Carrier", new Vector3(48, 1.5f, 46), new Vector3(2.5f, 3f, 10f), white);
-            var boom = Box(crane, "Boom", new Vector3(56, 9f, 46), new Vector3(0.6f, 0.6f, 20f), white);
-            boom.transform.rotation = Quaternion.Euler(-40, 90, 0);
-            Box(crane, "Load_RTU", new Vector3(63, 12f, 46), new Vector3(2.4f, 1.3f, 1.6f), Color("M_RtuGrey", new Color(0.55f, 0.57f, 0.58f)));
 
             // Fri: concrete pump truck set up under the overhead line (capstone), boom raised toward it.
             var pump = Group(days, "ConcretePumpTruck_PH");
@@ -390,6 +393,7 @@ namespace Jobsite.Editor
             go.transform.position = at;
             // Keep the importer's root axis conversion (Blender FBX roots carry -90 deg X); only add yaw.
             go.transform.rotation = Quaternion.Euler(0, yaw, 0) * prefab.transform.rotation;
+            if (path.Contains("/TR-3D/")) TripoImport.Apply(go, Path.GetFileNameWithoutExtension(path));
             var rs = go.GetComponentsInChildren<Renderer>();
             foreach (var r in rs)
                 r.sharedMaterials = r.sharedMaterials.Select(m => (m != null ? Remap(m.name) : null) ?? m).ToArray();
