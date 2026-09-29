@@ -86,6 +86,33 @@ namespace Jobsite.Tests
         }
 
         [Test]
+        public void ZeroRecordablesBadge_NeedsTheFullShift()
+        {
+            var early = new DaySession(new[] { Edge });
+            early.Advance(30f);                         // ended at minute 0.5, before any incident window
+            Assert.That(Badges.Earned(early, new[] { Edge }, 600f), Has.No.Member(Badge.ZeroRecordablesDay));
+            var full = new DaySession(new[] { Edge });
+            full.Report("edge", EnergySource.Gravity, 4, 5);
+            full.ChooseControl("edge", ControlLevel.Engineering);
+            full.CompleteInstall("edge", true);
+            full.Advance(600f);
+            Assert.That(Badges.Earned(full, new[] { Edge }, 600f), Does.Contain(Badge.ZeroRecordablesDay));
+        }
+
+        [Test]
+        public void NeutralNames_HideTheDiagnosis_AndReadingsGiveNoVerdict()
+        {
+            Assert.That(ConditionNames.NeutralName("wed-open-hole"), Is.EqualTo(ConditionNames.NeutralName("wed-covered-hole")));
+            Assert.That(ConditionNames.NeutralName("fri-rebar-impalement"), Is.EqualTo(ConditionNames.NeutralName("fri-rebar-capped")));
+            Assert.That(ConditionNames.NeutralName("unknown-id"), Is.EqualTo(ConditionNames.Fallback));
+            foreach (var r in InstrumentTable.All)
+                foreach (var verdict in new[] { "needs", "PEL", "Type A", "Type B", "Type C", "violation", "unsafe" })
+                    Assert.That(r.Value, Does.Not.Contain(verdict), $"{r.Key}: a reading states a verdict");
+            Assert.That(InstrumentTable.Get("wed-missing-midrail", GearId.LaserMeasure, true), Does.Contain("midrail"),
+                "a condition showing its control reads its compliant value");
+        }
+
+        [Test]
         public void UseHint_MarksTheNextFindAsHinted()
         {
             var day = new DaySession(new[] { Edge });

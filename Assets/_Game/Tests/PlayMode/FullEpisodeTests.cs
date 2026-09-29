@@ -65,8 +65,11 @@ namespace Jobsite.PlayTests
                 // Walk every condition: photograph (instruments read), report real hazards, control them.
                 foreach (var c in d.Conditions.Where(c => c != null && c.isActiveAndEnabled).ToList())
                 {
+                    Assert.That(ConditionNames.Has(c.Id), $"EP{ep} {c.Id}: neutral pre-report name authored");
                     d.Photograph(c);
-                    if (!c.IsHazard) { d.ToggleTablet(); continue; }
+                    // Inspect before the call: measure with every instrument that reads something here.
+                    foreach (var g in d.Instruments.ToList()) if (g != GearId.FieldNotebook && c.Reading(g) != null) d.Measure(g);
+                    if (!c.IsHazard) { d.ConfirmCompliant(); d.ToggleTablet(); continue; }
                     var s = c.Spec;
                     d.Report(s.Energy, s.Probability, s.Severity);
                     Assert.That(d.Session.GetState(c.Id), Is.EqualTo(HazardState.Reported), $"EP{ep} {c.Id}: report accepted");
@@ -76,9 +79,24 @@ namespace Jobsite.PlayTests
                         Assert.That(d.Session.GetState(c.Id), Is.EqualTo(HazardState.Stopped), $"EP{ep} {c.Id}: stop work");
                         var r = CrewGestures.Named("Ray");
                         if (r != null) Assert.That(r.Busy, Is.True, $"EP{ep}: Ray reacts to the stop");
+                        // Ray pushes back: hold the stop, firmly and respectfully.
+                        Assert.That(d.PendingSpeakUp, Is.EqualTo(c.Id), $"EP{ep} {c.Id}: foreman pushback");
+                        d.ChooseSpeakUp(d.SpeakUpOptions.Select((o, k) => (o, k)).First(t => t.o.Style == SpeakUpStyle.Assertive).k);
+                        Assert.That(d.Session.GetState(c.Id), Is.EqualTo(HazardState.Stopped), $"EP{ep} {c.Id}: stop held");
                     }
                     d.Control(s.BestFeasibleControl);
-                    if (d.PendingInstall == c.Id) { d.PickUpKit(); Assert.That(d.Carrying); d.SetKitDown(c, c.PhotoBounds.center); }
+                    if (d.PendingInstall == c.Id)
+                    {
+                        if (d.KitOptions != null)
+                        {
+                            // A wrong kit fails at the hazard and must be chosen again.
+                            var wrong = Enumerable.Range(0, d.KitOptions.Count).First(k => k != d.KitCorrect);
+                            d.ChooseKit(wrong); d.PickUpKit(); d.SetKitDown(c, c.PhotoBounds.center);
+                            Assert.That(d.Session.GetState(c.Id), Is.EqualTo(HazardState.Installing).Or.EqualTo(HazardState.Stopped), $"EP{ep} {c.Id}: wrong kit rejected");
+                            d.ChooseKit(d.KitCorrect);
+                        }
+                        d.PickUpKit(); Assert.That(d.Carrying); d.SetKitDown(c, c.PhotoBounds.center);
+                    }
                     Assert.That(d.Session.GetState(c.Id), Is.EqualTo(HazardState.Controlled).Or.EqualTo(HazardState.Installing).Or.EqualTo(HazardState.Reported),
                         $"EP{ep} {c.Id}: control applied ({d.Notice})");
                     if (d.MenuOpen) d.ToggleTablet();
@@ -112,9 +130,15 @@ namespace Jobsite.PlayTests
                 // Close: debrief quiz, explain-back.
                 d.EndShift();
                 while (!d.Quiz.Done) d.AnswerQuiz(d.Quiz.Current.Correct);
-                d.ExplainBack(0);
+                // Toolbox talk: brief the highest-risk findings first and answer the why.
+                foreach (var f in d.Findings.OrderByDescending(f => ToolboxTalk.Risk(f.Spec)).Take(ToolboxTalk.Picks).ToList()) d.ToggleTalkPick(f.Id);
+                d.SubmitToolboxTalk(d.TalkWhy.Current.Correct);
                 Assert.That(d.EpisodeComplete, $"EP{ep} complete");
+                Assert.That(d.TalkScore, Is.GreaterThanOrEqualTo(ToolboxTalk.GoodTalk), $"EP{ep}: a good toolbox talk scores as good");
+                Assert.That(d.MasteryToday, Is.Not.Null.And.Not.Empty, $"EP{ep}: mastery recorded");
                 Assert.That(d.Session.HazardIdentificationIndex, Is.EqualTo(1f).Within(1e-4), $"EP{ep}: all hazards found");
+                Assert.That(d.Session.ConfirmedCompliant, Is.EqualTo(d.Conditions.Count(c => c != null && c.isActiveAndEnabled && !c.IsHazard)),
+                    $"EP{ep}: every look-alike confirmed compliant");
                 foreach (var dom in new[] { 'K', 'S', 'A' })
                     Assert.That(d.Competence.Rows.Any(r => KsaInfo.Domain(r.Ksa) == dom), $"EP{ep}: KSA evidence for {dom}");
                 Assert.That(d.Competence.Rows.All(r => r.Cfr.Length > 0),

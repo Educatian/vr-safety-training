@@ -45,6 +45,8 @@ namespace Jobsite.PlayTests
             director.Report(EnergySource.Gravity, 3, 4);
             director.Control(ControlLevel.Engineering);
             Assert.That(director.Session.GetState("mon-trailer-ladder"), Is.EqualTo(HazardState.Installing));
+            Assert.That(director.KitOptions, Is.Not.Null, "engineered fix asks which control");
+            director.ChooseKit(director.KitCorrect);
             Face(GameObject.Find("SupplyRack").transform.position, 2.2f);
             Physics.Raycast(player.View.ViewportPointToRay(new Vector3(.5f, .5f)), out var rackHit, 5f);
             director.Interact();

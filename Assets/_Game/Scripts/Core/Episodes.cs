@@ -10,7 +10,9 @@ namespace Jobsite.Core
         public string Text { get; }
         public float Seconds { get; }
         public string IfFound { get; }   // epilogue: only plays if the learner reported this hazard (story follows play)
-        public Line(string speaker, string text, float seconds = 4.5f, string ifFound = null) { Speaker = speaker; Text = text; Seconds = seconds; IfFound = ifFound; }
+        public LineGate Gate { get; }    // epilogue: clean shift / rough shift branch (ShiftVerdict)
+        public Line(string speaker, string text, float seconds = 4.5f, string ifFound = null, LineGate gate = LineGate.Always)
+        { Speaker = speaker; Text = text; Seconds = seconds; IfFound = ifFound; Gate = gate; }
     }
 
     // Camera shot for an intro flythrough: moves from -> to while looking at a target (site metres).
@@ -168,8 +170,11 @@ namespace Jobsite.Core
                 new[]
                 {
                     new Line("Dale", "Ten feet's ten feet. I'll keep the boom back and let the spotter talk me in.", 4.5f, "fri-boom-near-line"),
-                    new Line("Ray", "All stop till the storm passes. I'll call the plant. Nobody's worth a slab."),
-                    new Line("Dolores", "That's a competent person. My job's done here. Yours starts Monday."),
+                    new Line("Ray", "All stop till the storm passes. I'll call the plant. Nobody's worth a slab.", gate: LineGate.CleanShift),
+                    new Line("Dolores", "That's a competent person. My job's done here. Yours starts Monday.", gate: LineGate.CleanShift),
+                    // Rough shift: the capstone is not a certificate you get for finishing (appended so voiced lines keep their index).
+                    new Line("Ray", "We poured. Nobody got hurt. That was luck, not planning.", gate: LineGate.RoughShift),
+                    new Line("Dolores", "Not yet. Walk this site again with me Monday. You'll see what you missed.", gate: LineGate.RoughShift),
                 },
                 QuizBank.ToolboxPowerLine, QuizBank.EndOfDayCapstone, zone: new[] { -4f, -4f, 90f, 80f }),
         };

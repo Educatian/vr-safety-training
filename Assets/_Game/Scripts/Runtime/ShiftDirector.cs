@@ -63,6 +63,33 @@ namespace Jobsite.Runtime
         // Instruments usable this shift: owned gear plus what the mission loans from the gang box.
         public IEnumerable<GearId> Instruments => Career.Owned.Union(Mission?.Mission.Issued ?? new GearId[0]);
         public const float ShiftLength = 600f;
+        // Shift-time costs (GDD §6 starting values): looking is cheap, but not free, so "photograph everything"
+        // and "measure everything" cost clock time; a false alarm costs the time it takes the crew to explain it.
+        public const float PhotoSeconds = 5f, MeasureSeconds = 10f, FalseAlarmSeconds = 15f;
+        private readonly HashSet<(string, GearId)> measured = new HashSet<(string, GearId)>();
+        public bool Measured(SiteCondition c, GearId gear) => c != null && measured.Contains((c.Id, gear));
+        public bool EndedEarly { get; private set; }
+
+        // Speak-up under pressure (GDD N4): Ray pushes back right after a justified stop.
+        public string PendingSpeakUp { get; private set; }
+        public IReadOnlyList<SpeakUpOption> SpeakUpOptions { get; private set; }
+        // Near-miss stop-down card (GDD N10, §8): what almost happened, then back to work.
+        public string PendingIncident { get; private set; }
+        public readonly List<string> Incidents = new List<string>();
+        // Engineered control: which kit (the right one or a plausible wrong one) goes in.
+        public IReadOnlyList<string> KitOptions { get; private set; }
+        public int KitCorrect { get; private set; } = -1;
+        public int ChosenKit { get; private set; } = -1;
+        // Tomorrow's toolbox talk (GDD N7): up to 3 of today's findings in briefing order + one "why".
+        private readonly List<string> talkPicks = new List<string>();
+        public IReadOnlyList<string> TalkPicks => talkPicks;
+        public QuizSession TalkWhy { get; private set; }
+        public float TalkScore { get; private set; } = -1f;
+        public string TalkFeedback { get; private set; } = "";
+        public IReadOnlyDictionary<CpArea, float> MasteryToday { get; private set; }
+        public IReadOnlyDictionary<CpArea, float> MasteryBest { get; private set; }
+        private bool selfReported;
+        const string BankedHintsKey = "banked_hints";
 
         public void Configure(SiteCondition[] targets, SitePlayer explorer, FieldTablet ui, AudioSource speaker)
         { conditions = targets; player = explorer; tablet = ui; radio = speaker; }
@@ -79,10 +106,15 @@ namespace Jobsite.Runtime
             Career = CareerStore.Load();
             Mission = new MissionRun(Missions.For(Episode.Number));
             if (GetComponent<ScaffoldCues>() == null) gameObject.AddComponent<ScaffoldCues>();
-            Hints = new HintBank(Career.StartingHints);
+            if (FindFirstObjectByType<SitePolish>() == null) gameObject.AddComponent<SitePolish>();
+            // A good toolbox talk last shift banks a hint token for this one (GDD §14: earn by explain-back).
+            var banked = PlayerPrefs.GetInt(BankedHintsKey, 0);
+            Hints = new HintBank(Career.StartingHints + banked);
+            if (banked > 0) { PlayerPrefs.SetInt(BankedHintsKey, 0); PlayerPrefs.Save(); }
             logPath = Path.Combine(Application.persistentDataPath, "jobsite-" + Guid.NewGuid().ToString("N") + ".jsonl");
             Log("session_start", "ep" + Episode.Number, "conditions=" + conditions.Length + " seed=" + (SampleHazards ? Seed : 0) +
-                " level=" + Career.Level + " guidance=" + ScaffoldCues.Level(Career.Level) + " mission=" + Mission.Mission.Title);
+                " level=" + Career.Level + " guidance=" + ScaffoldCues.Level(Career.Level) + " mission=" + Mission.Mission.Title +
+                " consent=" + GameSettings.ResearchConsent + ":" + GameSettings.ConsentVersion);
             tablet.Refresh();
         }
 
@@ -102,24 +134,65 @@ namespace Jobsite.Runtime
         {
             if (Session == null || Current != Phase.Shift) return;
             Session.Paused = MenuOpen;
-            foreach (var ev in Session.Advance(Time.deltaTime))
-            {
-                var name = conditions.FirstOrDefault(c => c.Id == ev.HazardId)?.DisplayName ?? "the crew";
-                Say(ev.Kind == DayEventKind.Lapsed ? "Temporary control lapsed. Revisit your report."
-                    : ev.Kind == DayEventKind.StopLifted ? $"Ray: We can't sit all day. Crew's back at it: {name}. Get a real fix in."
-                    : "Near-miss reported. Secure the area; review follows.");
-                var at = conditions.FirstOrDefault(c => c.Id == ev.HazardId);
-                if (ev.Kind == DayEventKind.NearMiss || ev.Kind == DayEventKind.Recordable)
-                {
-                    AudioDirector.Play("alarm");
-                    if (at != null) CrewGestures.ReactNear(at.transform.position, 14f, CrewGestures.Situation.NearMiss, at.PhotoBounds.center);
-                    Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0f);
-                }
-                else if (ev.Kind == DayEventKind.StopLifted) { CrewGestures.Named("Ray")?.React(CrewGestures.Situation.BackToWork); Log(ev.Kind.ToString(), ev.HazardId, ""); }
-                else Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0.5f);
-            }
+            foreach (var ev in Session.Advance(Time.deltaTime)) Handle(ev);
+            if (!selfReported && Session.CrewTrust >= DaySession.SelfReportTrust && Session.Clock >= 90f) CrewSelfReport();
             if (Session.Clock >= ShiftLength) EndShift();
         }
+
+        // High crew trust pays off (GDD §5.2): a worker radios in one hazard you have not found yet. It is a cue,
+        // so the find is flagged like any other scaffold.
+        private void CrewSelfReport()
+        {
+            selfReported = true;
+            var target = conditions.Where(c => c.IsHazard && Session.GetState(c.Id) == HazardState.Latent && !Session.LoggedCompliant(c.Id))
+                .OrderBy(c => Vector3.Distance(c.transform.position, player.transform.position)).FirstOrDefault();
+            if (target == null) return;
+            MarkCued(target.Id);
+            Say($"Crew (radio): Hey, you've got our backs, so... check the {target.NeutralName.ToLowerInvariant()}, {Where(target.transform.position - player.transform.position)}. Doesn't look right.");
+            Log("crew_self_report", target.Id, "trust=" + Session.CrewTrust);
+        }
+
+        // Spend shift time on an action; timers and incidents fire as they would in real time.
+        private void SpendShiftTime(float seconds)
+        {
+            if (Session == null || Current != Phase.Shift) return;
+            foreach (var ev in Session.Spend(seconds)) Handle(ev);
+        }
+
+        private void Handle(DayEvent ev)
+        {
+            var name = conditions.FirstOrDefault(c => c.Id == ev.HazardId)?.DisplayName ?? "the crew";
+            Say(ev.Kind == DayEventKind.Lapsed ? "Temporary control lapsed. Revisit your report."
+                : ev.Kind == DayEventKind.StopLifted ? $"Ray: We can't sit all day. Crew's back at it: {name}. Get a real fix in."
+                : "Near-miss reported. Secure the area; review follows.");
+            var at = conditions.FirstOrDefault(c => c.Id == ev.HazardId);
+            if (ev.Kind == DayEventKind.NearMiss || ev.Kind == DayEventKind.Recordable)
+            {
+                // Stop-down: the tablet opens the "what almost happened" card and the clock waits (GDD N10, §8).
+                Incidents.Add(ev.HazardId);
+                PendingIncident = ev.HazardId;
+                if (TalkingTo != null) EndTalk();
+                if (Current == Phase.Shift) { MenuOpen = true; tablet.Refresh(); }
+                Say((ev.Kind == DayEventKind.Recordable ? "Injury on site: " : "Near miss: ") + (at != null ? at.DisplayName : "the crew") + ". All stop. Secure the area.");
+                AudioDirector.Play("alarm");
+                if (at != null) CrewGestures.ReactNear(at.transform.position, 14f, CrewGestures.Situation.NearMiss, at.PhotoBounds.center);
+                Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0f);
+            }
+            else if (ev.Kind == DayEventKind.StopLifted) { CrewGestures.Named("Ray")?.React(CrewGestures.Situation.BackToWork); Log(ev.Kind.ToString(), ev.HazardId, ""); }
+            else Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0.5f);
+        }
+
+        public void AcknowledgeIncident()
+        {
+            if (PendingIncident == null) return;
+            Log("incident_review", PendingIncident, "acknowledged");
+            PendingIncident = null;
+            MenuOpen = PendingWeather != null || PendingSpeakUp != null || Current != Phase.Shift;
+            tablet.Refresh();
+        }
+
+        // Scaffolds that point at a hazard (tutorial beacon, mission zone) flag its find as cued.
+        public void MarkCued(string id) => Session?.MarkCued(id);
 
         // ---------- check-in and briefing ----------
         public void CheckIn(CheckInStation.Kind kind)
@@ -193,20 +266,64 @@ namespace Jobsite.Runtime
 
             var target = hit.collider.GetComponentInParent<SiteCondition>();
             if (Carrying) { SetKitDown(target, hit.point); return; }
-            if (target == null) { Say("Photograph a condition, or pick up materials at the rack."); return; }
-            if (!PhotoValid(target)) { Say("Move closer. Keep the whole condition in your frame."); return; }
+            // Anything can be photographed. An empty or badly framed shot gets the same answer either way, so the
+            // camera never tells the learner which objects are conditions (GDD pillar 1).
+            if (target == null || !PhotoValid(target))
+            {
+                AudioDirector.Play("shutter"); tablet.Flash();
+                Log("photo", target != null ? target.Id : "none", target != null ? "invalid-frame" : "empty");
+                SpendShiftTime(PhotoSeconds);
+                Say("Nothing reportable fully in frame. Frame the whole condition.");
+                return;
+            }
             Photograph(target);
         }
 
         // A valid photo opens the condition on the tablet; instruments you carry take their readings (field inspection).
         public void Photograph(SiteCondition target)
         {
+            // A scaffold was pointing here: the find counts, but its recognition evidence is flagged (0.5 mastery).
+            if (GetComponent<ScaffoldCues>()?.Cueing(target.Id) == true) MarkCued(target.Id);
+            SpendShiftTime(PhotoSeconds);
             selected = target; MenuOpen = true; LastFeedback = ""; LastKsa = "";
             AudioDirector.Play("shutter"); tablet.Flash();
             Log("photo", target.Id, "valid-frame");
-            foreach (var gear in Instruments.ToList())
-                if (target.Reading(gear) != null) Log("measure", target.Id, gear.ToString(), Jobsite.Core.Ksa.SInspect, 1f);
             tablet.Refresh(); Ping();
+        }
+
+        // Field inspection is a deliberate act: pick the instrument, spend the time, read a raw value. Measuring
+        // before making the call is the inspection skill (SInspect); measuring after the call is only a log entry.
+        public string Measure(GearId gear)
+        {
+            if (selected == null || Finished) return null;
+            if (!Instruments.Contains(gear)) { Say("You don't have that instrument on this shift."); return null; }
+            var reading = selected.Reading(gear);
+            SpendShiftTime(MeasureSeconds);
+            measured.Add((selected.Id, gear));
+            if (reading == null) { Say(GearCatalog.Get(gear).Name + ": no useful reading here."); Log("measure_none", selected.Id, gear.ToString()); }
+            else if (!Session.Judged(selected.Id)) Log("measure", selected.Id, gear.ToString(), Jobsite.Core.Ksa.SInspect, 1f);
+            else Log("measure", selected.Id, gear.ToString() + " after-call");
+            tablet.Refresh();
+            return reading;
+        }
+
+        // "Checked, compliant." Positive evidence on a look-alike; a miss (hazard left live) on a real hazard.
+        public void ConfirmCompliant()
+        {
+            if (selected == null || Finished) return;
+            var result = Session.ConfirmCompliant(selected.Id);
+            // Right and wrong look identical on the tablet (same line, no XP tick, no crew reaction): feedback waits
+            // for the debrief, otherwise "log it compliant" becomes a free probe for which objects are hazards.
+            // XP for correct confirmations is paid at the end of the shift.
+            if (result == ConfirmOutcome.Confirmed || result == ConfirmOutcome.DismissedHazard)
+            {
+                var ok = result == ConfirmOutcome.Confirmed;
+                Log("confirm_compliant", selected.Id, ok ? "correct" : "hazard-dismissed", Jobsite.Core.Ksa.SDiscriminate, ok ? 1f : 0f);
+                LastKsa = "";
+                Say("Logged as compliant.");
+            }
+            else Say("You already made the call on this one.");
+            tablet.Refresh();
         }
 
         private void Collect() => PickUpKit();
@@ -214,6 +331,7 @@ namespace Jobsite.Runtime
         {
             if (pendingInstall == null) { Say("Choose an engineered fix on the tablet first."); return; }
             if (Carrying) return;
+            if (KitOptions != null && ChosenKit < 0) { Say("Choose which control goes in on the tablet first."); return; }
             // Carried kit rides in front of the camera until it is set down at the hazard.
             carriedVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
             Destroy(carriedVisual.GetComponent<Collider>());
@@ -240,11 +358,25 @@ namespace Jobsite.Runtime
                 Log("ksa", goal.Id, "misplaced", Jobsite.Core.Ksa.SInstall, 0f);
                 Say($"Wrong spot — {error:F1} m off. Set it at the hazard itself."); return;
             }
+            // Right place, wrong control: it fails at the hazard, counts as an install attempt, and goes back.
+            if (KitOptions != null && ChosenKit != KitCorrect)
+            {
+                Session.CompleteInstall(goal.Id, false);
+                var kit = ControlKits.Get(goal.Id);
+                Log("install_attempt", goal.Id, "wrong-kit:" + KitOptions[ChosenKit], Jobsite.Core.Ksa.SControl, 0f);
+                Say("That won't pass. " + (kit != null ? kit.Why : "") + " Pick the right control on the tablet.");
+                LastKsa = Feedback(Jobsite.Core.Ksa.SControl, goal.Cfr, "\"" + KitOptions[ChosenKit] + "\" doesn't meet the standard here.");
+                AudioDirector.Play("click");
+                Destroy(carriedVisual); carriedVisual = null; ChosenKit = -1;
+                CrewGestures.ReactNear(goal.transform.position, 10f, CrewGestures.Situation.Puzzled, goal.PhotoBounds.center);
+                return;
+            }
             if (Session.CompleteInstall(goal.Id, true))
             {
-                goal.ShowControl();
+                goal.ShowControl(true);
                 Destroy(carriedVisual); carriedVisual = null; pendingInstall = null;
-                Xp += XpRules.BestControl + XpRules.EngineeredBonus;
+                KitOptions = null; KitCorrect = -1; ChosenKit = -1;
+                Xp += ControlLevel.Engineering <= goal.Spec.BestFeasibleControl ? XpRules.BestControl + XpRules.EngineeredBonus : XpRules.EngineeredBonus;
                 Say("Control installed. Crew can continue safely.");
                 AudioDirector.Play("success");
                 Log("install_success", goal.Id, "Engineering", Jobsite.Core.Ksa.SInstall, 1f);
@@ -271,7 +403,11 @@ namespace Jobsite.Runtime
         public void Report(EnergySource energy, int probability, int severity)
         {
             if (selected == null || Finished) return;
+            var streakBefore = Session.StreakBonuses;
             var outcome = Session.Report(selected.Id, energy, probability, severity);
+            var streakPaid = Session.StreakBonuses > streakBefore;
+            if (streakPaid) { Xp += XpRules.StreakBonus; Hints.Earn(); Log("streak", selected.Id, "bonus+token"); }
+            if (outcome == ReportOutcome.FalseReport) SpendShiftTime(FalseAlarmSeconds);
             if (outcome == ReportOutcome.Reported) Xp += XpRules.HazardXp(selected.Spec, Session.GetEvidence(selected.Id));
             // Corrective feedback on the tag and the rating (the engine already knows both).
             var spec = selected.Spec;
@@ -285,15 +421,16 @@ namespace Jobsite.Runtime
             {
                 AudioDirector.Play("success");
                 var ev = Session.GetEvidence(selected.Id);
-                var detect = KsaLedger.DetectScore(ev.DetectedAtSeconds, ShiftLength, ev.Hinted);
-                Log("ksa", selected.Id, "recognize", Jobsite.Core.Ksa.SRecognize, ev.Hinted ? 0.5f : 1f);
+                var detect = KsaLedger.DetectScore(ev.DetectedAtSeconds, ShiftLength, ev.Hinted || ev.Cued);
+                Log("ksa", selected.Id, ev.Cued ? "recognize cued" : "recognize", Jobsite.Core.Ksa.SRecognize, ev.Hinted || ev.Cued ? 0.5f : 1f);
                 Log("ksa", selected.Id, "energy=" + energy, Jobsite.Core.Ksa.KEnergy, energy == spec.Energy ? 1f : 0f);
                 Log("ksa", selected.Id, $"P{probability}xS{severity}", Jobsite.Core.Ksa.SAssess, KsaLedger.RiskScore(ev.RiskDeviation));
                 Log("ksa", selected.Id, "t=" + ev.DetectedAtSeconds.ToString("F0"), Jobsite.Core.Ksa.AProactive, detect);
                 LastKsa = "K  " + (string.IsNullOrEmpty(selected.Cfr) ? spec.Energy + " energy" : selected.Cfr + ": " + selected.Threshold) + "\n" +
-                          "S  recognized" + (ev.Hinted ? " (with a hint)" : "") + " · energy " + (energy == spec.Energy ? "✓" : "✗") +
+                          "S  recognized" + (ev.Hinted ? " (with a hint)" : ev.Cued ? " (with a guide marker)" : "") + " · energy " + (energy == spec.Energy ? "✓" : "✗") +
                           " · risk " + (ev.RiskDeviation == 0 ? "on the key" : "±" + ev.RiskDeviation) + "\n" +
-                          $"A  proactive: spotted at {ev.DetectedAtSeconds / 60f:0.0} min of {ShiftLength / 60f:0}" + (detect >= 1f ? " · early, before exposure grows" : " · late: scan the site sooner");
+                          $"A  proactive: spotted at {ev.DetectedAtSeconds / 60f:0.0} min of {ShiftLength / 60f:0}" + (detect >= 1f ? " · early, before exposure grows" : " · late: scan the site sooner") +
+                          (streakPaid ? $"\nStreak: three clean reports · +{XpRules.StreakBonus} XP, +1 hint token" : "");
                 CrewGestures.ReactNear(selected.transform.position, 12f, CrewGestures.Situation.Acknowledge, selected.PhotoBounds.center);
             }
             else if (outcome == ReportOutcome.FalseReport)
@@ -313,12 +450,32 @@ namespace Jobsite.Runtime
             if (pendingInstall != null && pendingInstall != selected.Id) { Say("Finish your current installation first."); return; }
             var result = Session.ChooseControl(selected.Id, level);
             var best = selected.Spec.BestFeasibleControl;
-            var cs = result == ControlOutcome.Installing || result == ControlOutcome.Assigned ? KsaLedger.ControlScore(level, best) : -1f;
+            var cs = result == ControlOutcome.Installing || result == ControlOutcome.Assigned || result == ControlOutcome.Eliminated ? KsaLedger.ControlScore(level, best) : -1f;
             Log("control_choose", selected.Id, result + ":" + level, cs >= 0 ? Jobsite.Core.Ksa.SControl : (Ksa?)null, cs);
             if (cs >= 0) LastKsa = Feedback(Jobsite.Core.Ksa.SControl, selected.Cfr, cs >= 1f ? $"{level} is the most effective feasible control here."
                 : $"{level} leans on people. {best} is feasible here and removes the exposure.");
             if (result == ControlOutcome.Installing)
-            { pendingInstall = selected.Id; MenuOpen = false; Say("Pick up materials at the supply rack (E)."); }
+            {
+                pendingInstall = selected.Id;
+                KitOptions = null; KitCorrect = -1; ChosenKit = -1;
+                if (ControlKits.Has(selected.Id))
+                {
+                    // Which control? The tablet stays open for the choice (right kit + two plausible wrong ones).
+                    KitOptions = ControlKits.Options(selected.Id, Seed ^ (selected.Id.Length * 7919), out var correct);
+                    KitCorrect = correct;
+                    Say("Which control goes in? Pick it, then collect it at the supply rack.");
+                }
+                else { MenuOpen = false; Say("Pick up materials at the supply rack (E)."); }
+            }
+            else if (result == ControlOutcome.Eliminated)
+            {
+                selected.ShowControl(true);
+                Xp += XpRules.BestControl + XpRules.EngineeredBonus;
+                Say("Removed from service and tagged out. The hazard is gone.");
+                AudioDirector.Play("success");
+                Log("install_success", selected.Id, "Elimination", Jobsite.Core.Ksa.SInstall, 1f);
+                CrewGestures.ReactNear(selected.transform.position, 12f, CrewGestures.Situation.ControlInstalled, selected.PhotoBounds.center);
+            }
             else if (result == ControlOutcome.Assigned) Say("Temporary control assigned. Check it again later.");
             else if (result == ControlOutcome.NotFeasible) Say("That control is not feasible here. Choose another.");
             else Say("Report this condition before choosing a control.");
@@ -330,6 +487,15 @@ namespace Jobsite.Runtime
             if (selected == null || Finished) return;
             var result = Session.StopWork(selected.Id);
             if (result == StopOutcome.Justified) Xp += XpRules.JustifiedStop;
+            if (result == StopOutcome.Repeated)
+            {
+                // Still honoured (stopping is never wrong to try) but it earns nothing new and costs schedule.
+                Say("Ray: Stopped again? Crew's idle. Get a real control in.");
+                Log("stop_work", selected.Id, result.ToString());
+                CrewGestures.Named("Ray")?.React(CrewGestures.Situation.ForemanPressure);
+                tablet.Refresh();
+                return;
+            }
             Say(result == StopOutcome.Justified ? $"Work stopped for about {DaySession.StopHoldSeconds / 60:0} min. Get a control in before Ray restarts the crew." : "Report an active hazard before stopping this crew.");
             var js = result == StopOutcome.Justified ? (selected.Spec.RequiresStopWork ? 1f : 0.7f) : 0f;
             Log("stop_work", selected.Id, result.ToString(), Jobsite.Core.Ksa.AIntervene, js);
@@ -339,17 +505,57 @@ namespace Jobsite.Runtime
             {
                 CrewGestures.ReactNear(selected.transform.position, 14f, CrewGestures.Situation.WorkStopped, selected.PhotoBounds.center);
                 CrewGestures.Named("Ray")?.React(CrewGestures.Situation.ForemanPressure);
+                // Production pressure: the foreman pushes back and the learner has to hold the line (GDD N4).
+                PendingSpeakUp = selected.Id;
+                SpeakUpOptions = SpeakUp.Options(Seed ^ (selected.Id.Length * 104729));
+                Say(SpeakUp.Pushback(selected.DisplayName));
             }
+            tablet.Refresh();
+        }
+
+        public void ChooseKit(int option)
+        {
+            if (KitOptions == null || option < 0 || option >= KitOptions.Count || pendingInstall == null) return;
+            ChosenKit = option;
+            Log("kit_choose", pendingInstall, KitOptions[option]);
+            Say("Kit: " + KitOptions[option] + ". Collect it at the supply rack (E).");
+            MenuOpen = false;
+            tablet.Refresh();
+        }
+
+        // Ray's pushback after a stop: passive gives the crew back, aggressive holds but costs trust, assertive holds.
+        public void ChooseSpeakUp(int option)
+        {
+            if (PendingSpeakUp == null || SpeakUpOptions == null || option < 0 || option >= SpeakUpOptions.Count) return;
+            var id = PendingSpeakUp; var style = SpeakUpOptions[option].Style;
+            PendingSpeakUp = null;
+            if (Session.SpeakUp(id, style))
+            {
+                if (style == SpeakUpStyle.Assertive) Xp += XpRules.SpeakUpAssertive;
+                Log("speakup_choice", id, style.ToString(), Jobsite.Core.Ksa.SCommunicate, SpeakUp.Score(style));
+                LastKsa = Feedback(Jobsite.Core.Ksa.SCommunicate, selected != null ? selected.Cfr : "", style == SpeakUpStyle.Assertive
+                    ? "firm and respectful: the stop holds and Ray stays on your side."
+                    : style == SpeakUpStyle.Aggressive ? "the stop holds, but you spent the foreman's trust to do it."
+                    : "you gave the crew back to the hazard. The exposure is live again.");
+            }
+            Say(SpeakUp.Reply(style));
+            CrewGestures.Named("Ray")?.React(style == SpeakUpStyle.Passive ? CrewGestures.Situation.BackToWork : CrewGestures.Situation.Acknowledge);
             tablet.Refresh();
         }
 
         public void EndShift()
         {
             if (Current != Phase.Shift) return;
+            EndedEarly = Session.Clock < ShiftLength;
+            PendingSpeakUp = null; PendingIncident = null; PendingWeather = null;
+            TalkWhy = new QuizSession(new[] { ToolboxTalk.Why(Episode.Number) }, Seed + 2);
+            Xp += Session.ConfirmedCompliant * XpRules.ConfirmCompliant;
             Current = Phase.Closed; MenuOpen = true; Session.Paused = true;
             Quiz = new QuizSession(Episode.ClosingQuiz(), Seed + 1);
             Say("Shift closed. Review what your crew needed.");
             Log("shift_end", "day", "HII=" + Session.HazardIdentificationIndex.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " xp=" + Xp +
+                " early=" + EndedEarly + " stopped_s=" + Session.StoppedSeconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) +
+                " confirmed=" + Session.ConfirmedCompliant +
                 " mission=" + Mission.Completed + "/" + Mission.Mission.Steps.Count);
             Log("ksa", "mission", Mission.Completed + "/" + Mission.Mission.Steps.Count, Jobsite.Core.Ksa.AThorough,
                 (float)Mission.Completed / Mission.Mission.Steps.Count, "1926.20(b)(2)");
@@ -360,13 +566,62 @@ namespace Jobsite.Runtime
             tablet.Refresh();
         }
 
+        // ---------- tomorrow's toolbox talk (GDD N7, §4 Reflect) ----------
+        public IEnumerable<SiteCondition> Findings => conditions.Where(c => c != null && c.IsHazard && Session.GetEvidence(c.Id).Detected);
+
+        public void ToggleTalkPick(string id)
+        {
+            if (!Finished || EpisodeComplete || Findings.All(c => c.Id != id)) return;
+            if (!talkPicks.Remove(id) && talkPicks.Count < ToolboxTalk.Picks) talkPicks.Add(id);
+            tablet.Refresh();
+        }
+
+        public void ClearTalk() { talkPicks.Clear(); tablet.Refresh(); }
+
+        public void SubmitToolboxTalk(int whyOption)
+        {
+            if (!Finished || EpisodeComplete || TalkWhy == null || TalkWhy.Done) return;
+            var found = Findings.Select(c => c.Spec).ToList();
+            if (found.Count > 0 && talkPicks.Count == 0) { Say("Dolores: Pick what you'll brief first. At least one finding."); return; }
+            var why = TalkWhy.Current;
+            var whyOk = TalkWhy.Answer(whyOption);
+            var ordered = talkPicks.Select(id => conditions.First(c => c.Id == id).Spec).ToList();
+            TalkScore = ToolboxTalk.Score(ordered, found, whyOk);
+            var leads = ToolboxTalk.LeadsWithTopRisk(ordered, found);
+            if (leads) Xp += XpRules.ToolboxLead;
+            if (whyOk) Xp += XpRules.ToolboxWhy;
+            var good = TalkScore >= ToolboxTalk.GoodTalk;
+            if (good) { PlayerPrefs.SetInt(BankedHintsKey, PlayerPrefs.GetInt(BankedHintsKey, 0) + 1); PlayerPrefs.Save(); }
+            var top = conditions.Where(c => found.Any(f => f.Id == c.Id)).OrderByDescending(c => ToolboxTalk.Risk(c.Spec)).FirstOrDefault();
+            TalkFeedback = (found.Count == 0 ? "Dolores: No findings to brief. Walk the site first thing tomorrow."
+                    : leads ? $"Dolores: Right, open with the {top?.DisplayName.ToLowerInvariant()}. Worst credible outcome goes first."
+                    : $"Dolores: I'd open with the {top?.DisplayName.ToLowerInvariant()}. It had the highest risk today (P{top?.Spec.Probability} x S{top?.Spec.Severity}).")
+                + "\n" + (whyOk ? "Why: right. " : "Why: not quite. ") + why.Explanation
+                + (good ? "\nGood talk: +1 hint token banked for your next shift." : "");
+            Log("toolbox_talk", "day", "order=" + string.Join(">", talkPicks) + " why=" + (whyOk ? "ok" : "wrong") +
+                " score=" + TalkScore.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), Jobsite.Core.Ksa.SCommunicate, TalkScore, "1926.21(b)(2)");
+            Log("why_choice", why.Id, whyOk ? "correct" : "wrong", Jobsite.Core.Ksa.KHierarchy, whyOk ? 1f : 0f, "1926.21(b)(2)");
+            Say(TalkFeedback.Split('\n')[0]);
+            CompleteEpisode();
+        }
+
+        // Legacy entry (demo autoplay and older tests): submits whatever is picked, or the findings in the order found.
         public void ExplainBack(int choice)
         {
-            if (!Finished) return;
-            Log("toolbox_talk", "day", choice.ToString());
-            Say(choice == 0 ? "Controls first, verified in the field. That's the job." : "Tomorrow: controls first. Speed and PPE alone are insufficient.");
+            if (!Finished || EpisodeComplete) return;
+            if (TalkWhy == null) TalkWhy = new QuizSession(new[] { ToolboxTalk.Why(Episode.Number) }, Seed + 2);
+            if (talkPicks.Count == 0)
+                talkPicks.AddRange(Findings.OrderBy(c => Session.GetEvidence(c.Id).DetectedAtSeconds).Take(ToolboxTalk.Picks).Select(c => c.Id));
+            SubmitToolboxTalk(Mathf.Clamp(choice, 0, TalkWhy.Current.Options.Length - 1));
+        }
+
+        private void CompleteEpisode()
+        {
+            MasteryToday = Session.Mastery();
+            MasteryBest = MasteryStore.Record(MasteryToday);
+            Log("mastery", "ep" + Episode.Number, string.Join(" ", MasteryToday.Select(kv => kv.Key + "=" + kv.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))));
             if (Xp > PlayerPrefs.GetInt(EpisodeDirector.Key(Episode), -1)) { PlayerPrefs.SetInt(EpisodeDirector.Key(Episode), Xp); PlayerPrefs.Save(); }
-            BadgesEarned = Badges.Earned(Session, conditions.Select(c => c.Spec));
+            BadgesEarned = Badges.Earned(Session, conditions.Select(c => c.Spec), ShiftLength);
             PointsAwarded = Career.Award(Xp, BadgesEarned.Count);
             CareerStore.Save(Career);
             EpisodeComplete = true;
@@ -422,7 +677,7 @@ namespace Jobsite.Runtime
             if (!Hints.TrySpend()) { Say("No hint tokens left. A logbook in the gear locker adds one per shift."); return; }
             var tier = Session.UseHint(target.Id);
             var spec = target.Spec;
-            Say(Career.HintText(tier, target.DisplayName, spec.Energy, spec.FocusFour, Where(target.transform.position - player.transform.position)));
+            Say(Career.HintText(tier, target.NeutralName, spec.Energy, spec.FocusFour, Where(target.transform.position - player.transform.position)));
             Log("hint", target.Id, "tier=" + tier);
             FindFirstObjectByType<ScaffoldCues>()?.Hint(target, tier);
             var dolores = CrewGestures.Named("Dolores");
@@ -444,8 +699,9 @@ namespace Jobsite.Runtime
         {
             TalkingTo = crew; MenuOpen = true;
             crew.BeginTalk(player.transform);
-            Log("radio_query_open", crew.DisplayName, "", Jobsite.Core.Ksa.SCommunicate, 1f, "1926.21(b)(2)");
-            Log("ksa", crew.DisplayName, "engaged crew", Jobsite.Core.Ksa.ACare, 1f, "1926.21(b)(2)");
+            // Opening a conversation is logged, not scored: communication evidence has to come from what is said
+            // or decided (speak-up choices), not from pressing E on a person.
+            Log("radio_query_open", crew.DisplayName, "", null, -1f, "1926.21(b)(2)");
             tablet.Refresh();
         }
 
@@ -496,9 +752,8 @@ namespace Jobsite.Runtime
             if (hit.collider.GetComponentInParent<VehicleController>() != null) return "E  Get in";
             if (hit.collider.GetComponentInParent<ControlSupply>() != null) return pendingInstall != null ? "E  Pick up the kit" : "Supply rack";
             if (Carrying) return "E  Set the kit down here";
-            var target = hit.collider.GetComponentInParent<SiteCondition>();
-            if (target != null) return PhotoValid(target) ? "E  Photograph" : "Step back: fit it all in frame";
-            actionable = false; return "";
+            // Same prompt on every surface in reach: the crosshair must not single out conditions.
+            return "E  Photograph";
         }
 
         static string Feedback(Ksa k, string cfr, string text) =>

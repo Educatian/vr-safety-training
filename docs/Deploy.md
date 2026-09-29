@@ -30,6 +30,7 @@ bash Web/deploy.sh
 3. At the end they get a completion code; paste it on the instructor page to verify, or load the class report / CSV.
 
 ## Privacy notes
+- Play events (`/api/events`) are sent only after the learner opts in to research on the title screen (logged with consent version `cp-research-v1`). Completion codes are sent either way.
 - Stored: class code, student ID, episode, event kinds, hazard ids, timings, scores. Not stored: names, emails, chat text, IPs (rate limiting keys are SHA-256 hashes).
 - AI chat asks for consent first and can be turned off in Esc → Settings (built-in answers).
 - Training records only — not an OSHA 10/30 card or a competent-person designation.

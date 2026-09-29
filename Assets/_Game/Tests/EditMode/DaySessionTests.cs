@@ -213,6 +213,99 @@ namespace Jobsite.Tests
         }
 
         [Test]
+        public void SecondStopOnSameHazard_HoldsTheCrew_ButEarnsNothingNew()
+        {
+            var day = NewDay();
+            day.Report("edge", EnergySource.Gravity, 4, 5);
+            Assert.That(day.StopWork("edge"), Is.EqualTo(StopOutcome.Justified));
+            Assert.That(day.CrewTrust, Is.EqualTo(1));
+            day.Advance(DaySession.StopHoldSeconds + 1f);   // Ray restarts the crew
+            Assert.That(day.GetState("edge"), Is.EqualTo(HazardState.Reported));
+            Assert.That(day.StopWork("edge"), Is.EqualTo(StopOutcome.Repeated));
+            Assert.That(day.GetState("edge"), Is.EqualTo(HazardState.Stopped), "a repeat stop still holds the crew");
+            Assert.That(day.CrewTrust, Is.EqualTo(1), "re-stopping earns no trust");
+            Assert.That(day.StoppedSeconds, Is.GreaterThan(DaySession.StopHoldSeconds - 1f), "stops cost schedule");
+        }
+
+        [Test]
+        public void EngineeredControl_CountsOnlyOnceInstalled()
+        {
+            var day = NewDay();
+            day.Report("edge", EnergySource.Gravity, 4, 5);
+            day.ChooseControl("edge", ControlLevel.Engineering);
+            Assert.That(day.GetEvidence("edge").AppliedControl, Is.Null, "choosing a fix is not the fix");
+            var chosenOnly = day.Mastery()[CpArea.FallProtection];
+            day.CompleteInstall("edge", true);
+            Assert.That(day.GetEvidence("edge").AppliedControl, Is.EqualTo(ControlLevel.Engineering));
+            Assert.That(day.Mastery()[CpArea.FallProtection], Is.GreaterThan(chosenOnly));
+        }
+
+        [Test]
+        public void StopMidInstall_ThenTheKitArrives_StillInstalls()
+        {
+            var day = NewDay();
+            day.Report("edge", EnergySource.Gravity, 4, 5);
+            day.ChooseControl("edge", ControlLevel.Engineering);
+            Assert.That(day.StopWork("edge"), Is.EqualTo(StopOutcome.Justified));
+            Assert.That(day.CompleteInstall("edge", true), Is.True);
+            Assert.That(day.GetState("edge"), Is.EqualTo(HazardState.Controlled));
+
+            var d2 = NewDay();
+            d2.Report("edge", EnergySource.Gravity, 4, 5);
+            d2.ChooseControl("edge", ControlLevel.Engineering);
+            d2.StopWork("edge");
+            d2.Advance(DaySession.StopHoldSeconds + 1f);
+            Assert.That(d2.GetState("edge"), Is.EqualTo(HazardState.Installing), "stop lifts back to the install in progress");
+        }
+
+        [Test]
+        public void CuedFind_CountsHalfForMastery()
+        {
+            var clean = NewDay(); var cued = NewDay();
+            cued.MarkCued("edge");
+            foreach (var d in new[] { clean, cued }) { d.Report("edge", EnergySource.Gravity, 4, 5); d.ChooseControl("edge", ControlLevel.Engineering); d.CompleteInstall("edge", true); }
+            Assert.That(cued.GetEvidence("edge").Cued, Is.True);
+            Assert.That(DaySession.HazardScore(NewSpecEdge(), cued.GetEvidence("edge")),
+                Is.EqualTo(DaySession.HazardScore(NewSpecEdge(), clean.GetEvidence("edge")) * 0.5f).Within(1e-5));
+            Assert.That(XpRules.HazardXp(NewSpecEdge(), cued.GetEvidence("edge")), Is.EqualTo(XpRules.HazardXp(NewSpecEdge(), clean.GetEvidence("edge"))), "cues don't cost XP");
+            clean.MarkCued("edge");
+            Assert.That(clean.GetEvidence("edge").Cued, Is.False, "no effect once found");
+        }
+
+        static HazardSpec NewSpecEdge() => new HazardSpec("edge", true, EnergySource.Gravity, FocusFour.Falls, CpArea.FallProtection, 4, 5, ControlLevel.Engineering);
+
+        [Test]
+        public void ConfirmCompliant_OnLookAlike_IsPositiveEvidence_OnHazard_ItStaysLive()
+        {
+            var day = NewDay();
+            Assert.That(day.ConfirmCompliant("rail-ok"), Is.EqualTo(ConfirmOutcome.Confirmed));
+            Assert.That(day.ConfirmCompliant("rail-ok"), Is.EqualTo(ConfirmOutcome.AlreadyJudged));
+            Assert.That(day.ConfirmedCompliant, Is.EqualTo(1));
+            Assert.That(day.LoggedCompliant("rail-ok"), Is.True);
+            Assert.That(day.Revealed("rail-ok"), Is.False, "logging compliant gives no feedback");
+
+            Assert.That(day.ConfirmCompliant("edge"), Is.EqualTo(ConfirmOutcome.DismissedHazard));
+            Assert.That(day.GetState("edge"), Is.EqualTo(HazardState.Latent));
+            Assert.That(day.Revealed("edge"), Is.False, "a wrong confirm must not reveal the hazard");
+            Assert.That(day.GetEvidence("edge").DismissedAsCompliant, Is.True);
+            Assert.That(day.Report("edge", EnergySource.Gravity, 4, 5), Is.EqualTo(ReportOutcome.Reported), "learner may change the call");
+            Assert.That(day.FalseReports, Is.Zero);
+        }
+
+        [Test]
+        public void Spend_RunsTheClockEvenWhilePaused()
+        {
+            var day = NewDay();
+            day.Paused = true;
+            Assert.That(day.Advance(50f), Is.Empty);
+            Assert.That(day.Clock, Is.Zero);
+            var events = day.Spend(250f);
+            Assert.That(day.Clock, Is.EqualTo(250f).Within(1e-4));
+            Assert.That(day.Paused, Is.True, "pause state restored");
+            Assert.That(events.Any(e => e.HazardId == "swing"), Is.True, "incident timers fire during spent time");
+        }
+
+        [Test]
         public void Constructor_RejectsDuplicatesAndHazardFreeDays()
         {
             var lookAlike = new HazardSpec("x", false, EnergySource.Gravity, FocusFour.None, CpArea.General, 1, 1, ControlLevel.Engineering);

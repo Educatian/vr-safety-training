@@ -26,9 +26,9 @@ namespace Jobsite.Runtime
             font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             panel = new GameObject("Pause", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup)).GetComponent<RectTransform>();
             panel.SetParent(transform, false);
-            panel.anchorMin = new Vector2(0.36f, 0.12f); panel.anchorMax = new Vector2(0.64f, 0.88f); panel.offsetMin = panel.offsetMax = Vector2.zero;
+            panel.anchorMin = new Vector2(0.34f, 0.04f); panel.anchorMax = new Vector2(0.66f, 0.96f); panel.offsetMin = panel.offsetMax = Vector2.zero;
             panel.GetComponent<Image>().color = new Color(.06f, .07f, .08f, .95f);
-            var v = panel.GetComponent<VerticalLayoutGroup>(); v.padding = new RectOffset(28, 28, 24, 24); v.spacing = 10;
+            var v = panel.GetComponent<VerticalLayoutGroup>(); v.padding = new RectOffset(28, 28, 20, 20); v.spacing = 6;
             v.childControlHeight = v.childControlWidth = true; v.childForceExpandHeight = false;
             Row("PAUSED", null, 40, new Color(1f, .78f, .1f));
             Row("Resume", Close);
@@ -41,6 +41,9 @@ namespace Jobsite.Runtime
             Cycle(() => $"Tutorial  {(GameSettings.Tutorial ? "On" : "Off")}", () => GameSettings.Tutorial = !GameSettings.Tutorial);
             Cycle(() => $"Visual cues  {new[] { "Auto (by level)", "Off", "Light", "Full" }[GameSettings.Guidance + 1]} (next shift)", () => GameSettings.Guidance = GameSettings.Guidance >= 2 ? -1 : GameSettings.Guidance + 1);
             Cycle(() => $"AI crew chat  {(GameSettings.AiConsent == 1 ? "Allowed" : "Offline answers")}", () => GameSettings.AiConsent = GameSettings.AiConsent == 1 ? 0 : 1);
+            Cycle(() => $"Research data  {(GameSettings.ResearchConsent == 1 ? "Sharing (opted in)" : "Not shared")}", () => GameSettings.ResearchConsent = GameSettings.ResearchConsent == 1 ? 0 : 1);
+            Cycle(() => $"Facilitator: all episodes  {(GameSettings.UnlockAll ? "Unlocked" : "Mastery gate")}", () => GameSettings.UnlockAll = !GameSettings.UnlockAll);
+            ResetRow();
             Row("Episode select", () => { Show(false); EpisodeDirector.BackToMenu(); });
             Row("Controls: drag mouse = look · WASD · E act · Tab tablet · M map · Esc pause", null, 18, new Color(.75f, .8f, .8f));
         }
@@ -48,7 +51,21 @@ namespace Jobsite.Runtime
         private void Cycle(Func<string> label, Action next)
         {
             Text text = null;
-            text = Row(label(), () => { next(); PlayerPrefs.Save(); text.text = label(); AudioDirector.Play("click"); });
+            text = Row(label(), () => { next(); PlayerPrefs.Save(); text.text = label(); AudioDirector.Play("click"); }, 22);
+        }
+
+        // Facilitator: fresh participant on the same browser (career, mastery, banked hints, best scores). Asks twice.
+        private void ResetRow()
+        {
+            Text text = null; var armed = false;
+            text = Row("Reset progress (new participant)", () =>
+            {
+                if (!armed) { armed = true; text.text = "Tap again to erase career, mastery and scores"; return; }
+                CareerStore.Reset(); MasteryStore.Reset();
+                PlayerPrefs.DeleteKey("banked_hints");
+                foreach (var ep in Jobsite.Core.Episodes.All) PlayerPrefs.DeleteKey(EpisodeDirector.Key(ep));
+                PlayerPrefs.Save(); armed = false; text.text = "Progress erased";
+            }, 22);
         }
 
         private Text Row(string label, Action onClick, int size = 26, Color? color = null)

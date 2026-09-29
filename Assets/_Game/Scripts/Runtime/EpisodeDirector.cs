@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using Jobsite.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -99,8 +100,9 @@ namespace Jobsite.Runtime
             // Roster sign-in: pseudonymous codes from the instructor. Blank = practice (nothing reaches a class report).
             Field(root, "CLASS CODE", GameSettings.ClassCode, v => GameSettings.ClassCode = v, new Vector2(0.56f, 0.72f), new Vector2(0.74f, 0.775f));
             Field(root, "STUDENT ID", GameSettings.LearnerId, v => GameSettings.LearnerId = v, new Vector2(0.76f, 0.72f), new Vector2(0.94f, 0.775f));
-            Text(root, "Play data (no names) goes to your course's report. AI crew chat asks first. Esc = pause/settings.", 18, new Color(.7f, .75f, .75f),
-                new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.06f), TextAnchor.MiddleLeft);
+            Text(root, "Completion codes go to your course. Detailed play data (no names) is shared only if you opt in. AI chat asks first. Esc = settings.", 18, new Color(.7f, .75f, .75f),
+                new Vector2(0.06f, 0.02f), new Vector2(0.66f, 0.06f), TextAnchor.MiddleLeft);
+            ResearchToggle(root);
             body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.7f), new Color(0, 0, 0, 0));
             ShowTab(Tab.Episodes);
             StartCoroutine(Orbit());
@@ -199,11 +201,30 @@ namespace Jobsite.Runtime
                 Text(card, ep.Topic, 22, new Color(.8f, .84f, .84f), new Vector2(0.06f, 0.22f), new Vector2(0.94f, 0.34f), TextAnchor.UpperLeft);
                 Text(card, "29 CFR " + string.Join(" · ", ep.Standards), 16, new Color(.6f, .66f, .66f), new Vector2(0.06f, 0.13f), new Vector2(0.94f, 0.22f), TextAnchor.UpperLeft);
                 var best = PlayerPrefs.GetInt(Key(ep), -1);
-                var label = !ep.Playable ? "IN PRODUCTION" : best >= 0 ? $"REPLAY · BEST {best} XP" : "START";
-                var button = Panel(card, "Play", new Vector2(0.06f, 0.03f), new Vector2(0.94f, 0.11f), ep.Playable ? Accent : new Color(.25f, .27f, .28f));
-                Text(button, label, 22, ep.Playable ? new Color(.08f, .08f, .08f) : new Color(.6f, .6f, .6f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
-                if (ep.Playable) button.gameObject.AddComponent<Button>().onClick.AddListener(() => Play(ep));
+                // Mastery gate (GDD §5.2): the capstone opens once every prior area is at "competent".
+                var gated = ep.Number == 5 && !MasteryStore.CapstoneOpen;
+                var open = ep.Playable && !gated;
+                if (gated)
+                    Text(card, "Needs competent in: " + string.Join(", ", MasteryStore.CapstoneMissing().Select(a => $"{MasteryGate.AreaName(a)} ({MasteryGate.Practice(a)})")),
+                        16, Accent, new Vector2(0.06f, 0.115f), new Vector2(0.94f, 0.2f), TextAnchor.UpperLeft);
+                var label = !ep.Playable ? "IN PRODUCTION" : gated ? "LOCKED · MASTERY GATE" : best >= 0 ? $"REPLAY · BEST {best} XP" : "START";
+                var button = Panel(card, "Play", new Vector2(0.06f, 0.03f), new Vector2(0.94f, 0.11f), open ? Accent : new Color(.25f, .27f, .28f));
+                Text(button, label, 22, open ? new Color(.08f, .08f, .08f) : new Color(.6f, .6f, .6f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+                if (open) button.gameObject.AddComponent<Button>().onClick.AddListener(() => Play(ep));
             }
+        }
+
+        // Research participation toggle (IRB): off until the learner opts in; the choice is logged with a version.
+        private void ResearchToggle(Transform root)
+        {
+            var box = Panel(root, "ResearchToggle", new Vector2(0.68f, 0.015f), new Vector2(0.94f, 0.065f), new Color(.1f, .12f, .13f, .95f));
+            var label = Text(box, "", 18, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+            void Show() => label.text = GameSettings.ResearchConsent == 1 ? "RESEARCH DATA: SHARING · tap to stop" : "RESEARCH DATA: OFF · tap to opt in";
+            Show();
+            box.gameObject.AddComponent<Button>().onClick.AddListener(() =>
+            {
+                GameSettings.ResearchConsent = GameSettings.ResearchConsent == 1 ? 0 : 1; PlayerPrefs.Save(); Show();
+            });
         }
 
         private IEnumerator Orbit()
@@ -337,10 +358,13 @@ namespace Jobsite.Runtime
         public static IEnumerator Epilogue(ShiftDirector shift)
         {
             if (Selected == null) yield break;
+            // Story follows play: found-gated lines, and a clean-vs-rough branch for how the shift actually went.
+            var clean = ShiftVerdict.Clean(shift.Session, shift.Conditions.Select(c => c.Spec));
             for (var i = 0; i < Selected.Epilogue.Count; i++)
             {
                 var line = Selected.Epilogue[i];
-                if (line.IfFound != null && !shift.Session.GetEvidence(line.IfFound).Detected) continue;
+                if (line.IfFound != null && (!shift.Conditions.Any(c => c.Id == line.IfFound) || !shift.Session.GetEvidence(line.IfFound).Detected)) continue;
+                if (!ShiftVerdict.Plays(line.Gate, clean)) continue;
                 shift.Say((line.Speaker.Length > 0 ? line.Speaker + ": " : "") + line.Text);
                 Voice(Selected, "epi", i);
                 yield return new WaitForSeconds(Seconds(Selected, "epi", i));

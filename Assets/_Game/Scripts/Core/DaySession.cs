@@ -5,8 +5,9 @@ using System.Linq;
 namespace Jobsite.Core
 {
     public enum ReportOutcome { Reported, ReReportedAfterLapse, AlreadyReported, FalseReport, NotReportable, Unknown }
-    public enum ControlOutcome { Installing, Assigned, NotFeasible, InvalidState, Unknown }
-    public enum StopOutcome { Justified, Unjustified, InvalidState, Unknown }
+    public enum ControlOutcome { Installing, Assigned, NotFeasible, InvalidState, Unknown, Eliminated }
+    public enum StopOutcome { Justified, Repeated, Unjustified, InvalidState, Unknown }
+    public enum ConfirmOutcome { Confirmed, DismissedHazard, AlreadyJudged, Unknown }
     public enum DayEventKind { Lapsed, NearMiss, Recordable, StopLifted }
 
     public readonly struct DayEvent
@@ -31,6 +32,10 @@ namespace Jobsite.Core
         public const float CompetentThreshold = 0.7f;
         // A stop holds this long; then the foreman restarts the crew unless a control is on the way.
         public const float StopHoldSeconds = 120f;
+        // Crew trust at which a worker starts self-reporting a hazard over the radio (GDD §5.2 feedback loop).
+        public const int SelfReportTrust = 3;
+        // Schedule slip that still earns the "On Schedule" commendation (GDD §5.2: lateness costs only this).
+        public const float OnScheduleSlipMinutes = 3f;
 
         sealed class Entry
         {
@@ -39,6 +44,8 @@ namespace Jobsite.Core
             public float LapseAt = float.PositiveInfinity;
             public float StopUntil;
             public int FalseReports;
+            public bool Confirmed;
+            public ControlLevel? PendingControl;   // engineered control chosen but not installed yet
             public readonly HazardEvidence Evidence = new HazardEvidence();
         }
 
@@ -66,10 +73,27 @@ namespace Jobsite.Core
         public int FalseReports { get; private set; }
         public float StoppedSeconds { get; private set; }
         public int StreakBonuses { get; private set; }
+        public int ConfirmedCompliant { get; private set; }
+        // Schedule meter: crew minutes lost to stops (fixes are quick; stops are what slip the plan).
+        public float ScheduleSlipMinutes => StoppedSeconds / 60f;
         private int streak;
 
         public HazardState GetState(string id) => entries[id].State;
         public HazardEvidence GetEvidence(string id) => entries[id].Evidence;
+
+        // Has the learner made a call on this condition yet (report, false report, or confirmed compliant)?
+        // Until then the tablet shows only its neutral name.
+        public bool Judged(string id) => entries.TryGetValue(id, out var e) &&
+            (e.Evidence.Detected || e.FalseReports > 0 || e.Confirmed || e.Evidence.DismissedAsCompliant);
+
+        // The learner logged it as compliant (right or wrong: the tablet treats both the same until the debrief).
+        public bool LoggedCompliant(string id) => entries.TryGetValue(id, out var e) &&
+            (e.Confirmed || e.Evidence.DismissedAsCompliant);
+
+        // The condition's real title may be shown: only after a REPORT, which is when feedback is given. Logging a
+        // condition compliant gives no feedback until the debrief, so it can't be used to probe for hazards.
+        public bool Revealed(string id) => entries.TryGetValue(id, out var e) &&
+            (e.Evidence.Detected || e.FalseReports > 0);
 
         public float HazardIdentificationIndex
         {
@@ -130,6 +154,46 @@ namespace Jobsite.Core
             return e.Evidence.HintTier;
         }
 
+        // An in-world cue pointed the learner at this hazard before they found it (GDD pillar 1: the find is
+        // scaffolded, so its recognition evidence counts half). No effect once found.
+        public void MarkCued(string id)
+        {
+            if (entries.TryGetValue(id, out var e) && e.Spec.IsHazard && e.State == HazardState.Latent)
+                e.Evidence.Cued = true;
+        }
+
+        // "I checked it and it is compliant" (the CP documents compliant work too). Correct on a look-alike is
+        // positive discrimination evidence; on a real hazard it is recorded as a miss and the hazard stays live.
+        public ConfirmOutcome ConfirmCompliant(string id)
+        {
+            if (!entries.TryGetValue(id, out var e))
+                return ConfirmOutcome.Unknown;
+            if (Judged(id))
+                return ConfirmOutcome.AlreadyJudged;
+            if (!e.Spec.IsHazard)
+            {
+                e.Confirmed = true;
+                ConfirmedCompliant++;
+                return ConfirmOutcome.Confirmed;
+            }
+            if (e.State != HazardState.Latent)
+                return ConfirmOutcome.AlreadyJudged;
+            e.Evidence.DismissedAsCompliant = true;
+            streak = 0;
+            return ConfirmOutcome.DismissedHazard;
+        }
+
+        // Shift time spent on an action (photo, measurement, a false alarm the crew has to explain). Runs the clock
+        // even while the tablet is open, so timers and incidents fire exactly as they would in real time.
+        public IReadOnlyList<DayEvent> Spend(float seconds)
+        {
+            var wasPaused = Paused;
+            Paused = false;
+            var events = Advance(seconds);
+            Paused = wasPaused;
+            return events;
+        }
+
         public ControlOutcome ChooseControl(string id, ControlLevel level)
         {
             if (!entries.TryGetValue(id, out var e) || !e.Spec.IsHazard)
@@ -139,12 +203,26 @@ namespace Jobsite.Core
             if (level < e.Spec.BestFeasibleControl)
                 return ControlOutcome.NotFeasible;
 
-            e.Evidence.AppliedControl = level;
+            if (level == ControlLevel.Elimination)
+            {
+                // Remove it from service: done on the spot (tag out, pull it), nothing to carry, nothing to lapse.
+                e.Evidence.AppliedControl = level;
+                e.State = HazardState.Controlled;
+                e.LapseAt = float.PositiveInfinity;
+                e.PendingControl = null;
+                CrewTrust++;
+                return ControlOutcome.Eliminated;
+            }
+
             if (level <= ControlLevel.Engineering)
             {
+                // Credit only once the control is actually in place (CompleteInstall), not when it is chosen.
+                e.PendingControl = level;
                 e.State = HazardState.Installing;
                 return ControlOutcome.Installing;
             }
+
+            e.Evidence.AppliedControl = level;
 
             // Assign (admin / PPE): holds only for a while unless it is the best feasible control.
             e.State = HazardState.Controlled;
@@ -154,7 +232,9 @@ namespace Jobsite.Core
 
         public bool CompleteInstall(string id, bool success)
         {
-            if (!entries.TryGetValue(id, out var e) || e.State != HazardState.Installing)
+            // Installing, or stopped mid-install with the kit still on the way.
+            if (!entries.TryGetValue(id, out var e) ||
+                !(e.State == HazardState.Installing || (e.State == HazardState.Stopped && e.PendingControl != null)))
                 return false;
 
             e.Evidence.InstallAttempts++;
@@ -163,6 +243,8 @@ namespace Jobsite.Core
 
             e.State = HazardState.Controlled;
             e.LapseAt = float.PositiveInfinity;
+            e.Evidence.AppliedControl = e.PendingControl ?? ControlLevel.Engineering;
+            e.PendingControl = null;
             CrewTrust++;
             return true;
         }
@@ -170,7 +252,10 @@ namespace Jobsite.Core
         public void CancelInstall(string id)
         {
             if (entries.TryGetValue(id, out var e) && e.State == HazardState.Installing)
+            {
                 e.State = HazardState.Reported;
+                e.PendingControl = null;
+            }
         }
 
         public StopOutcome StopWork(string id)
@@ -184,15 +269,32 @@ namespace Jobsite.Core
 
             e.State = HazardState.Stopped;
             e.StopUntil = Clock + StopHoldSeconds;
+            // A second stop on the same hazard holds the crew again (safety first) but earns nothing new:
+            // the evidence was the first call; re-stopping instead of fixing only burns schedule.
+            if (e.Evidence.StopWorkCalled)
+                return StopOutcome.Repeated;
             e.Evidence.StopWorkCalled = true;
             CrewTrust++;
             return StopOutcome.Justified;
         }
 
+        // The foreman pushes back on a stop (GDD N4). Passive gives the crew back to the hazard; aggressive holds
+        // the stop but costs trust; assertive-respectful holds it and keeps the foreman on side.
+        public bool SpeakUp(string id, SpeakUpStyle style)
+        {
+            if (!entries.TryGetValue(id, out var e) || !e.Spec.IsHazard || e.Evidence.SpeakUp.HasValue)
+                return false;
+            e.Evidence.SpeakUp = style;
+            if (style == SpeakUpStyle.Assertive) CrewTrust++;
+            else if (style == SpeakUpStyle.Aggressive) CrewTrust--;
+            else LiftStop(id);
+            return true;
+        }
+
         public void LiftStop(string id)
         {
             if (entries.TryGetValue(id, out var e) && e.State == HazardState.Stopped)
-                e.State = HazardState.Reported;
+                e.State = e.PendingControl != null ? HazardState.Installing : HazardState.Reported;
         }
 
         public IReadOnlyList<DayEvent> Advance(float deltaSeconds)
@@ -212,7 +314,7 @@ namespace Jobsite.Core
                     // Stopped work cannot hurt anyone, but it costs schedule and it does not last.
                     StoppedSeconds += Math.Min(deltaSeconds, Math.Max(0f, e.StopUntil - (Clock - deltaSeconds)));
                     if (Clock < e.StopUntil) continue;
-                    e.State = HazardState.Reported;
+                    e.State = e.PendingControl != null ? HazardState.Installing : HazardState.Reported;
                     events.Add(new DayEvent(DayEventKind.StopLifted, e.Spec.Id, Clock));
                 }
 
@@ -250,8 +352,9 @@ namespace Jobsite.Core
             if (ev.TagCorrect) score += 0.15f;
             score += 0.15f * (1f - ev.RiskDeviation / 8f);
             score += 0.25f * ControlQuality(spec, ev);
-            if (!spec.RequiresStopWork || ev.StopWorkCalled) score += 0.10f;
-            return ev.Hinted ? score * 0.5f : score;
+            // Escalation counts only if the stop was called and held (backing down to the foreman forfeits it).
+            if (!spec.RequiresStopWork || (ev.StopWorkCalled && ev.SpeakUp != SpeakUpStyle.Passive)) score += 0.10f;
+            return ev.Hinted || ev.Cued ? score * 0.5f : score;
         }
 
         static float ControlQuality(HazardSpec spec, HazardEvidence ev)

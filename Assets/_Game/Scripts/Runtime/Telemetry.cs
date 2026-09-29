@@ -47,6 +47,8 @@ namespace Jobsite.Runtime
         public void Flush()
         {
             if (!Online || pending.Count == 0) return;
+            // No research consent, no play events off the device (the completion code below still works).
+            if (GameSettings.ResearchConsent != 1) { pending.Clear(); return; }
             var batch = new Batch { session = SessionId, classCode = GameSettings.ClassCode, learner = GameSettings.LearnerId, episode = Episode, seed = Seed, rows = new List<Row>(pending) };
             pending.Clear();
             StartCoroutine(Post("/api/events", JsonUtility.ToJson(batch), ok => { if (ok != null) Sent += batch.rows.Count; else pending.InsertRange(0, batch.rows); }));

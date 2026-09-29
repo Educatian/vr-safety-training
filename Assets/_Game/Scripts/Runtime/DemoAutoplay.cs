@@ -65,7 +65,8 @@ namespace Jobsite.Runtime
             {
                 yield return Glide(p, new Vector3(57.2f, 0.05f, 52.8f), new Vector3(56.5f, 0.05f, 52f), new Vector3(53.2f, 0.4f, 49.6f), new Vector3(53.2f, 0.2f, 49.6f), 1.2f);
                 Mark("Inspect + measure: penetrometer, laser");
-                d.Photograph(outrigger); yield return Wait(1.3f);                                  // penetrometer + laser readings
+                d.Photograph(outrigger); yield return Wait(0.6f);
+                foreach (var g in d.Instruments.ToList()) if (g != GearId.FieldNotebook && outrigger.Reading(g) != null) { d.Measure(g); yield return Wait(0.5f); }   // penetrometer + laser readings
                 var s = outrigger.Spec;
                 Mark("Report: energy, risk, OSHA + KSA feedback");
                 d.Report(s.Energy, s.Probability, s.Severity); yield return Wait(2.6f);            // feedback + KSA line
@@ -73,6 +74,7 @@ namespace Jobsite.Runtime
                 if (d.PendingInstall == outrigger.Id)
                 {
                     Mark("Engineered control: carry the mats, set them down");
+                    if (d.KitOptions != null) { yield return Wait(1.0f); d.ChooseKit(d.KitCorrect); }   // which control: mats, not a 2x4
                     d.PickUpKit(); yield return Wait(0.9f);                                        // mats in hand, drop ring
                     d.SetKitDown(outrigger, outrigger.PhotoBounds.center); yield return Wait(1.8f); // installed, crew thumbs-up
                 }
@@ -87,7 +89,8 @@ namespace Jobsite.Runtime
                 Mark("Worker under the load: stop work");
                 d.Photograph(under); yield return Wait(0.5f);
                 d.Report(under.Spec.Energy, under.Spec.Probability, under.Spec.Severity); yield return Wait(1.1f);
-                d.StopWork(); yield return Wait(1.3f);
+                d.StopWork(); yield return Wait(1.6f);                                            // Ray pushes back
+                if (d.PendingSpeakUp != null) { d.ChooseSpeakUp(d.SpeakUpOptions.Select((o, k) => (o, k)).First(t => t.o.Style == SpeakUpStyle.Assertive).k); yield return Wait(1.3f); }
                 d.ToggleTablet(); yield return Wait(2.2f);                                        // shrug -> hands on hips
             }
 

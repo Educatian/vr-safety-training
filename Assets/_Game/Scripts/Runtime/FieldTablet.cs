@@ -19,10 +19,14 @@ namespace Jobsite.Runtime
         [SerializeField] private Image flash;
         private EnergySource energy = EnergySource.Gravity;
         private int probability = 3, severity = 3;
+        private string reopened;            // condition id the learner re-opened after logging it compliant
+        private bool confirmEarlyEnd;       // "Finish shift" before the whistle asks once
 
         static readonly Color Ink = new Color(.84f, .87f, .86f);
         static readonly Color Accent = new Color(1f, .78f, .1f);
         static readonly Color Chip = new Color(.14f, .17f, .18f);
+        static readonly Color Good = new Color(.6f, .9f, .6f);
+        static readonly Color Bad = new Color(1f, .45f, .35f);
 
         public void Configure(ShiftDirector shift, RectTransform screen, Text radio, Font face, RectTransform tabletFrame = null, Image photoFlash = null)
         { director = shift; content = screen; radioText = radio; font = face; frame = tabletFrame; flash = photoFlash; }
@@ -54,11 +58,13 @@ namespace Jobsite.Runtime
             foreach (Transform child in content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
             var scroll = content.GetComponentInParent<ScrollRect>();
             if (scroll != null) scroll.verticalNormalizedPosition = 1f;    // each page opens at the top
-            if (!director.MenuOpen) return;
+            if (!director.MenuOpen) { confirmEarlyEnd = false; return; }
             Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp} · {Career.Rank(director.Career.Level)}", 22, Accent);
             var w = director.Weather;
             if (w != null) Label($"SITE WEATHER  {w.Summary} · heat risk {HeatIndex.Risk(w.HeatIndexF)}", 17, new Color(.55f, .85f, 1f));
             if (director.PendingWeather != null) { WeatherAlert(director.PendingWeather); return; }
+            if (director.PendingIncident != null) { IncidentCard(director.PendingIncident); return; }
+            if (director.PendingSpeakUp != null && director.Current == ShiftDirector.Phase.Shift) { SpeakUpCard(); return; }
             if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
             if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
             if (director.Finished) { Closing(); return; }
@@ -66,28 +72,52 @@ namespace Jobsite.Runtime
             {
                 Label("SITE WALK", 34, Color.white);
                 Label("Center a condition. Move close. Press E.");
+                Label(ShiftLine(), 18, Ink);
                 MissionCard();
                 if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
                 Button($"Hint from Dolores · {director.Hints.Tokens} left (half XP on that find)", director.UseHint);
                 Button("Return to site", director.ToggleTablet);
-                Button("Finish shift", director.EndShift);
+                FinishShiftButton();
                 return;
             }
             var target = director.Selected;
             var state = director.Session.GetState(target.Id);
-            Label(target.DisplayName, 32, Color.white);
-            foreach (var gear in director.Instruments)
+            // The real title is the diagnosis: it stays hidden until the learner reports the condition.
+            Label(director.Session.Revealed(target.Id) ? target.DisplayName : target.NeutralName, 32, Color.white);
+            // Instruments: a deliberate measurement (shift time) that returns a raw value, never the verdict.
+            foreach (var gear in director.Instruments.ToList())
             {
-                var reading = target.Reading(gear);
-                if (reading != null) Label(GearCatalog.Get(gear).Name + ": " + reading, 19, new Color(.55f, .85f, 1f));
+                var item = GearCatalog.Get(gear);
+                if (gear == GearId.FieldNotebook) continue;
+                if (director.Measured(target, gear))
+                    Label(item.Name + ": " + (target.Reading(gear) ?? "no useful reading here."), 19, new Color(.55f, .85f, 1f));
+                else
+                {
+                    var g = gear;
+                    Button($"Measure · {item.Name} ({ShiftDirector.MeasureSeconds:0} s)", () => director.Measure(g));
+                }
             }
-            if (state == HazardState.Latent || state == HazardState.Lapsed)
+            var logged = director.Session.LoggedCompliant(target.Id) && reopened != target.Id;
+            if (state == HazardState.Latent && logged)
+            {
+                Label("Logged as compliant", 22, Ink);
+                Button("Change my call: report it", () => { reopened = target.Id; Refresh(); });
+            }
+            else if (!target.IsHazard && director.Session.Revealed(target.Id))
+            {
+                Label("Reported · compliant", 22, Ink);
+                if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
+                Standard(target);
+            }
+            else if (state == HazardState.Latent || state == HazardState.Lapsed)
             {
                 Label("Energy source", 20, Accent);
                 EnergyGrid();
                 Button("Probability  " + Dots(probability), () => { probability = probability % 5 + 1; Refresh(); });
                 Button("Severity     " + Dots(severity), () => { severity = severity % 5 + 1; Refresh(); });
                 Button("Submit report", () => director.Report(energy, probability, severity), null, true);
+                if (state == HazardState.Latent && !director.Session.Judged(target.Id))
+                    Button("Checked · compliant, nothing to report", director.ConfirmCompliant);
             }
             else
             {
@@ -95,8 +125,18 @@ namespace Jobsite.Runtime
                 if (!string.IsNullOrEmpty(director.LastFeedback)) Label(director.LastFeedback, 20, new Color(.55f, .85f, 1f));
                 if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
                 Standard(target);
+                if (state == HazardState.Installing && director.PendingInstall == target.Id && director.KitOptions != null)
+                {
+                    if (director.ChosenKit < 0)
+                    {
+                        Label("Which control goes in?", 22, Accent);
+                        for (var i = 0; i < director.KitOptions.Count; i++) { var k = i; Button(director.KitOptions[i], () => director.ChooseKit(k)); }
+                    }
+                    else Label("Kit: " + director.KitOptions[director.ChosenKit] + " · collect it at the supply rack.", 19, Ink);
+                }
                 if (state == HazardState.Reported || state == HazardState.Stopped)
                 {
+                    Button("Eliminate · remove it from service", () => director.Control(ControlLevel.Elimination));
                     Button("Fix · engineered control", () => director.Control(ControlLevel.Engineering), Icon("control_Engineering"));
                     Button("Assign · crew reminder", () => director.Control(ControlLevel.Administrative), Icon("control_Administrative"));
                     Button("PPE · individual protection", () => director.Control(ControlLevel.Ppe), Icon("control_Ppe"));
@@ -104,7 +144,25 @@ namespace Jobsite.Runtime
                 }
             }
             Button("Return to site", director.ToggleTablet);
-            Button("Finish shift", director.EndShift);
+            FinishShiftButton();
+        }
+
+        // Shift clock and schedule cost of stops (GDD §5.2 Schedule meter; §7 clarity).
+        private string ShiftLine()
+        {
+            var s = director.Session;
+            if (s == null) return "";
+            var line = $"Shift {s.Clock / 60f:0.0} of {ShiftDirector.ShiftLength / 60f:0} min";
+            if (s.StoppedSeconds > 0) line += $" · crew idle {s.StoppedSeconds / 60f:0.0} min (stops)";
+            return line;
+        }
+
+        // Ending before the whistle asks once: unfound hazards count as missed and no Zero Recordables badge.
+        private void FinishShiftButton()
+        {
+            var early = director.Session != null && director.Session.Clock < ShiftDirector.ShiftLength;
+            if (!early || confirmEarlyEnd) { Button(early ? "Confirm: end early (hazards not found count as missed)" : "Finish shift", () => { confirmEarlyEnd = false; director.EndShift(); }, null, early); return; }
+            Button("Finish shift", () => { confirmEarlyEnd = true; Refresh(); });
         }
 
         // Gate briefing: drag the controls into rank order, then the toolbox quiz, then start the shift.
@@ -135,20 +193,42 @@ namespace Jobsite.Runtime
 
         private void Closing()
         {
+            var s = director.Session;
             Label("SHIFT CLOSED", 34, Color.white);
-            Label($"Hazards found {director.Session.HazardIdentificationIndex:P0} · Precision {director.Session.ReportPrecision:P0}");
-            Label($"Crew trust {director.Session.CrewTrust:+0;-0;0} · Incidents {director.Session.NearMisses + director.Session.Recordables} · +{director.Xp} XP");
-            foreach (var condition in director.Conditions)
-                if (condition.IsHazard)
+            Label($"Hazards found {s.HazardIdentificationIndex:P0} · Precision {s.ReportPrecision:P0} · Incidents {s.NearMisses + s.Recordables}");
+            Label($"Crew trust {s.CrewTrust:+0;-0;0} · Schedule slip {s.ScheduleSlipMinutes:0.0} min · +{director.Xp} XP");
+            if (director.EndedEarly) Label($"Shift ended early at {s.Clock / 60f:0.0} min: anything not found counts as missed.", 18, Accent);
+
+            // Hazards grouped by outcome, with the control chosen vs. the best feasible one (GDD §15 item 4).
+            foreach (DebriefGroup g in Enum.GetValues(typeof(DebriefGroup)))
+            {
+                var rows = director.Conditions.Where(c => c.IsHazard && Debrief.Group(c.Spec, s.GetEvidence(c.Id), s.GetState(c.Id)) == g).ToList();
+                if (rows.Count == 0) continue;
+                var color = g == DebriefGroup.ControlledAtBest ? Good : g == DebriefGroup.Missed ? Bad : Accent;
+                Label(Debrief.GroupTitle(g), 20, color);
+                foreach (var c in rows)
                 {
-                    var st = director.Session.GetState(condition.Id);
-                    // Missed = never reported, whatever the timer did to it (an unreported hazard can still become an incident).
-                    var missed = !director.Session.GetEvidence(condition.Id).Detected;
-                    Label((missed ? "MISSED  " : "") + condition.DisplayName + " · " + st, 20,
-                        missed ? new Color(1f, .45f, .35f) : Ink);
-                    if (missed && !string.IsNullOrEmpty(condition.Cfr))
-                        Label("   " + condition.Cfr + " — " + condition.Threshold, 18, Accent);
+                    var ev = s.GetEvidence(c.Id);
+                    Label($"{c.DisplayName} · yours: {Debrief.Level(ev.AppliedControl)} · best: {Debrief.Level(c.Spec.BestFeasibleControl)}", 18, Ink);
+                    if (g == DebriefGroup.Missed && ev.DismissedAsCompliant) Label("   You logged this one as compliant.", 17, Bad);
+                    if (g != DebriefGroup.ControlledAtBest && !string.IsNullOrEmpty(c.Cfr)) Label("   " + c.Cfr + " — " + c.Threshold, 17, Accent);
                 }
+            }
+            // What almost happened (no gore), for every near miss this shift.
+            if (director.Incidents.Count > 0)
+            {
+                Label("WHAT ALMOST HAPPENED", 20, Bad);
+                foreach (var id in director.Incidents.Distinct()) Label(Debrief.WhatAlmostHappened(id), 17, Ink);
+            }
+            // Look-alikes: the compliant conditions and the learner's call on each (discrimination feedback).
+            var lookAlikes = director.Conditions.Where(c => !c.IsHazard).ToList();
+            if (lookAlikes.Count > 0) Label("COMPLIANT CONDITIONS (LOOK-ALIKES)", 20, Accent);
+            foreach (var condition in lookAlikes)
+            {
+                var call = s.LoggedCompliant(condition.Id) ? "confirmed compliant ✓"
+                    : s.Revealed(condition.Id) ? "reported as a hazard (false alarm)" : "not checked";
+                Label(condition.DisplayName + " · " + call, 18, call.EndsWith("✓") ? Ink : new Color(.7f, .72f, .72f));
+            }
             var quiz = director.Quiz;
             if (quiz != null && !quiz.Done)
             {
@@ -159,6 +239,8 @@ namespace Jobsite.Runtime
             if (director.EpisodeComplete)
             {
                 Label($"EPISODE {director.Episode.Number} COMPLETE · {director.Xp} XP", 26, Accent);
+                if (!string.IsNullOrEmpty(director.TalkFeedback)) Label(director.TalkFeedback, 19, new Color(.75f, 1f, .7f));
+                MasteryBars();
                 KsaProfile();
                 foreach (var (ev, q) in director.WeatherCalls)
                     Label($"Weather call ({ev.Id}): " + (q == 2 ? "good" : q == 1 ? "partial" : "unsafe") + $"  +{WeatherPlan.Xp(q)} XP", 19, q == 2 ? Ink : new Color(1f, .6f, .45f));
@@ -172,9 +254,72 @@ namespace Jobsite.Runtime
                 Button("Episode select", EpisodeDirector.BackToMenu, null, true);
                 return;
             }
-            Label("Tomorrow's toolbox talk opens with:", 22, Accent);
-            Button("Protect edges. Clear access. Verify controls.", () => director.ExplainBack(0));
-            Button("Keep schedule. Rely on reminders and PPE.", () => director.ExplainBack(1));
+            ToolboxTalkWriter();
+        }
+
+        // Tomorrow's toolbox talk (GDD N7): order up to three of today's findings, then answer the "why".
+        private void ToolboxTalkWriter()
+        {
+            Label("TOMORROW'S TOOLBOX TALK", 24, Accent);
+            var found = director.Findings.ToList();
+            var picks = director.TalkPicks.ToList();
+            if (found.Count > 0)
+            {
+                Label($"Tap up to {ToolboxTalk.Picks} of today's findings, in the order you'll brief the crew.", 19, Ink);
+                foreach (var c in found)
+                {
+                    var i = picks.IndexOf(c.Id); var id = c.Id;
+                    Button((i >= 0 ? $"#{i + 1}   " : "      ") + c.DisplayName, () => director.ToggleTalkPick(id), null, i >= 0);
+                }
+                if (picks.Count > 0) Button("Clear the order", director.ClearTalk);
+            }
+            else Label("You reported nothing today. You'll still brief the principle.", 19, Ink);
+            var why = director.TalkWhy;
+            if (why == null || why.Done) return;
+            Label(why.Current.Prompt, 22, Color.white);
+            for (var i = 0; i < why.Current.Options.Length; i++) { var k = i; Button(why.Current.Options[i], () => director.SubmitToolboxTalk(k)); }
+        }
+
+        // Per-area CP mastery (the stealth assessment, GDD §5.2) and the Friday gate.
+        private void MasteryBars()
+        {
+            if (director.MasteryToday == null) return;
+            Label("CP MASTERY · this shift / your best", 22, Accent);
+            foreach (var kv in director.MasteryToday.OrderBy(k => k.Key))
+            {
+                var best = director.MasteryBest != null && director.MasteryBest.TryGetValue(kv.Key, out var b) ? b : kv.Value;
+                var bars = Mathf.RoundToInt(kv.Value * 10);
+                var competent = best >= DaySession.CompetentThreshold;
+                Label($"{MasteryGate.AreaName(kv.Key)}  {new string('█', bars)}{new string('░', 10 - bars)} {kv.Value:P0} · best {best:P0}" + (competent ? " · competent" : ""), 18, competent ? Ink : Accent);
+            }
+            var missing = MasteryStore.CapstoneMissing();
+            Label(missing.Count == 0 ? "Friday capstone (EP5): unlocked."
+                : "Friday capstone (EP5) needs competent in: " + string.Join(", ", missing.Select(a => $"{MasteryGate.AreaName(a)} ({MasteryGate.Practice(a)})")), 18, missing.Count == 0 ? Good : Accent);
+            Label("Finds made with a guide marker or a hint count half. Replay without them to show it's yours.", 16, Ink);
+        }
+
+        // Stop-down after a near miss: what almost happened, the standard, then back to work.
+        private void IncidentCard(string id)
+        {
+            var c = director.Conditions.FirstOrDefault(x => x.Id == id);
+            var recordable = c != null && c.Spec.IsHighSeverity;
+            Label(recordable ? "STOP-DOWN · RECORDABLE INCIDENT" : "STOP-DOWN · NEAR MISS", 30, Bad);
+            if (c != null) Label(c.DisplayName, 26, Color.white);
+            Label("What almost happened: " + Debrief.WhatAlmostHappened(id), 20, Ink);
+            if (c != null && !string.IsNullOrEmpty(c.Cfr)) { Label(c.Cfr + "  ·  " + c.Threshold, 19, Accent); Label(c.RequirementPlain, 19, Ink); }
+            var reported = c != null && director.Session.GetEvidence(id).Detected;
+            Label(reported ? "You reported it, but no control was in place in time." : "It was on site all along. Nobody reported it in time.", 18, Ink);
+            Button("Secure the area · back to work", director.AcknowledgeIncident, null, true);
+        }
+
+        // Production pressure: Ray pushes back on the stop (GDD N4).
+        private void SpeakUpCard()
+        {
+            var c = director.Conditions.FirstOrDefault(x => x.Id == director.PendingSpeakUp);
+            Label("RAY PUSHES BACK", 28, Accent);
+            Label(SpeakUp.Pushback(c != null ? c.DisplayName : "job"), 22, Color.white);
+            Label("Your answer:", 19, Ink);
+            for (var i = 0; i < director.SpeakUpOptions.Count; i++) { var k = i; Button(director.SpeakUpOptions[i].Text, () => director.ChooseSpeakUp(k)); }
         }
 
         // Field-practice mission: the CP's real checklist for today; steps tick off as you do the work on site.
@@ -258,7 +403,7 @@ namespace Jobsite.Runtime
 
         static string BadgeName(Badge b) => b switch
         {
-            Badge.StoppedTheLine => "Stopped the Line", Badge.ZeroRecordablesDay => "Zero Recordables", _ => "Hierarchy Hawk",
+            Badge.StoppedTheLine => "Stopped the Line", Badge.ZeroRecordablesDay => "Zero Recordables", Badge.OnSchedule => "On Schedule", _ => "Hierarchy Hawk",
         };
 
         // OSHA citation chip + plain-language requirement (GDD §15).

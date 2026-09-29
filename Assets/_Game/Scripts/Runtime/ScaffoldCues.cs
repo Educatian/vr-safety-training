@@ -33,6 +33,18 @@ namespace Jobsite.Runtime
         public int Guidance { get; private set; }
         public Vector3? MissionTarget => missionAt;
 
+        // Mission cues mark a ZONE, never the condition itself (GDD pillar 1): centred on the step's candidates
+        // (hazard and look-alike alike) and shifted by up to ZoneJitter so the centre is not the answer.
+        public const float ZoneRadius = 6f, ZoneJitter = 3f;
+
+        // True while the current mission cue covers this condition: a find made now is scaffolded (evidence flag).
+        public bool Cueing(string conditionId)
+        {
+            if (director == null || director.Mission == null || !missionAt.HasValue || Guidance < Light) return false;
+            var step = director.Mission.Next;
+            return step != null && step.Targets.Contains(conditionId);
+        }
+
         private void Start()
         {
             director = GetComponent<ShiftDirector>() ?? FindFirstObjectByType<ShiftDirector>();
@@ -40,7 +52,7 @@ namespace Jobsite.Runtime
             root = new GameObject("ScaffoldCues").transform;
             Guidance = Level(director != null ? director.Career.Level : 1);
             missionCue = Diamond("MissionCue", MissionColor, 0.45f);
-            missionRing = Ring("MissionRing", MissionColor, 1.6f, 0.12f);
+            missionRing = Ring("MissionRing", MissionColor, ZoneRadius, 0.15f);
             kitRing = Ring("KitDropRing", KitColor, 1.2f, 0.15f);
             Refresh();
         }
@@ -77,11 +89,13 @@ namespace Jobsite.Runtime
                 var a = FindObjectsByType<AccessPoint>(FindObjectsSortMode.None).OrderBy(x => Vector3.Distance(x.transform.position, me)).FirstOrDefault();
                 return a != null ? a.transform.position + Vector3.up * 2.2f : (Vector3?)null;
             }
-            var targets = director.Conditions.Where(c => c != null && c.isActiveAndEnabled && step.Targets.Contains(c.Id))
-                .OrderBy(c => Vector3.Distance(c.transform.position, me)).ToList();
+            var targets = director.Conditions.Where(c => c != null && c.isActiveAndEnabled && step.Targets.Contains(c.Id)).ToList();
             if (targets.Count == 0) return null;
-            var b = targets[0].PhotoBounds;
-            return new Vector3(b.center.x, b.max.y + 1.2f, b.center.z);
+            var centre = targets.Aggregate(Vector3.zero, (s, c) => s + c.PhotoBounds.center) / targets.Count;
+            var top = targets.Max(c => c.PhotoBounds.max.y);
+            var rng = new System.Random(director.Seed ^ step.Text.Length * 7919 ^ director.Mission.Completed * 104729);
+            var angle = rng.NextDouble() * Mathf.PI * 2; var dist = (float)rng.NextDouble() * ZoneJitter;
+            return new Vector3(centre.x + Mathf.Cos((float)angle) * dist, top + 1.2f, centre.z + Mathf.Sin((float)angle) * dist);
         }
 
         // Called by ShiftDirector.UseHint after the hint is spent.

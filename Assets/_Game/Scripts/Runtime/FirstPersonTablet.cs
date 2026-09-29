@@ -14,6 +14,10 @@ namespace Jobsite.Runtime
         [SerializeField] private float distance = 0.45f;
         [SerializeField] private GameObject handsPrefab;       // Tripo gloved hands, rigged (Tools/blender/rig_fp_hands.py)
         [SerializeField] private Material handsMaterial;
+        // One-handed grip (playtest feedback 2026-09-29: two big gloves hid too much of the view). The right glove holds
+        // the tablet's lower-right corner; the left glove is hidden. HandScale shrinks the gloves relative to the tablet.
+        [SerializeField] private bool oneHanded = true;
+        [SerializeField] private float handScale = 0.78f;
 
         private Camera cam;
         private ShiftDirector director;
@@ -52,6 +56,7 @@ namespace Jobsite.Runtime
                 if (img != null) img.color = Color.clear;
             }
             Calibrate();
+            if (oneHanded && gloveL != null) { gloveL.gameObject.SetActive(false); gloveL = null; }
             if (handsPrefab != null) RigHands();
         }
 
@@ -82,8 +87,10 @@ namespace Jobsite.Runtime
                 var bones = new System.Collections.Generic.Dictionary<string, Transform>();
                 foreach (var b in smr.bones) if (b != null) bones[b.name] = b;
                 var s = smr.name.EndsWith("_L") ? "_L" : "_R";
+                if (oneHanded && s == "_L") { smr.gameObject.SetActive(false); continue; }
                 if (!bones.TryGetValue("Hand" + s, out var hand) || !bones.TryGetValue("Middle1" + s, out var mid)) continue;
                 var rig = bones["Forearm" + s].parent;
+                rig.localScale *= handScale;
                 // Rest frame from the bones (world): finger direction, across the knuckles, palm normal (rest palms face down).
                 Vector3 fingerW = (mid.position - hand.position).normalized;
                 Vector3 acrossW = (bones["Index1" + s].position - bones["Pinky1" + s].position).normalized;
@@ -93,12 +100,13 @@ namespace Jobsite.Runtime
                 // Target (model-local -> world): left hand on the left edge; fingers up and inward, palm facing the edge and the back.
                 var sideSign = s == "_L" ? -1f : 1f;
                 var inward = -right * sideSign;
-                var tFinger = model.TransformDirection((up * 0.9f + inward * 0.3f).normalized);
+                // One hand: grip the lower-right corner, fingers angled up and in across the back, so less glove covers the view.
+                var tFinger = model.TransformDirection(oneHanded ? (up * 0.65f + inward * 0.55f).normalized : (up * 0.9f + inward * 0.3f).normalized);
                 var tPalm = model.TransformDirection((inward * 0.8f - back * 0.6f).normalized);
                 var rot = Quaternion.LookRotation(tFinger, tPalm) * Quaternion.Inverse(Quaternion.LookRotation(fingerW, palmW));
                 rig.rotation = rot * rig.rotation;
                 // Palm centre just outside the edge, a little below mid-height.
-                var edge = model.TransformPoint(centre + right * sideSign * halfW - up * halfH * 0.18f);
+                var edge = model.TransformPoint(centre + right * sideSign * halfW - up * halfH * (oneHanded ? 0.62f : 0.18f));
                 var palmCentre = (hand.position + mid.position) * 0.5f;
                 rig.position += edge - palmCentre - tPalm * 0.02f * model.lossyScale.x;
                 // Curl the four fingers around the back; the thumb rests on the front bezel.
@@ -110,6 +118,7 @@ namespace Jobsite.Runtime
                     if (bones.TryGetValue("Thumb" + j + s, out var th)) Curl(th, palmNow, j == 1 ? 8f : 22f);
                 if (s == "_L") gloveL = smr.transform; else gloveR = smr.transform;
             }
+            if (oneHanded) gloveL = null;
             foreach (var n in new[] { "Glove_L", "Glove_R" })
             {
                 var old = model.Find(n); if (old != null) old.gameObject.SetActive(false);

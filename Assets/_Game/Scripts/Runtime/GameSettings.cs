@@ -15,6 +15,14 @@ namespace Jobsite.Runtime
         public static bool Tutorial { get => PlayerPrefs.GetInt("set_tutorial", 1) == 1; set => PlayerPrefs.SetInt("set_tutorial", value ? 1 : 0); }
         // AI chat consent: -1 not asked, 0 declined (offline answers), 1 agreed.
         public static int AiConsent { get => PlayerPrefs.GetInt("set_ai_consent", -1); set => PlayerPrefs.SetInt("set_ai_consent", value); }
+        // Research participation (IRB): play events reach the course server only after an explicit opt-in.
+        // -1 not asked, 0 declined, 1 agreed. Completion codes (the course record) work either way.
+        public static int ResearchConsent { get => PlayerPrefs.GetInt("set_research_consent", -1); set => PlayerPrefs.SetInt("set_research_consent", value); }
+        public const string ConsentVersion = "cp-research-v1";
+        // Instructor / facilitator switch: open every episode regardless of the mastery gate.
+        public static bool UnlockAll { get => PlayerPrefs.GetInt("set_unlock_all", 0) == 1; set => PlayerPrefs.SetInt("set_unlock_all", value ? 1 : 0); }
+        // Automated play tests run silent (never persisted).
+        public static bool ForceMute;
         // Pseudonymous roster: class code from the instructor + a student ID they assign. Never a real name.
         public static string ClassCode { get => PlayerPrefs.GetString("roster_class", ""); set => PlayerPrefs.SetString("roster_class", Clean(value)); }
         public static string LearnerId { get => PlayerPrefs.GetString("roster_learner", ""); set => PlayerPrefs.SetString("roster_learner", Clean(value)); }
@@ -27,7 +35,7 @@ namespace Jobsite.Runtime
 
         public static void Apply()
         {
-            AudioListener.volume = MasterVolume;
+            AudioListener.volume = ForceMute ? 0f : MasterVolume;
             var levels = QualitySettings.names.Length;
             if (levels > 0) QualitySettings.SetQualityLevel(Mathf.Clamp(Mathf.RoundToInt(Quality / 2f * (levels - 1)), 0, levels - 1), true);
         }

@@ -4,14 +4,15 @@ using System.Linq;
 
 namespace Jobsite.Core
 {
-    public enum Badge { StoppedTheLine, ZeroRecordablesDay, HierarchyHawk }
+    public enum Badge { StoppedTheLine, ZeroRecordablesDay, HierarchyHawk, OnSchedule }
 
     // GDD §14. XP comes only from DaySession evidence; stop-work never costs XP.
     // All numbers are starting values (playtest-tuned), kept here so tests pin them.
     public static class XpRules
     {
         public const int Detect = 100, Tag = 25, RiskClose = 25, BestControl = 40, EngineeredBonus = 20,
-            JustifiedStop = 30, StreakBonus = 50, StreakLength = 3;
+            JustifiedStop = 30, StreakBonus = 50, StreakLength = 3, ConfirmCompliant = 15,
+            ToolboxLead = 50, ToolboxWhy = 25, SpeakUpAssertive = 20;
 
         public static readonly int[] LevelThresholds = { 0, 400, 1100, 2200 }; // L1 Trainee .. L4 Competent Person
 
@@ -59,12 +60,14 @@ namespace Jobsite.Core
 
     public static class Badges
     {
-        public static IReadOnlyList<Badge> Earned(DaySession day, IEnumerable<HazardSpec> specs)
+        // fullShiftSeconds: "Zero Recordables" needs the whole shift worked. Ending the shift before the first
+        // incident window cannot earn it (otherwise finishing at minute one is the dominant strategy).
+        public static IReadOnlyList<Badge> Earned(DaySession day, IEnumerable<HazardSpec> specs, float fullShiftSeconds = 0f)
         {
             var list = new List<Badge>();
             var real = specs.Where(s => s.IsHazard).ToList();
             if (real.Any(s => day.GetEvidence(s.Id).StopWorkCalled)) list.Add(Badge.StoppedTheLine);
-            if (day.Recordables == 0 && day.Clock > 0) list.Add(Badge.ZeroRecordablesDay);
+            if (day.Recordables == 0 && day.Clock > 0 && day.Clock >= fullShiftSeconds) list.Add(Badge.ZeroRecordablesDay);
             var engineered = real.Count(s =>
             {
                 var ev = day.GetEvidence(s.Id);
@@ -72,6 +75,9 @@ namespace Jobsite.Core
                        day.GetState(s.Id) == HazardState.Controlled;
             });
             if (engineered >= 5) list.Add(Badge.HierarchyHawk);
+            // Commendation only (GDD §5.2): lateness never touches the CP rating, it only forfeits this badge.
+            if (day.Clock > 0 && day.Clock >= fullShiftSeconds && day.ScheduleSlipMinutes <= DaySession.OnScheduleSlipMinutes)
+                list.Add(Badge.OnSchedule);
             return list;
         }
     }

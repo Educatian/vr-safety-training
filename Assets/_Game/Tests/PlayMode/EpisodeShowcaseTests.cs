@@ -80,16 +80,25 @@ namespace Jobsite.PlayTests
                 // 2) Tablet after a report: feedback, KSA line, OSHA chip, controls.
                 d.Photograph(target);
                 d.Report(target.Spec.Energy, Mathf.Clamp(target.Spec.Probability - 1, 1, 5), target.Spec.Severity);
-                yield return null;
+                yield return new WaitForSecondsRealtime(0.35f);   // let the 0.18 s shutter flash fade so the capture shows the real tablet
                 Shot(p.View, $"ep{ep}_2_tablet");
                 if (ep == 1)
                 {   // hands only (UI hidden) to check the grip
                     var canvas = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).First(c => c.name == "TabletCanvas");
                     canvas.enabled = false; Shot(p.View, "ep1_hands"); canvas.enabled = true;
                 }
-                if (target.Spec.RequiresStopWork) d.StopWork();
+                if (target.Spec.RequiresStopWork)
+                {
+                    d.StopWork(); yield return null;
+                    Shot(p.View, $"ep{ep}_2b_speakup");
+                    d.ChooseSpeakUp(d.SpeakUpOptions.Select((o, k) => (o, k)).First(t => t.o.Style == SpeakUpStyle.Assertive).k);
+                }
                 d.Control(target.Spec.BestFeasibleControl);
-                if (d.PendingInstall == target.Id) { d.PickUpKit(); d.SetKitDown(target, b.center); }
+                if (d.PendingInstall == target.Id)
+                {
+                    if (d.KitOptions != null) { yield return null; Shot(p.View, $"ep{ep}_2c_kit"); d.ChooseKit(d.KitCorrect); }
+                    d.PickUpKit(); d.SetKitDown(target, b.center);
+                }
                 if (d.MenuOpen) d.ToggleTablet();
 
                 // 3) Closing: KSA profile.

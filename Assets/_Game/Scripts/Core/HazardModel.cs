@@ -78,6 +78,9 @@ namespace Jobsite.Core
         public bool StopWorkCalled;
         public bool BecameIncident;
         public bool Hinted;                     // found after a hint: half detect XP, 0.5 mastery (GDD §14)
+        public bool Cued;                       // an in-world scaffold (mission zone, tutorial beacon) pointed here: 0.5 mastery, XP unchanged
+        public bool DismissedAsCompliant;       // learner confirmed this real hazard as compliant (a discrimination miss)
+        public SpeakUpStyle? SpeakUp;           // how the learner held the stop when the foreman pushed back
         public int HintTier;                    // 0 none, 1 zone, 2 energy, 3 Dolores points
     }
 }

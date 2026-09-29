@@ -127,8 +127,10 @@ Look-alikes have only *Latent → Reported(false)*. Their cost is time and table
 ## 6. Balance and abuse checks
 | Exploit | Countermeasure |
 |---|---|
-| Photograph everything | Each photo costs about 5 s of tablet time, and precision is part of CP evidence. Crew trust dips only on *repeated* false reports of the same object. |
-| Stop-work spam | A stop must name a reported hazard. Unjustified stops cost schedule only, never the CP rating (safety culture: stopping is never wrong to try). |
+| Photograph everything | Any surface can be photographed and the crosshair prompt is the same everywhere, so the camera never singles out conditions. Each photo costs 5 s of shift time, a measurement 10 s, and a false alarm 15 s (the crew explains why it is compliant). Precision is part of CP evidence. Crew trust dips only on *repeated* false reports of the same object. "Checked · compliant" gives positive discrimination evidence, with feedback held back until the debrief so it can't be used to probe. |
+| Stop-work spam | A stop must name a reported hazard. Unjustified stops cost schedule only, never the CP rating (safety culture: stopping is never wrong to try). A repeat stop on the same hazard still holds the crew but earns no XP or trust, and crew idle time is shown as the schedule cost. |
+| End the shift early | "Zero Recordables" needs the full shift, and ending early asks for confirmation. Unfound hazards count as missed. |
+| Read the answer off the UI | Before a report, the tablet shows a neutral name shared by the hazard and its look-alike. Mission cues mark a jittered zone, never the condition, and finds made under a cue (or the tutorial beacon) are flagged `cued` (0.5 mastery). Instrument readings are raw values, never the verdict. |
 | PPE on everything | Lapses fire later in the day. CP C4 evidence weights the hierarchy level. |
 | Wait for incidents to reveal hazards | Incidents are recorded and lower CP C1. The review shows what was missed, not an answer key for the same seed, because replays re-roll the seed. |
 | Memorize the layout | The seeded pools plus the daily site evolution plus Week 2 mean no fixed answer key. |

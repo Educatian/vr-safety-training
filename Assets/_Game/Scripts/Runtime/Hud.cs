@@ -135,7 +135,8 @@ namespace Jobsite.Runtime
             Beacon(show && next == 5);
         }
 
-        // Guided first find (no hint penalty): a slow-spinning marker over the damaged cord while that step is active.
+        // Guided first find (worked example, no hint-token cost): a slow-spinning marker over the damaged cord while
+        // that step is active. XP is unaffected, but the find is flagged as cued so it is not read as unaided recognition.
         private void Beacon(bool on)
         {
             if (on && beacon == null)
@@ -143,11 +144,12 @@ namespace Jobsite.Runtime
                 var cord = director.Conditions.FirstOrDefault(c => c.Id == "mon-damaged-cord" && c.IsHazard)
                            ?? director.Conditions.FirstOrDefault(c => c.IsHazard);
                 if (cord == null) return;
+                director.MarkCued(cord.Id);
                 beacon = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 Destroy(beacon.GetComponent<Collider>());
                 beacon.name = "GuideBeacon";
                 beacon.transform.position = cord.PhotoBounds.center + Vector3.up * (cord.PhotoBounds.extents.y + 1.2f);
-                beacon.transform.localScale = Vector3.one * 0.3f;
+                beacon.transform.localScale = new Vector3(0.24f, 0.34f, 0.24f);   // same diamond language as the mission and hint cues
                 var r = beacon.GetComponent<Renderer>();
                 r.material.color = new Color(1f, .78f, .1f);
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -155,7 +157,7 @@ namespace Jobsite.Runtime
             if (beacon != null)
             {
                 beacon.SetActive(on);
-                beacon.transform.rotation = Quaternion.Euler(45, Time.time * 90, 45);
+                beacon.transform.rotation = Quaternion.Euler(0, Time.time * 90, 0) * Quaternion.Euler(0, 0, 45);
             }
         }
 
