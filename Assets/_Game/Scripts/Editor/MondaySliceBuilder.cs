@@ -72,6 +72,8 @@ namespace Jobsite.Editor
                 go.transform.SetParent(gameplay, true);
             TuesdaySliceBuilder.Add(gameplay);
             WednesdaySliceBuilder.Add(gameplay);
+            ThursdaySliceBuilder.Add(gameplay);
+            FridaySliceBuilder.Add(gameplay);
             GateAndCrewBuilder.Add(gameplay);
             InstrumentReadings.Apply();
         }

@@ -126,14 +126,52 @@ namespace Jobsite.Core
                 QuizBank.ToolboxFalls, QuizBank.EndOfDayFalls, zone: new[] { -4f, -4f, 60f, 48f }),
 
             new Episode(4, "The Pick", "Cranes · rigging · roof work", 3,
-                new[] { "1926.1402", "1926.1419", "1926.1424", "1926.501(b)(10)" },
-                new[] { new Line("", "Thursday · In production") }, new CameraShot[0], new Line[0],
-                QuizBank.GateToolboxTalk, QuizBank.EndOfDayFalls, playable: false),
+                new[] { "1926.1402", "1926.1424", "1926.1425", "1926.251", "1926.501(b)(10)", "1926.501(b)(4)" },
+                new[]
+                {
+                    new Line("", "Thursday, 7:30 AM · Crane pad and Building B roof"),
+                    new Line("Dolores", "Big pick today. Roof steel for Building B. I'll be in the trailer. You've got this one."),
+                    new Line("Ray", "Bennie's in the seat, Kiara's on the radio. Ground's still soft from Tuesday."),
+                    new Line("Kiara", "I'll run the signals. I need the swing radius clear and nobody under the load."),
+                    new Line("Ray", "And the roofers are up top already. Check them too. Take the stair tower."),
+                },
+                new[]
+                {
+                    new CameraShot(V(30, 22, 30), V(38, 16, 38), V(48, 4, 50), 6f),
+                    new CameraShot(V(56, 1.4f, 52), V(55, 1.1f, 50.5f), V(53.2f, 0.2f, 49.6f), 5f),
+                    new CameraShot(V(86, 26, 14), V(92, 24, 16), V(104, 16, 32), 6f),
+                },
+                new[]
+                {
+                    new Line("Kiara", "Clean pick. Thanks for keeping the fall zone clear.", 4f, "thu-under-load"),
+                    new Line("Ray", "You backed Kiara over Bennie's hurry. That's the job.", 4.5f, "thu-swing-radius"),
+                    new Line("Dolores", "Tomorrow's the pour. Right under the line. Last day, biggest risk."),
+                },
+                QuizBank.ToolboxCrane, QuizBank.EndOfDayRoof, zone: new[] { -4f, -4f, 120f, 62f }),
 
             new Episode(5, "Under the Line", "Capstone · power lines · concrete pump", 4,
-                new[] { "1926.1408", "1926.416(a)(1)", "1926.702" },
-                new[] { new Line("", "Friday · In production") }, new CameraShot[0], new Line[0],
-                QuizBank.GateToolboxTalk, QuizBank.EndOfDayTrench, playable: false),
+                new[] { "1926.600(a)(6)", "1926.1408", "1926.601(b)(4)", "1926.701(b)" },
+                new[]
+                {
+                    new Line("", "Friday, 6:15 AM · Pump-station pour, under the 13 kV line"),
+                    new Line("Ray", "Pour day. Trucks every twenty minutes. If we don't pour today, we don't pour till Tuesday."),
+                    new Line("Dale", "Boom's got plenty of reach. We've set up closer than this."),
+                    new Line("Dolores", "Everything you learned this week is on this site right now. I'm not making the call. You are."),
+                    new Line("", "Storms in the forecast after lunch."),
+                },
+                new[]
+                {
+                    new CameraShot(V(20, 14, 50), V(30, 11, 58), V(40, 6, 74), 6f),
+                    new CameraShot(V(45, 1.5f, 66), V(43, 1.4f, 68), V(40, 8.6f, 76), 6f),
+                    new CameraShot(V(22, 2.2f, 52), V(24, 2f, 54), V(26, 1f, 60), 5f),
+                },
+                new[]
+                {
+                    new Line("Dale", "Ten feet's ten feet. I'll keep the boom back and let the spotter talk me in.", 4.5f, "fri-boom-near-line"),
+                    new Line("Ray", "All stop till the storm passes. I'll call the plant. Nobody's worth a slab."),
+                    new Line("Dolores", "That's a competent person. My job's done here. Yours starts Monday."),
+                },
+                QuizBank.ToolboxPowerLine, QuizBank.EndOfDayCapstone, zone: new[] { -4f, -4f, 90f, 80f }),
         };
 
         public static Episode Get(int number) => All.First(e => e.Number == number);

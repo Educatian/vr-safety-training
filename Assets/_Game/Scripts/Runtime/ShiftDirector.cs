@@ -159,13 +159,15 @@ namespace Jobsite.Runtime
         {
             if (MenuOpen || Finished) return;
             var ray = player.View.ViewportPointToRay(new Vector3(.5f, .5f));
-            if (!Physics.Raycast(ray, out var hit, Career.PhotoRange, ~0, QueryTriggerInteraction.Collide)) { Say("Move closer. Center it in your view."); return; }
+            if (!Physics.Raycast(ray, out var hit, 16f, ~0, QueryTriggerInteraction.Collide) || !InReach(hit)) { Say("Move closer. Center it in your view."); return; }
 
             var station = hit.collider.GetComponentInParent<CheckInStation>();
             if (station != null) { station.Use(this); return; }
             var crew = hit.collider.GetComponentInParent<CrewMember>();
             if (crew != null) { StartTalk(crew); return; }
             if (Current != Phase.Shift) { Say("Finish check-in at the gate first."); return; }
+            var access = hit.collider.GetComponentInParent<AccessPoint>();
+            if (access != null) { access.Use(player); Log("access", access.name, ""); return; }
 
             var vehicle = hit.collider.GetComponentInParent<VehicleController>();
             if (vehicle != null) { vehicle.Interact(player); Log("vehicle_enter", vehicle.name, ""); return; }
@@ -386,19 +388,29 @@ namespace Jobsite.Runtime
         public void Say(string text) { notice = text; Ping(); }
         private void Ping() => AudioDirector.Play("radio");
 
+        // Normal reach is the career photo range; overhead hazards (boom near a line) can be photographed from farther.
+        private bool InReach(RaycastHit hit)
+        {
+            if (hit.distance <= Career.PhotoRange) return true;
+            var c = hit.collider.GetComponentInParent<SiteCondition>();
+            return c != null && c.PhotoRange > 0 && hit.distance <= c.PhotoRange;
+        }
+
         // HUD prompt for whatever the crosshair is on (same ray and range as Interact).
         public string AimPrompt(out bool actionable)
         {
             actionable = false;
             if (MenuOpen || Finished || player == null) return "";
             var ray = player.View.ViewportPointToRay(new Vector3(.5f, .5f));
-            if (!Physics.Raycast(ray, out var hit, Career.PhotoRange, ~0, QueryTriggerInteraction.Collide)) return "";
+            if (!Physics.Raycast(ray, out var hit, 16f, ~0, QueryTriggerInteraction.Collide) || !InReach(hit)) return "";
             actionable = true;
             var station = hit.collider.GetComponentInParent<CheckInStation>();
             if (station != null) return "E  " + (station.name == "SignInBoard" ? "Sign in" : "Take the " + station.name);
             var crew = hit.collider.GetComponentInParent<CrewMember>();
             if (crew != null) return "E  Talk to " + crew.DisplayName;
             if (Current != Phase.Shift) { actionable = false; return ""; }
+            var access = hit.collider.GetComponentInParent<AccessPoint>();
+            if (access != null) return "E  " + access.Label;
             if (hit.collider.GetComponentInParent<VehicleController>() != null) return "E  Get in";
             if (hit.collider.GetComponentInParent<ControlSupply>() != null) return pendingInstall != null ? "E  Pick up the kit" : "Supply rack";
             if (Carrying) return "E  Set the kit down here";

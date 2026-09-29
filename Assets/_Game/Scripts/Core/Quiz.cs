@@ -137,5 +137,51 @@ namespace Jobsite.Core
                 new[] { "Nothing", "A midrail, screen or mesh", "Caution tape", "A warning sign" }, 1,
                 "Midrails, screens or mesh between the top rail and the walking surface.", "29 CFR 1926.502(b)(2)"),
         };
+
+        public static IReadOnlyList<QuizItem> ToolboxCrane() => new[]
+        {
+            new QuizItem("thu-tb-ground", "Before a crane is set up, the ground under it must be...",
+                new[] { "Level enough to drive on", "Firm, drained and graded, with mats or blocking as needed", "Covered with gravel", "Checked by the operator only" }, 1,
+                "Firm, drained and graded so that, with mats or blocking, the crane is supported.", "29 CFR 1926.1402(b)"),
+            new QuizItem("thu-tb-swing", "How do you protect people from the counterweight swing?",
+                new[] { "Tell them to watch out", "Barricade the swing radius", "Sound the horn before every swing", "Only work at lunch" }, 1,
+                "Barricades mark the hazard area so no one is struck or pinned.", "29 CFR 1926.1424(a)(2)"),
+            new QuizItem("thu-tb-fallzone", "Who may be under a suspended load?",
+                new[] { "Anyone wearing a hard hat", "Only workers hooking, unhooking or guiding it, as the rule allows", "The signal person", "Nobody ever, even riggers" }, 1,
+                "Keep everyone else out of the fall zone.", "29 CFR 1926.1425(b)"),
+        };
+
+        public static IReadOnlyList<QuizItem> EndOfDayRoof() => new[]
+        {
+            new QuizItem("thu-warning-line", "On a low-slope roof, a warning line must be at least how far from the edge?",
+                new[] { "3 ft", "6 ft", "10 ft", "15 ft" }, 1,
+                "At least 6 ft from the roof edge.", "29 CFR 1926.502(f)(1)(i)"),
+            new QuizItem("thu-skylight", "An unscreened skylight on a roof is...",
+                new[] { "Fine if it's plastic", "A hole: cover or guard it", "Only a hazard in the rain", "The roofer's problem" }, 1,
+                "Skylights count as holes. Cover or guard them.", "29 CFR 1926.501(b)(4)(i)"),
+        };
+
+        public static IReadOnlyList<QuizItem> ToolboxPowerLine() => new[]
+        {
+            new QuizItem("fri-tb-clearance", "Minimum clearance from a power line up to 50 kV for equipment like a boom pump?",
+                new[] { "3 ft", "6 ft", "10 ft", "20 ft" }, 2,
+                "10 ft for lines up to 50 kV, unless the utility de-energizes and grounds the line.", "29 CFR 1926.1408 Table A"),
+            new QuizItem("fri-tb-backing", "A mixer truck with an obstructed rear view may back up only...",
+                new[] { "Slowly", "With a working backup alarm or an observer signaling", "If the driver honks first", "Before 7 AM" }, 1,
+                "Backup alarm, or an observer who signals it is safe.", "29 CFR 1926.601(b)(4)"),
+            new QuizItem("fri-tb-rebar", "Protruding rebar that workers could fall onto must be...",
+                new[] { "Painted", "Guarded against impalement", "Bent over by hand", "Left for the finishers" }, 1,
+                "Guard it to eliminate the impalement hazard.", "29 CFR 1926.701(b)"),
+        };
+
+        public static IReadOnlyList<QuizItem> EndOfDayCapstone() => new[]
+        {
+            new QuizItem("fri-lightning", "Thunder is 20 seconds after the flash. What do you do?",
+                new[] { "Finish the pour quickly", "Stop outdoor work and shelter; resume 30 minutes after the last thunder", "Lower the boom and keep pumping", "Wait until you see rain" }, 1,
+                "When thunder roars, go indoors. Wait 30 minutes after the last thunder before resuming."),
+            new QuizItem("fri-who-stops", "Who may stop work for a hazard like the boom near the line?",
+                new[] { "Only the owner", "Only the foreman", "Anyone who sees it, and the competent person must", "Only OSHA" }, 2,
+                "Anyone can stop work for an imminent hazard; the competent person has the authority and the duty."),
+        };
     }
 }

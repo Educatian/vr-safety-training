@@ -390,14 +390,7 @@ namespace Jobsite.Editor
             // Thu: the rigged rough-terrain crane is placed with the vehicles (VehicleSetup.BuildCrane).
             var white = Color("M_CraneWhite", new Color(0.85f, 0.85f, 0.82f));
 
-            // Fri: concrete pump truck set up under the overhead line (capstone), boom raised toward it.
-            var pump = Group(days, "ConcretePumpTruck_PH");
-            Tag(pump.gameObject, WorkDay.Fri);
-            var red = Color("M_PumpTruckRed", new Color(0.7f, 0.1f, 0.08f));
-            var lineZ = (float)layout["power_line"]["y"];
-            Box(pump, "Truck", new Vector3(40, 1.6f, lineZ - 10), new Vector3(2.5f, 3.2f, 11f), white);
-            var pboom = Box(pump, "Boom", new Vector3(40, 6.5f, lineZ - 5.5f), new Vector3(0.5f, 0.5f, 12f), red);
-            pboom.transform.rotation = Quaternion.Euler(-35, 0, 0);
+            // Fri: the pump truck, boom and pour are built by FridaySliceBuilder (capstone).
         }
 
         // Places a model from Assets/_Game/Art/Models/<rel> at ground point `at`; adds a box collider so the
@@ -405,7 +398,7 @@ namespace Jobsite.Editor
         static bool Prop(Transform parent, string rel, Vector3 at, float yaw) =>
             ModelAt(parent, "Assets/_Game/Art/Models/" + rel, at, yaw) != null;
 
-        static GameObject ModelAt(Transform parent, string path, Vector3 at, float yaw)
+        internal static GameObject ModelAt(Transform parent, string path, Vector3 at, float yaw)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (prefab == null) return null;

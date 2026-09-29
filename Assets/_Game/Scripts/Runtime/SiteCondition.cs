@@ -24,6 +24,7 @@ namespace Jobsite.Runtime
         [SerializeField] private bool cfrVerified;
         [SerializeField] private GearId[] instruments = new GearId[0];   // gear that yields a reading here
         [SerializeField] private string[] readings = new string[0];
+        [SerializeField] private float photoRange;                        // 0 = career default; overhead hazards set more
         [SerializeField] private GameObject unresolved;
         [SerializeField] private GameObject resolved;
         public string Id => conditionId;
@@ -82,6 +83,8 @@ namespace Jobsite.Runtime
         }
 
         public EnergySource Energy => energy;
+        public float PhotoRange => photoRange;
+        public void SetPhotoRange(float metres) => photoRange = metres;
 
         // Replay variety (GDD §6): this run the crew did it right, so the hazard shows as its compliant twin.
         public void MakeCompliant()

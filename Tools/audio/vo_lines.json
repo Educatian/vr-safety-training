@@ -98,5 +98,70 @@
   "key": "vo_ep3_epi_2",
   "speaker": "Ray",
   "text": "Crane shows up tomorrow for the roof steel. Big pick."
+ },
+ {
+  "key": "vo_ep4_open_1",
+  "speaker": "Dolores",
+  "text": "Big pick today. Roof steel for Building B. I'll be in the trailer. You've got this one."
+ },
+ {
+  "key": "vo_ep4_open_2",
+  "speaker": "Ray",
+  "text": "Bennie's in the seat, Kiara's on the radio. Ground's still soft from Tuesday."
+ },
+ {
+  "key": "vo_ep4_open_3",
+  "speaker": "Kiara",
+  "text": "I'll run the signals. I need the swing radius clear and nobody under the load."
+ },
+ {
+  "key": "vo_ep4_open_4",
+  "speaker": "Ray",
+  "text": "And the roofers are up top already. Check them too. Take the stair tower."
+ },
+ {
+  "key": "vo_ep4_epi_0",
+  "speaker": "Kiara",
+  "text": "Clean pick. Thanks for keeping the fall zone clear."
+ },
+ {
+  "key": "vo_ep4_epi_1",
+  "speaker": "Ray",
+  "text": "You backed Kiara over Bennie's hurry. That's the job."
+ },
+ {
+  "key": "vo_ep4_epi_2",
+  "speaker": "Dolores",
+  "text": "Tomorrow's the pour. Right under the line. Last day, biggest risk."
+ },
+ {
+  "key": "vo_ep5_open_1",
+  "speaker": "Ray",
+  "text": "Pour day. Trucks every twenty minutes. If we don't pour today, we don't pour till Tuesday."
+ },
+ {
+  "key": "vo_ep5_open_2",
+  "speaker": "Dale",
+  "text": "Boom's got plenty of reach. We've set up closer than this."
+ },
+ {
+  "key": "vo_ep5_open_3",
+  "speaker": "Dolores",
+  "text": "Everything you learned this week is on this site right now. I'm not making the call. You are."
+ },
+ {
+  "key": "vo_ep5_epi_0",
+  "speaker": "Dale",
+  "text": "Ten feet's ten feet. I'll keep the boom back and let the spotter talk me in."
+ },
+ {
+  "key": "vo_ep5_epi_1",
+  "speaker": "Ray",
+  "text": "All stop till the storm passes. I'll call the plant. Nobody's worth a slab."
+ },
+ {
+  "key": "vo_ep5_epi_2",
+  "speaker": "Dolores",
+  "text": "That's a competent person. My job's done here. Yours starts Monday."
  }
 ]
