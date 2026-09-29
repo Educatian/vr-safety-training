@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Jobsite.Runtime
@@ -15,17 +16,35 @@ namespace Jobsite.Runtime
         public static void Open() { if (instance != null) instance.Show(true); }
         public static void Close() { if (instance != null) instance.Show(false); }
 
-        private void Awake() { instance = this; Paused = false; Time.timeScale = 1; }
+        private Transform host;
+        private static int openedFrame = -1;
+        private static int closedFrame = -1;
+        public static int OpenedFrame => openedFrame;
+        // True on the frame the menu opened or closed: other Esc handlers skip it (script order would otherwise reopen it).
+        public static bool EscHandledThisFrame => Time.frameCount == openedFrame || Time.frameCount == closedFrame;
+
+        // The panel lives on its own overlay canvas, so it also works on the episode menu (which hides the tablet
+        // canvas this component sits on) and while driving; PauseKeys there handles Esc to open/close.
+        private void Awake()
+        {
+            instance = this; Paused = false; Time.timeScale = 1;
+            var go = new GameObject("PauseCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster), typeof(PauseKeys));
+            var c = go.GetComponent<Canvas>(); c.renderMode = RenderMode.ScreenSpaceOverlay; c.sortingOrder = 500;
+            var sc = go.GetComponent<CanvasScaler>(); sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            sc.referenceResolution = new Vector2(1920, 1080); sc.matchWidthOrHeight = 1;
+            host = go.transform;
+        }
         private void OnDestroy() { if (instance == this) { Paused = false; Time.timeScale = 1; } }
 
         private void Show(bool on)
         {
             Paused = on; Time.timeScale = on ? 0 : 1;
+            if (on) openedFrame = Time.frameCount; else closedFrame = Time.frameCount;
             if (panel != null) Destroy(panel.gameObject);
             if (!on) return;
             font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             panel = new GameObject("Pause", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup)).GetComponent<RectTransform>();
-            panel.SetParent(transform, false);
+            panel.SetParent(host != null ? host : transform, false);
             panel.anchorMin = new Vector2(0.34f, 0.04f); panel.anchorMax = new Vector2(0.66f, 0.96f); panel.offsetMin = panel.offsetMax = Vector2.zero;
             panel.GetComponent<Image>().color = new Color(.06f, .07f, .08f, .95f);
             var v = panel.GetComponent<VerticalLayoutGroup>(); v.padding = new RectOffset(28, 28, 20, 20); v.spacing = 6;
@@ -45,7 +64,7 @@ namespace Jobsite.Runtime
             Cycle(() => $"Facilitator: all episodes  {(GameSettings.UnlockAll ? "Unlocked" : "Mastery gate")}", () => GameSettings.UnlockAll = !GameSettings.UnlockAll);
             ResetRow();
             Row("Episode select", () => { Show(false); EpisodeDirector.BackToMenu(); });
-            Row("Controls: drag mouse = look · WASD · E act · Tab tablet · M map · Esc pause", null, 18, new Color(.75f, .8f, .8f));
+            Row("Controls: drag mouse = look · WASD · E act · Tab tablet (F full view) · M map · Esc pause", null, 18, new Color(.75f, .8f, .8f));
         }
 
         private void Cycle(Func<string> label, Action next)
@@ -81,6 +100,19 @@ namespace Jobsite.Runtime
             t.font = font; t.fontSize = size; t.color = color ?? Color.white; t.alignment = TextAnchor.MiddleLeft; t.text = label;
             t.horizontalOverflow = HorizontalWrapMode.Wrap; t.verticalOverflow = VerticalWrapMode.Overflow;
             return t;
+        }
+    }
+
+    // Esc on the pause canvas: closes the menu (any state), opens it on the episode menu (SitePlayer is off there).
+    public sealed class PauseKeys : MonoBehaviour
+    {
+        private void Update()
+        {
+            var k = Keyboard.current;
+            if (k == null || !k.escapeKey.wasPressedThisFrame || SitePlayer.Typing) return;
+            if (PauseMenu.Paused) { if (Time.frameCount != PauseMenu.OpenedFrame) PauseMenu.Close(); return; }
+            var ed = FindFirstObjectByType<EpisodeDirector>();
+            if (ed != null && ed.Current == EpisodeDirector.State.Menu) PauseMenu.Open();
         }
     }
 }

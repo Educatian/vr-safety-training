@@ -8,6 +8,8 @@ namespace Jobsite.Runtime
     [RequireComponent(typeof(Rigidbody))]
     public sealed class VehicleController : MonoBehaviour
     {
+        private ShiftDirector director;
+
         public enum State { Parked, Opening, Seated, Exiting }
 
         [SerializeField] private Transform door;            // pivot on the hinge axis (local Y)
@@ -56,6 +58,8 @@ namespace Jobsite.Runtime
             else if (state == State.Seated) { state = State.Exiting; doorT = 0; }
         }
 
+        private void Start() => director = FindFirstObjectByType<ShiftDirector>();
+
         private void Update()
         {
             switch (state)
@@ -74,7 +78,12 @@ namespace Jobsite.Runtime
                     if (doorT >= 2) { state = State.Parked; driver = null; }
                     break;
                 case State.Seated:
-                    if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame) Interact(driver);
+                    // SitePlayer is disabled while seated, so the seat owns exit (E / ACT) and pause (Esc / PAUSE) on
+                    // keyboard and touch; before, touch players could never get out and Esc did nothing.
+                    if (PauseMenu.Paused) break;
+                    var kb = Keyboard.current;
+                    if (kb != null && kb.escapeKey.wasPressedThisFrame && !PauseMenu.EscHandledThisFrame || MobileControls.TakePause()) { PauseMenu.Open(); break; }
+                    if (kb != null && kb.eKey.wasPressedThisFrame || MobileControls.TakeAct()) Interact(driver);
                     break;
             }
 
@@ -85,11 +94,19 @@ namespace Jobsite.Runtime
         private void FixedUpdate()
         {
             var keys = Keyboard.current;
-            var driving = state == State.Seated && keys != null;
-            var throttle = driving ? (keys.wKey.isPressed ? 1f : 0f) - (keys.sKey.isPressed ? 1f : 0f) : 0f;
+            var menu = PauseMenu.Paused || director != null && director.MenuOpen;   // no driving under a menu or alert
+            // Keyboard or touch stick (phones have no keyboard); the debug throttle drives headless tests.
+            var driving = state == State.Seated && !menu;
+            float throttle = 0f, steer = 0f;
+            if (driving && keys != null)
+            {
+                throttle = (keys.wKey.isPressed ? 1f : 0f) - (keys.sKey.isPressed ? 1f : 0f);
+                steer = (keys.dKey.isPressed ? 1f : 0f) - (keys.aKey.isPressed ? 1f : 0f);
+            }
+            var stick = MobileControls.Move;
+            if (driving && throttle == 0f && steer == 0f && stick.sqrMagnitude > 0.01f) { throttle = Mathf.Clamp(stick.y, -1f, 1f); steer = Mathf.Clamp(stick.x, -1f, 1f); }
             if (state == State.Seated && debugThrottle != 0f) { throttle = debugThrottle; driving = true; }
-            var steer = driving && keys != null ? (keys.dKey.isPressed ? 1f : 0f) - (keys.aKey.isPressed ? 1f : 0f) : 0f;
-            var braking = !driving || (keys != null && keys.spaceKey.isPressed && debugThrottle == 0f);
+            var braking = !driving || (keys == null && throttle == 0f) || (keys != null && keys.spaceKey.isPressed && debugThrottle == 0f);   // touch: hold when the stick is released
             foreach (var w in steerWheels) w.steerAngle = steer * maxSteer;
             foreach (var w in driveWheels)
             {

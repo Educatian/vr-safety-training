@@ -8,7 +8,8 @@ namespace Jobsite.Runtime
 {
     // Site-plan minimap (no extra camera: the logistics plan from Tools/layout is the map, 8 px/m).
     // North-up; player arrow rotates. Shows crew and the conditions you've already reported, never unfound hazards.
-    // M toggles the full-site plan.
+    // M toggles the full-site plan; the full plan also closes with Esc, Tab, a click/tap on it, or its X button.
+    // Clicking the corner map opens it (playtest 2026-09-29: "the map maxed and would not come back").
     public sealed class Minimap : MonoBehaviour
     {
         const float X0 = -4, Z0 = -4, W = 128, H = 88;   // metres covered by Resources/UI/Minimap.png
@@ -23,7 +24,9 @@ namespace Jobsite.Runtime
         private bool full;
 
         public bool Full => full;
+        private GameObject closeButton, closeHint;
         public void Toggle() { full = !full; Layout(); }
+        public void Close() { if (full) Toggle(); }
 
         public void Build(Transform canvas)
         {
@@ -53,8 +56,45 @@ namespace Jobsite.Runtime
             Layout();
         }
 
+        // Runtime-only controls: Build() runs in the editor and the scene is saved, and listeners added there are not
+        // serialized, so the click-to-toggle, the X and the hint are wired here at play time.
+        private void BuildControls()
+        {
+            if (closeButton != null) return;
+            var stale = frame.Find("CloseMap"); if (stale != null) Destroy(stale.gameObject);
+            stale = frame.Find("CloseHint"); if (stale != null) Destroy(stale.gameObject);
+            // Click/tap the map: corner -> full plan, full plan -> corner.
+            var btn = frame.GetComponent<Button>(); if (btn == null) btn = frame.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            btn.targetGraphic = frame.GetComponent<Image>();
+            btn.onClick.AddListener(Toggle);
+            // X on the full plan, plus how to close it.
+            closeButton = new GameObject("CloseMap", typeof(RectTransform), typeof(Image), typeof(Button));
+            closeButton.transform.SetParent(frame, false);
+            var cr = (RectTransform)closeButton.transform;
+            cr.anchorMin = cr.anchorMax = cr.pivot = Vector2.one; cr.sizeDelta = new Vector2(64, 64); cr.anchoredPosition = new Vector2(-14, -14);
+            closeButton.GetComponent<Image>().color = new Color(0.1f, 0.12f, 0.13f, 0.9f);
+            closeButton.GetComponent<Button>().onClick.AddListener(Close);
+            foreach (var angle in new[] { 45f, -45f })
+            {
+                var bar = new GameObject("Bar", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
+                bar.SetParent(cr, false); bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0.5f, 0.5f);
+                bar.sizeDelta = new Vector2(38, 6); bar.localEulerAngles = new Vector3(0, 0, angle);
+                var bi = bar.GetComponent<Image>(); bi.color = new Color(1f, .78f, .1f); bi.raycastTarget = false;
+            }
+            var hint = new GameObject("CloseHint", typeof(RectTransform), typeof(Text), typeof(Outline)).GetComponent<Text>();
+            hint.transform.SetParent(frame, false);
+            hint.rectTransform.anchorMin = new Vector2(0, 0); hint.rectTransform.anchorMax = new Vector2(1, 0); hint.rectTransform.pivot = new Vector2(0.5f, 0);
+            hint.rectTransform.sizeDelta = new Vector2(0, 40); hint.rectTransform.anchoredPosition = new Vector2(0, 10);
+            hint.font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); hint.fontSize = 26; hint.color = Color.white; hint.alignment = TextAnchor.MiddleCenter; hint.raycastTarget = false;
+            hint.text = "M, Esc or click to close";
+            closeHint = hint.gameObject;
+            Layout();
+        }
+
         private void Start()
         {
+            BuildControls();
             director = FindFirstObjectByType<ShiftDirector>();
             player = FindFirstObjectByType<SitePlayer>();
             var phases = FindFirstObjectByType<SitePhaseController>();
@@ -84,6 +124,8 @@ namespace Jobsite.Runtime
             var b = bezel.rectTransform; b.anchorMin = b.anchorMax = b.pivot = new Vector2(1, 1);
             b.anchoredPosition = new Vector2(-24 + 300f * 26 / 460, -24 + 300f * 26 / 460); b.sizeDelta = Vector2.one * 300f * 512 / 460;
             bezel.gameObject.SetActive(!full); scale.gameObject.SetActive(!full);
+            if (closeButton != null) { closeButton.SetActive(full); closeButton.transform.SetAsLastSibling(); }
+            if (closeHint != null) { closeHint.SetActive(full); closeHint.transform.SetAsLastSibling(); }
         }
 
         private void Update()
@@ -91,8 +133,12 @@ namespace Jobsite.Runtime
             if (player == null || frame == null) return;
             AddConditions();
             var k = Keyboard.current;
-            if (k != null && k.mKey.wasPressedThisFrame) Toggle();
-            frame.gameObject.SetActive(director == null || !director.MenuOpen || full);
+            // Not while typing (crew chat input): an "m" in a question used to flip the map.
+            // Not while paused or with the tablet up; the full plan closes when the tablet (or an alert on it) opens.
+            var tabletUp = director != null && director.MenuOpen;
+            if (k != null && !SitePlayer.Typing && !PauseMenu.Paused && !tabletUp && k.mKey.wasPressedThisFrame) Toggle();
+            if (full && (tabletUp || PauseMenu.Paused)) Close();
+            frame.gameObject.SetActive(!tabletUp);
             bezel.gameObject.SetActive(frame.gameObject.activeSelf && !full);
 
             var p = player.transform.position;

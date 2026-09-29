@@ -9,6 +9,10 @@ namespace Jobsite.Runtime
     [RequireComponent(typeof(CharacterController))]
     public sealed class SitePlayer : MonoBehaviour
     {
+        // True while a text field (crew chat) has focus: letter shortcuts must not fire while typing.
+        public static bool Typing => UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject != null
+            && UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject.GetComponent<UnityEngine.UI.InputField>() != null;
+
         [SerializeField] private Camera view;
         [SerializeField] private ShiftDirector director;
         private CharacterController controller;
@@ -37,16 +41,23 @@ namespace Jobsite.Runtime
                 if (MobileControls.TakeMap()) FindFirstObjectByType<Minimap>()?.Toggle();
             }
             if (keys == null || mouse == null) { if (touch) TouchUpdate(); return; }
+            // Esc / Tab close the full site plan first (it covers the view and has no other exit on keyboard).
+            if (keys.escapeKey.wasPressedThisFrame && PauseMenu.EscHandledThisFrame) { Release(); return; }
+            if (keys.escapeKey.wasPressedThisFrame || keys.tabKey.wasPressedThisFrame)
+            {
+                var map = FindFirstObjectByType<Minimap>();
+                if (map != null && map.Full) { map.Close(); Release(); return; }
+            }
             if (keys.escapeKey.wasPressedThisFrame)
             {
-                if (director.MenuOpen && !director.Finished && director.Current == ShiftDirector.Phase.Shift) director.ToggleTablet();
+                if (director.MenuOpen && !director.Finished && director.Current == ShiftDirector.Phase.Shift && !director.Blocking) director.ToggleTablet();
                 else if (director.TalkingTo != null) director.EndTalk();
                 else PauseMenu.Open();
                 Release();
                 return;
             }
             if (keys.tabKey.wasPressedThisFrame) { director.ToggleTablet(); Release(); }
-            if (director.MenuOpen && keys.fKey.wasPressedThisFrame) FirstPersonTablet.ToggleFullView();   // full view / handheld
+            if (director.MenuOpen && !Typing && keys.fKey.wasPressedThisFrame) FirstPersonTablet.ToggleFullView();   // full view / handheld
             if (director.MenuOpen || director.Finished) { Release(); return; }
 
             // Mouse drag looks (a drag that starts on UI, e.g. the minimap, doesn't).

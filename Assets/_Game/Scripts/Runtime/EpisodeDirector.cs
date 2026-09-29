@@ -259,7 +259,7 @@ namespace Jobsite.Runtime
             Panel(canvas.transform, "LetterboxBottom", Vector2.zero, new Vector2(1, 0.12f), Color.black);
             speakerText = Text(canvas.transform, "", 30, Accent, new Vector2(0.15f, 0.125f), new Vector2(0.85f, 0.17f), TextAnchor.LowerCenter);
             captionText = Text(canvas.transform, "", 34, Color.white, new Vector2(0.12f, 0.015f), new Vector2(0.88f, 0.115f), TextAnchor.MiddleCenter);
-            Text(canvas.transform, "Space · skip", 20, new Color(1, 1, 1, .45f), new Vector2(0.85f, 0.89f), new Vector2(0.98f, 0.99f), TextAnchor.MiddleRight);
+            Text(canvas.transform, MobileControls.Active ? "Tap · skip" : "Space or click · skip", 20, new Color(1, 1, 1, .45f), new Vector2(0.85f, 0.89f), new Vector2(0.98f, 0.99f), TextAnchor.MiddleRight);
             StartCoroutine(WatchSkip());
 
             // Title card over the Higgsfield key art.
@@ -321,6 +321,9 @@ namespace Jobsite.Runtime
             {
                 var k = Keyboard.current;
                 if (k != null && (k.spaceKey.wasPressedThisFrame || k.enterKey.wasPressedThisFrame || k.escapeKey.wasPressedThisFrame)) { skip = true; EndIntro(); yield break; }
+                // Mouse and touch players had no way to skip (the label was plain text).
+                if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame
+                    || Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) { skip = true; EndIntro(); yield break; }
                 if (skip) { EndIntro(); yield break; }
                 yield return null;
             }

@@ -21,6 +21,8 @@ namespace Jobsite.Runtime
         private int probability = 3, severity = 3;
         private string reopened;            // condition id the learner re-opened after logging it compliant
         private bool confirmEarlyEnd;       // "Finish shift" before the whistle asks once
+        private string chatDraft = "";      // unsent crew-chat text, kept across page rebuilds
+        private CrewMember chatCrew;
 
         static readonly Color Ink = new Color(.84f, .87f, .86f);
         static readonly Color Accent = new Color(1f, .78f, .1f);
@@ -354,16 +356,19 @@ namespace Jobsite.Runtime
             if (review.Count > 0) Label("Review before next shift: " + string.Join(" · ", review.Select(t => $"{t.cfr} ({t.mean:P0})")), 18, Accent);
         }
 
-        // Crew conversation: transcript + typed question (LLM via OpenRouter; offline fallback).
+        // Crew conversation: transcript + typed question (online LLM, see docs/Deploy.md; offline fallback).
         private void Chat(CrewMember crew)
         {
             Label(crew.DisplayName, 30, Color.white);
             if (GameSettings.AiConsent < 0)
             {
-                Label("Crew replies are written by an AI service (OpenRouter, Anthropic Claude). What you type is sent there to answer you. " +
-                      "Do not type names or personal information. The game logs only that you asked, never the text.", 19, Ink);
-                Button("OK, use AI replies", () => { GameSettings.AiConsent = 1; PlayerPrefs.Save(); Refresh(); }, null, true);
-                Button("No thanks, use built-in answers", () => { GameSettings.AiConsent = 0; PlayerPrefs.Save(); Refresh(); });
+                // In the fiction (playtest 2026-09-29: vendor names read out of place); the privacy facts stay. The provider
+                // is named in docs/Deploy.md and the facilitator's consent sheet.
+                Label($"Ask {crew.DisplayName.Split(' ')[0]} anything about the job, in your own words.", 21, Color.white);
+                Label("Free-text replies come from an online AI model, so what you type is sent to it. " +
+                      "Don't type names or personal details. The game only records that you asked, never your words.", 18, Ink);
+                Button("Ask in my own words", () => { GameSettings.AiConsent = 1; PlayerPrefs.Save(); Refresh(); }, null, true);
+                Button("Use set questions instead (offline)", () => { GameSettings.AiConsent = 0; PlayerPrefs.Save(); Refresh(); });
                 Button("Close (Tab)", director.EndTalk);
                 return;
             }
@@ -372,8 +377,12 @@ namespace Jobsite.Runtime
                 Label(lines[i], 19, lines[i].StartsWith("You:") ? Accent : Ink);
             if (crew.Thinking) Label("…", 22, Ink);
             var input = InputBox("Ask about this condition…");
-            Button("Send", () => { director.AskCrew(input.text); });
-            input.onSubmit.AddListener(s => director.AskCrew(s));
+            // A reply rebuilds the page; keep what the learner was typing (it used to be wiped mid-sentence).
+            if (chatCrew != crew) { chatCrew = crew; chatDraft = ""; }
+            input.text = chatDraft; input.caretPosition = chatDraft.Length;
+            input.onValueChanged.AddListener(v => chatDraft = v);
+            Button("Send", () => { chatDraft = ""; director.AskCrew(input.text); });
+            input.onSubmit.AddListener(v => { chatDraft = ""; director.AskCrew(v); });
             Button("Close (Tab)", director.EndTalk);
             input.ActivateInputField();
         }

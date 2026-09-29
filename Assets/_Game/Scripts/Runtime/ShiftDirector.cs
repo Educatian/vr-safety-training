@@ -238,10 +238,15 @@ namespace Jobsite.Runtime
             GetComponent<ScaffoldCues>()?.Refresh();
         }
 
+        // An alert card (weather, incident, speak-up) must be answered: Tab/Esc no longer dismiss it and leave the decision
+        // pending with the clock running.
+        public bool Blocking => MenuOpen && (PendingWeather != null || PendingIncident != null || PendingSpeakUp != null);
+
         public void ToggleTablet()
         {
             if (TalkingTo != null) { EndTalk(); return; }
             if (Current != Phase.Shift) return;
+            if (Blocking) { Say("Answer the alert on your tablet first."); return; }
             MenuOpen = !MenuOpen; tablet.Refresh();
         }
 
