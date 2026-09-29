@@ -10,7 +10,8 @@ const fs = await import("node:fs"); fs.mkdirSync(out, { recursive: true });
 const browser = await launchGpu(chromium);
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
 const errors = [], logs = [];
-page.on("console", (m) => { const t = m.text(); if (m.type() === "error") errors.push(t); else if (/error|exception|fail/i.test(t)) logs.push(t); });
+const all = [];
+page.on("console", (m) => { const t = m.text(); all.push(t); if (m.type() === "error") errors.push(t); else if (/error|exception|fail/i.test(t)) logs.push(t); });
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 console.log("renderer:", await webglRenderer(page));
 
@@ -48,5 +49,6 @@ console.log("in-game fps:", fps2.toFixed(1));
 const mem = await page.evaluate(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : -1);
 console.log("js heap MB:", mem);
 console.log("console errors:", errors.length); errors.slice(0, 10).forEach((e) => console.log("  ", e.slice(0, 200)));
-logs.slice(0, 5).forEach((e) => console.log("  log:", e.slice(0, 200)));
+all.forEach((e, i) => { if (/ERROR: Shader/.test(e)) console.log("  shader:", JSON.stringify(all.slice(i, i + 3).join(" | ").slice(0, 300))); });
+logs.slice(0, 5).forEach((e) => console.log("  log:", JSON.stringify(e.slice(0, 400))));
 await browser.close();

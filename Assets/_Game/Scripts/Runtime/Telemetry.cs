@@ -15,7 +15,7 @@ namespace Jobsite.Runtime
         public static string ServerBase = "";   // "" = same origin (web); set in editor tests to the deployed URL
         const float FlushEvery = 10f;
 
-        [Serializable] public sealed class Row { public string t; public string kind; public string condition; public string detail; public float clock; }
+        [Serializable] public sealed class Row { public string t; public string kind; public string condition; public string detail; public float clock; public string cfr; public string ksa; public float score; }
         [Serializable] sealed class Batch { public string session; public string classCode; public string learner; public int episode; public int seed; public List<Row> rows; }
         [Serializable] public sealed class Completion
         {
@@ -32,9 +32,9 @@ namespace Jobsite.Runtime
         public bool Online => Application.platform == RuntimePlatform.WebGLPlayer || !string.IsNullOrEmpty(ServerBase);
         public int Sent { get; private set; }
 
-        public void Add(string kind, string condition, string detail, float clock)
+        public void Add(string kind, string condition, string detail, float clock, string cfr = "", string ksa = "", float score = -1f)
         {
-            pending.Add(new Row { t = DateTime.UtcNow.ToString("O"), kind = kind, condition = condition, detail = detail, clock = clock });
+            pending.Add(new Row { t = DateTime.UtcNow.ToString("O"), kind = kind, condition = condition, detail = detail, clock = clock, cfr = cfr, ksa = ksa, score = score });
         }
 
         private void Update()

@@ -35,6 +35,7 @@ namespace Jobsite.Runtime
         public string Notice => notice;
         public SiteCondition Selected => selected;
         public bool Carrying => carriedVisual != null;
+        public string PendingInstall => pendingInstall;
         public SiteCondition[] Conditions => conditions;
         public IReadOnlyCollection<CheckInStation.Kind> CheckedIn => checkedIn;
         public bool CheckInComplete => Enum.GetValues(typeof(CheckInStation.Kind)).Cast<CheckInStation.Kind>().All(checkedIn.Contains);
@@ -56,6 +57,12 @@ namespace Jobsite.Runtime
         public WeatherEvent PendingWeather { get; private set; }
         public readonly List<(WeatherEvent ev, int quality)> WeatherCalls = new List<(WeatherEvent, int)>();
         public WeatherState Weather => FindFirstObjectByType<WeatherDirector>()?.Current;
+        public KsaLedger Competence { get; } = new KsaLedger();
+        public MissionRun Mission { get; private set; }
+        public string LastKsa { get; private set; } = "";        // one-line KSA feedback after the last scored action
+        // Instruments usable this shift: owned gear plus what the mission loans from the gang box.
+        public IEnumerable<GearId> Instruments => Career.Owned.Union(Mission?.Mission.Issued ?? new GearId[0]);
+        public const float ShiftLength = 600f;
 
         public void Configure(SiteCondition[] targets, SitePlayer explorer, FieldTablet ui, AudioSource speaker)
         { conditions = targets; player = explorer; tablet = ui; radio = speaker; }
@@ -70,9 +77,12 @@ namespace Jobsite.Runtime
             Telemetry = GetComponent<Telemetry>() ?? gameObject.AddComponent<Telemetry>();
             Telemetry.Episode = Episode.Number; Telemetry.Seed = SampleHazards ? Seed : 0;
             Career = CareerStore.Load();
+            Mission = new MissionRun(Missions.For(Episode.Number));
+            if (GetComponent<ScaffoldCues>() == null) gameObject.AddComponent<ScaffoldCues>();
             Hints = new HintBank(Career.StartingHints);
             logPath = Path.Combine(Application.persistentDataPath, "jobsite-" + Guid.NewGuid().ToString("N") + ".jsonl");
-            Log("session_start", "ep" + Episode.Number, "conditions=" + conditions.Length + " seed=" + (SampleHazards ? Seed : 0));
+            Log("session_start", "ep" + Episode.Number, "conditions=" + conditions.Length + " seed=" + (SampleHazards ? Seed : 0) +
+                " level=" + Career.Level + " guidance=" + ScaffoldCues.Level(Career.Level) + " mission=" + Mission.Mission.Title);
             tablet.Refresh();
         }
 
@@ -98,10 +108,17 @@ namespace Jobsite.Runtime
                 Say(ev.Kind == DayEventKind.Lapsed ? "Temporary control lapsed. Revisit your report."
                     : ev.Kind == DayEventKind.StopLifted ? $"Ray: We can't sit all day. Crew's back at it: {name}. Get a real fix in."
                     : "Near-miss reported. Secure the area; review follows.");
-                if (ev.Kind == DayEventKind.NearMiss || ev.Kind == DayEventKind.Recordable) AudioDirector.Play("alarm");
-                Log(ev.Kind.ToString(), ev.HazardId, "");
+                var at = conditions.FirstOrDefault(c => c.Id == ev.HazardId);
+                if (ev.Kind == DayEventKind.NearMiss || ev.Kind == DayEventKind.Recordable)
+                {
+                    AudioDirector.Play("alarm");
+                    if (at != null) CrewGestures.ReactNear(at.transform.position, 14f, CrewGestures.Situation.NearMiss, at.PhotoBounds.center);
+                    Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0f);
+                }
+                else if (ev.Kind == DayEventKind.StopLifted) { CrewGestures.Named("Ray")?.React(CrewGestures.Situation.BackToWork); Log(ev.Kind.ToString(), ev.HazardId, ""); }
+                else Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0.5f);
             }
-            if (Session.Clock >= 600) EndShift();
+            if (Session.Clock >= ShiftLength) EndShift();
         }
 
         // ---------- check-in and briefing ----------
@@ -122,7 +139,7 @@ namespace Jobsite.Runtime
         public void SubmitHierarchy(IReadOnlyList<string> order)
         {
             HierarchyScore = HierarchyOrdering.Score(order);
-            Log("hierarchy_order", "gate", HierarchyScore + "/5:" + string.Join(">", order));
+            Log("hierarchy_order", "gate", HierarchyScore + "/5:" + string.Join(">", order), Jobsite.Core.Ksa.KHierarchy, HierarchyScore / 5f, "1926.20(b)");
             Say(HierarchyScore == 5 ? "Right order. Remove it, swap it, guard it, manage it, then PPE." :
                 "Not yet: most effective controls go on top. PPE is last.");
             if (HierarchyScore == 5) Xp += 50;
@@ -135,7 +152,7 @@ namespace Jobsite.Runtime
             var item = Quiz.Current;
             var ok = Quiz.Answer(option);
             if (ok) Xp += 25;
-            Log("quiz", item.Id, (ok ? "correct:" : "wrong:") + option);
+            Log("quiz", item.Id, (ok ? "correct:" : "wrong:") + option, Jobsite.Core.Ksa.KStandard, ok ? 1f : 0f, string.IsNullOrEmpty(item.Cfr) ? "1926.21(b)(2)" : item.Cfr);
             Say((ok ? "Correct. " : "Not quite. ") + item.Explanation + (string.IsNullOrEmpty(item.Cfr) ? "" : " (" + item.Cfr + ")"));
             tablet.Refresh();
         }
@@ -145,6 +162,7 @@ namespace Jobsite.Runtime
             Current = Phase.Shift; MenuOpen = false;
             Say("Walk the site. Photograph conditions with E. Right mouse looks.");
             tablet.Refresh(); Log("shift_begin", "day", "");
+            GetComponent<ScaffoldCues>()?.Refresh();
         }
 
         public void ToggleTablet()
@@ -174,13 +192,25 @@ namespace Jobsite.Runtime
             if (hit.collider.GetComponentInParent<ControlSupply>() != null) { Collect(); return; }
 
             var target = hit.collider.GetComponentInParent<SiteCondition>();
-            if (Carrying) { Place(target, hit.point); return; }
+            if (Carrying) { SetKitDown(target, hit.point); return; }
             if (target == null) { Say("Photograph a condition, or pick up materials at the rack."); return; }
             if (!PhotoValid(target)) { Say("Move closer. Keep the whole condition in your frame."); return; }
-            selected = target; MenuOpen = true; LastFeedback = ""; AudioDirector.Play("shutter"); tablet.Flash(); tablet.Refresh(); Log("photo", target.Id, "valid-frame"); Ping();
+            Photograph(target);
         }
 
-        private void Collect()
+        // A valid photo opens the condition on the tablet; instruments you carry take their readings (field inspection).
+        public void Photograph(SiteCondition target)
+        {
+            selected = target; MenuOpen = true; LastFeedback = ""; LastKsa = "";
+            AudioDirector.Play("shutter"); tablet.Flash();
+            Log("photo", target.Id, "valid-frame");
+            foreach (var gear in Instruments.ToList())
+                if (target.Reading(gear) != null) Log("measure", target.Id, gear.ToString(), Jobsite.Core.Ksa.SInspect, 1f);
+            tablet.Refresh(); Ping();
+        }
+
+        private void Collect() => PickUpKit();
+        public void PickUpKit()
         {
             if (pendingInstall == null) { Say("Choose an engineered fix on the tablet first."); return; }
             if (Carrying) return;
@@ -198,14 +228,18 @@ namespace Jobsite.Runtime
         }
 
         // Drag-and-drop in 3D: the release point must be on the hazard it fixes, within tolerance.
-        private void Place(SiteCondition target, Vector3 point)
+        public void SetKitDown(SiteCondition target, Vector3 point)
         {
             var goal = conditions.FirstOrDefault(c => c.Id == pendingInstall);
             if (goal == null) return;
             var error = Vector3.Distance(point, goal.PhotoBounds.ClosestPoint(point));
             var ok = target == goal || error <= placeTolerance;
             Log("placement_attempt", goal.Id, $"error={error:F2}m ok={ok}");
-            if (!ok) { Say($"Wrong spot — {error:F1} m off. Set it at the hazard itself."); return; }
+            if (!ok)
+            {
+                Log("ksa", goal.Id, "misplaced", Jobsite.Core.Ksa.SInstall, 0f);
+                Say($"Wrong spot — {error:F1} m off. Set it at the hazard itself."); return;
+            }
             if (Session.CompleteInstall(goal.Id, true))
             {
                 goal.ShowControl();
@@ -213,7 +247,9 @@ namespace Jobsite.Runtime
                 Xp += XpRules.BestControl + XpRules.EngineeredBonus;
                 Say("Control installed. Crew can continue safely.");
                 AudioDirector.Play("success");
-                Log("install_success", goal.Id, "Engineering");
+                Log("install_success", goal.Id, "Engineering", Jobsite.Core.Ksa.SInstall, 1f);
+                LastKsa = Feedback(Jobsite.Core.Ksa.SInstall, goal.Cfr, "control in place at the exposure and verified.");
+                CrewGestures.ReactNear(goal.transform.position, 12f, CrewGestures.Situation.ControlInstalled, goal.PhotoBounds.center);
             }
         }
 
@@ -245,7 +281,28 @@ namespace Jobsite.Runtime
                     ? $"Risk P{probability} x S{severity}: close to the site assessment (P{spec.Probability} x S{spec.Severity})."
                     : $"Risk P{probability} x S{severity}; site assessment is P{spec.Probability} x S{spec.Severity}. " +
                       (severity < spec.Severity ? "Think about the worst credible outcome." : "Weigh how likely it is today."));
-            if (outcome == ReportOutcome.Reported) AudioDirector.Play("success");
+            if (outcome == ReportOutcome.Reported)
+            {
+                AudioDirector.Play("success");
+                var ev = Session.GetEvidence(selected.Id);
+                var detect = KsaLedger.DetectScore(ev.DetectedAtSeconds, ShiftLength, ev.Hinted);
+                Log("ksa", selected.Id, "recognize", Jobsite.Core.Ksa.SRecognize, ev.Hinted ? 0.5f : 1f);
+                Log("ksa", selected.Id, "energy=" + energy, Jobsite.Core.Ksa.KEnergy, energy == spec.Energy ? 1f : 0f);
+                Log("ksa", selected.Id, $"P{probability}xS{severity}", Jobsite.Core.Ksa.SAssess, KsaLedger.RiskScore(ev.RiskDeviation));
+                Log("ksa", selected.Id, "t=" + ev.DetectedAtSeconds.ToString("F0"), Jobsite.Core.Ksa.AProactive, detect);
+                LastKsa = "K  " + (string.IsNullOrEmpty(selected.Cfr) ? spec.Energy + " energy" : selected.Cfr + ": " + selected.Threshold) + "\n" +
+                          "S  recognized" + (ev.Hinted ? " (with a hint)" : "") + " · energy " + (energy == spec.Energy ? "✓" : "✗") +
+                          " · risk " + (ev.RiskDeviation == 0 ? "on the key" : "±" + ev.RiskDeviation) + "\n" +
+                          $"A  proactive: spotted at {ev.DetectedAtSeconds / 60f:0.0} min of {ShiftLength / 60f:0}" + (detect >= 1f ? " · early, before exposure grows" : " · late: scan the site sooner");
+                CrewGestures.ReactNear(selected.transform.position, 12f, CrewGestures.Situation.Acknowledge, selected.PhotoBounds.center);
+            }
+            else if (outcome == ReportOutcome.FalseReport)
+            {
+                Log("ksa", selected.Id, "look-alike reported", Jobsite.Core.Ksa.SDiscriminate, 0f);
+                Log("ksa", selected.Id, "crew trust", Jobsite.Core.Ksa.ACare, 0f);
+                LastKsa = Feedback(Jobsite.Core.Ksa.SDiscriminate, selected.Cfr, "this one is compliant. Confirm it, don't report it: false alarms cost crew trust.");
+                CrewGestures.ReactNear(selected.transform.position, 10f, CrewGestures.Situation.Puzzled, selected.PhotoBounds.center);
+            }
             Say(outcome == ReportOutcome.FalseReport ? selected.Explanation : outcome == ReportOutcome.Reported ? "Report recorded. Check the feedback, then choose your control." : "Report recorded. Choose your control.");
             Log("report", selected.Id, outcome + ":" + energy + ":" + probability + ":" + severity); tablet.Refresh();
         }
@@ -255,7 +312,11 @@ namespace Jobsite.Runtime
             if (selected == null || Finished) return;
             if (pendingInstall != null && pendingInstall != selected.Id) { Say("Finish your current installation first."); return; }
             var result = Session.ChooseControl(selected.Id, level);
-            Log("control_choose", selected.Id, result + ":" + level);
+            var best = selected.Spec.BestFeasibleControl;
+            var cs = result == ControlOutcome.Installing || result == ControlOutcome.Assigned ? KsaLedger.ControlScore(level, best) : -1f;
+            Log("control_choose", selected.Id, result + ":" + level, cs >= 0 ? Jobsite.Core.Ksa.SControl : (Ksa?)null, cs);
+            if (cs >= 0) LastKsa = Feedback(Jobsite.Core.Ksa.SControl, selected.Cfr, cs >= 1f ? $"{level} is the most effective feasible control here."
+                : $"{level} leans on people. {best} is feasible here and removes the exposure.");
             if (result == ControlOutcome.Installing)
             { pendingInstall = selected.Id; MenuOpen = false; Say("Pick up materials at the supply rack (E)."); }
             else if (result == ControlOutcome.Assigned) Say("Temporary control assigned. Check it again later.");
@@ -270,7 +331,16 @@ namespace Jobsite.Runtime
             var result = Session.StopWork(selected.Id);
             if (result == StopOutcome.Justified) Xp += XpRules.JustifiedStop;
             Say(result == StopOutcome.Justified ? $"Work stopped for about {DaySession.StopHoldSeconds / 60:0} min. Get a control in before Ray restarts the crew." : "Report an active hazard before stopping this crew.");
-            Log("stop_work", selected.Id, result.ToString()); tablet.Refresh();
+            var js = result == StopOutcome.Justified ? (selected.Spec.RequiresStopWork ? 1f : 0.7f) : 0f;
+            Log("stop_work", selected.Id, result.ToString(), Jobsite.Core.Ksa.AIntervene, js);
+            LastKsa = Feedback(Jobsite.Core.Ksa.AIntervene, selected.Cfr, result != StopOutcome.Justified ? "report the hazard first; a stop needs a named reason."
+                : selected.Spec.RequiresStopWork ? "right call: this exposure can't wait for a fix." : "defensible, but a quick fix would have kept the crew working.");
+            if (result == StopOutcome.Justified)
+            {
+                CrewGestures.ReactNear(selected.transform.position, 14f, CrewGestures.Situation.WorkStopped, selected.PhotoBounds.center);
+                CrewGestures.Named("Ray")?.React(CrewGestures.Situation.ForemanPressure);
+            }
+            tablet.Refresh();
         }
 
         public void EndShift()
@@ -279,7 +349,14 @@ namespace Jobsite.Runtime
             Current = Phase.Closed; MenuOpen = true; Session.Paused = true;
             Quiz = new QuizSession(Episode.ClosingQuiz(), Seed + 1);
             Say("Shift closed. Review what your crew needed.");
-            Log("shift_end", "day", "HII=" + Session.HazardIdentificationIndex.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " xp=" + Xp);
+            Log("shift_end", "day", "HII=" + Session.HazardIdentificationIndex.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " xp=" + Xp +
+                " mission=" + Mission.Completed + "/" + Mission.Mission.Steps.Count);
+            Log("ksa", "mission", Mission.Completed + "/" + Mission.Mission.Steps.Count, Jobsite.Core.Ksa.AThorough,
+                (float)Mission.Completed / Mission.Mission.Steps.Count, "1926.20(b)(2)");
+            foreach (var c in conditions.Where(c => c.IsHazard && !Session.GetEvidence(c.Id).Detected))
+                Log("ksa", c.Id, "missed", Jobsite.Core.Ksa.SRecognize, 0f);
+            foreach (Ksa k in Enum.GetValues(typeof(Ksa)))
+                if (Competence.Mean(k) is float m) Log("ksa_profile", k.ToString(), "n=" + Competence.Count(k), k, m, "");
             tablet.Refresh();
         }
 
@@ -307,7 +384,8 @@ namespace Jobsite.Runtime
         public void WeatherChanged(WeatherEvent ev)
         {
             Say(ev.Radio);
-            Log("weather", ev.Id, ev.State.Summary);
+            Log("weather", ev.Id, ev.State.Summary, null, -1f, ev.Cfr);
+            if (player != null) CrewGestures.ReactNear(player.transform.position, 30f, CrewGestures.Situation.WeatherTurn, player.transform.position + Vector3.up * 30f);
             if (!ev.IsDecision || Current != Phase.Shift) return;
             PendingWeather = ev;
             if (TalkingTo != null) EndTalk();
@@ -325,7 +403,9 @@ namespace Jobsite.Runtime
             var o = ev.Options[option];
             WeatherCalls.Add((ev, o.Quality));
             Xp += WeatherPlan.Xp(o.Quality);
-            Log("weather_decision", ev.Id, "q=" + o.Quality + ":" + option);
+            Log("weather_decision", ev.Id, "q=" + o.Quality + ":" + option, Jobsite.Core.Ksa.AIntervene, o.Quality / 2f, ev.Cfr);
+            LastKsa = Feedback(Jobsite.Core.Ksa.AIntervene, ev.Cfr, o.Quality == 2 ? "you made the call the conditions demanded." : "conditions changed; the plan has to change with them.");
+            CrewGestures.Named("Dolores")?.React(o.Quality == 2 ? CrewGestures.Situation.Acknowledge : CrewGestures.Situation.Puzzled);
             Say((o.Quality == 2 ? "Good call. " : "") + o.Feedback);
             AudioDirector.Play(o.Quality == 2 ? "success" : "click");
             PendingWeather = null; MenuOpen = false;
@@ -344,9 +424,10 @@ namespace Jobsite.Runtime
             var spec = target.Spec;
             Say(Career.HintText(tier, target.DisplayName, spec.Energy, spec.FocusFour, Where(target.transform.position - player.transform.position)));
             Log("hint", target.Id, "tier=" + tier);
-            var dolores = FindObjectsByType<CrewMember>(FindObjectsSortMode.None).FirstOrDefault(c => c.DisplayName == "Dolores");
+            FindFirstObjectByType<ScaffoldCues>()?.Hint(target, tier);
+            var dolores = CrewGestures.Named("Dolores");
             if (dolores != null && Vector3.Distance(dolores.transform.position, player.transform.position) < 25f)
-                dolores.GetComponent<CrewGestures>()?.Point(target.PhotoBounds.center);
+                dolores.React(CrewGestures.Situation.Hint, target.PhotoBounds.center);
             tablet.Refresh();
         }
 
@@ -359,11 +440,12 @@ namespace Jobsite.Runtime
         }
 
         // ---------- crew conversation ----------
-        private void StartTalk(CrewMember crew)
+        public void StartTalk(CrewMember crew)
         {
             TalkingTo = crew; MenuOpen = true;
             crew.BeginTalk(player.transform);
-            Log("radio_query_open", crew.DisplayName, "");
+            Log("radio_query_open", crew.DisplayName, "", Jobsite.Core.Ksa.SCommunicate, 1f, "1926.21(b)(2)");
+            Log("ksa", crew.DisplayName, "engaged crew", Jobsite.Core.Ksa.ACare, 1f, "1926.21(b)(2)");
             tablet.Refresh();
         }
 
@@ -419,13 +501,38 @@ namespace Jobsite.Runtime
             actionable = false; return "";
         }
 
-        [Serializable] private sealed class EventRow { public string timestamp; public string kind; public string condition; public string detail; public float shiftSeconds; }
-        private void Log(string kind, string id, string detail)
+        static string Feedback(Ksa k, string cfr, string text) =>
+            $"{KsaInfo.Domain(k)}  {KsaInfo.Name(k)}" + (string.IsNullOrEmpty(cfr) ? "" : $" · {cfr}") + ": " + text;
+
+        [Serializable] private sealed class EventRow
+        { public string timestamp; public string kind; public string condition; public string detail; public float shiftSeconds; public string cfr; public string ksa; public float score; }
+
+        // Every event is tied to an OSHA standard (explicit, or the condition's own citation) and, when it is a scored
+        // action, to a KSA with a 0..1 performance score. Rows go to the local JSONL log, the course server and missions.
+        private void Log(string kind, string id, string detail, Ksa? ksa = null, float score = -1f, string cfr = null)
         {
-            Telemetry?.Add(kind, id, detail, Session?.Clock ?? 0);
-            if (logPath == null) return;
-            try { File.AppendAllText(logPath, JsonUtility.ToJson(new EventRow { timestamp = DateTime.UtcNow.ToString("O"), kind = kind, condition = id, detail = detail, shiftSeconds = Session?.Clock ?? 0 }) + "\n"); }
-            catch (IOException e) { Debug.LogWarning("Jobsite log unavailable: " + e.GetType().Name); }
+            cfr ??= conditions?.FirstOrDefault(c => c != null && c.Id == id)?.Cfr ?? "";
+            // Scored actions without their own citation fall under the CP inspection program (frequent and regular
+            // inspections by competent persons); the end-of-shift profile only summarises, it isn't new evidence.
+            if (ksa.HasValue && score >= 0 && cfr.Length == 0 && kind != "ksa_profile") cfr = "1926.20(b)(2)";
+            if (ksa.HasValue && score >= 0 && kind != "ksa_profile") Competence.Record(ksa.Value, cfr, score, kind + ":" + id);
+            var clock = Session?.Clock ?? 0;
+            Telemetry?.Add(kind, id, detail, clock, cfr, ksa?.ToString() ?? "", ksa.HasValue ? score : -1f);
+            if (logPath != null)
+                try
+                {
+                    File.AppendAllText(logPath, JsonUtility.ToJson(new EventRow { timestamp = DateTime.UtcNow.ToString("O"), kind = kind, condition = id, detail = detail,
+                        shiftSeconds = clock, cfr = cfr, ksa = ksa?.ToString() ?? "", score = ksa.HasValue ? score : -1f }) + "\n");
+                }
+                catch (IOException e) { Debug.LogWarning("Jobsite log unavailable: " + e.GetType().Name); }
+            var step = Mission?.OnEvent(kind, id, detail);
+            if (step != null)
+            {
+                Log("mission_step", id, Mission.Completed + "/" + Mission.Mission.Steps.Count + " " + step.Text, step.Ksa, 1f, step.Cfr);
+                Say($"Checklist ✓ {step.Text}. " + (Mission.Complete ? "Inspection complete: sign the log." : "Next: " + Mission.Next.Text + "."));
+                if (Mission.Complete) { Xp += 100; Log("mission_complete", "ep" + Episode.Number, Mission.Mission.Title); }
+                FindFirstObjectByType<ScaffoldCues>()?.Refresh();
+            }
         }
     }
 }

@@ -55,6 +55,13 @@
     <div class="scroll"><table id="comp"></table></div>
     <h2 style="margin-top:16px">Activity by student and episode</h2>
     <div class="scroll"><table id="act"></table></div>
+    <h2 style="margin-top:16px">Performance by OSHA standard (29 CFR 1926)</h2>
+    <p class="muted">Mean score of every scored action tied to the standard: recognition, risk rating, control choice, installation, inspection, stop-work and quiz items. Weakest first.</p>
+    <div class="scroll"><table id="osha"></table></div>
+    <h2 style="margin-top:16px">KSA profile by student (Knowledge · Skills · Attitudes)</h2>
+    <div class="scroll"><table id="ksa"></table></div>
+    <h2 style="margin-top:16px">Field-practice missions</h2>
+    <div class="scroll"><table id="mis"></table></div>
   </section>
   <p class="muted">Training records only; not an OSHA 10/30 card or a competent-person designation.</p>
 </main>
@@ -88,6 +95,14 @@ async function load() {
     ["precision", "Report precision", pct], ["incidents", "Incidents"], ["quiz_correct", "Quiz ✓"], ["quiz_total", "of"], ["received", "When (UTC)"]]);
   table($("act"), d.activity, [["learner", "Student"], ["episode", "Ep"], ["sessions", "Sessions"], ["reports", "Reports"], ["hints", "Hints"],
     ["stops", "Stop-work"], ["installs", "Fixes"], ["incidents", "Incidents"], ["last_seen", "Last seen (UTC)"]]);
+  table($("osha"), d.osha || [], [["cfr", "Standard"], ["mean", "Mean score", pct], ["n", "Scored actions"], ["learners", "Students"], ["missed", "Missed hazards"], ["incidents", "Incidents"]]);
+  // Pivot KSA rows to one line per student.
+  const KSA = [["KStandard","K: standards"],["KEnergy","K: energy"],["KHierarchy","K: hierarchy"],["SRecognize","S: recognize"],["SAssess","S: assess"],
+    ["SControl","S: control"],["SInstall","S: install"],["SInspect","S: inspect"],["SDiscriminate","S: look-alikes"],["SCommunicate","S: communicate"],
+    ["AProactive","A: proactive"],["AIntervene","A: intervene"],["AThorough","A: thorough"],["ACare","A: care"]];
+  const by = {}; (d.ksa || []).forEach((r) => { (by[r.learner || "(practice)"] ||= { learner: r.learner || "(practice)" })[r.ksa] = r.mean; });
+  table($("ksa"), Object.values(by), [["learner", "Student"], ...KSA.map(([k, l]) => [k, l, pct])]);
+  table($("mis"), d.missions || [], [["learner", "Student"], ["episode", "Ep"], ["steps", "Checklist steps done"], ["completed", "Signed off"]]);
 }
 $("load").onclick = load;
 $("csv").onclick = async () => {

@@ -34,10 +34,33 @@ namespace Jobsite.Editor
         public static GameObject Worker(Transform parent, Vector3 at, float yaw, string name = null, string trade = null,
             CrewGestures.Activity activity = CrewGestures.Activity.Idle, bool female = false, Vector3 walkA = default, Vector3 walkB = default)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(female ? Female : Male);
+            var go = Person(parent, at, yaw, name, female, out var tagHeight);
+            if (go == null) return null;
+            if (name != null) go.AddComponent<NameTag>().Configure(name, trade, tagHeight);
+            go.AddComponent<CrewGestures>().Configure(activity, walkA, walkB);
+            return go;
+        }
+
+        // Named cast members use their Tripo model (photo-matched, body + face rig: Tools/blender/npc_face_rig.py);
+        // unnamed crew stay Rocketbox. Returns the body only; callers add tags/gestures/talk.
+        public static GameObject Person(Transform parent, Vector3 at, float yaw, string name, bool female, out float tagHeight)
+        {
+            var key = name == null ? null : name.Split(' ')[0];
+            var tripo = key == null ? null : AssetDatabase.LoadAssetAtPath<GameObject>($"{NpcDir}SM_NPC_{key}.fbx");
+            var prefab = tripo ?? AssetDatabase.LoadAssetAtPath<GameObject>(female ? Female : Male);
+            tagHeight = 2.12f;
             if (prefab == null) return null;
             var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
             go.transform.SetPositionAndRotation(at, Quaternion.Euler(0, yaw, 0));
+            if (tripo != null)
+            {
+                var mat = NpcMaterial(key);
+                foreach (var r in go.GetComponentsInChildren<SkinnedMeshRenderer>(true)) r.sharedMaterial = mat;
+                var b = go.GetComponentInChildren<SkinnedMeshRenderer>().bounds;
+                tagHeight = b.max.y - at.y + 0.28f;
+                go.AddComponent<NpcFace>();
+                return go;
+            }
             var skin = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
             for (var t = skin != null ? skin.transform : null; t != null; t = t.parent)
             {
@@ -45,9 +68,19 @@ namespace Jobsite.Editor
                 if (t == go.transform) break;
             }
             MondaySliceBuilderAccess.RelaxArms(go);
-            if (name != null) go.AddComponent<NameTag>().Configure(name, trade, at.y + 2.12f > 2.2f ? 2.12f : 2.12f);
-            go.AddComponent<CrewGestures>().Configure(activity, walkA, walkB);
             return go;
+        }
+
+        const string NpcDir = "Assets/_Game/Art/Models/TR-3D/NPC/";
+        static Material NpcMaterial(string key)
+        {
+            var path = $"{NpcDir}M_NPC_{key}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>($"{NpcDir}T_NPC_{key}.png"));
+            m.SetFloat("_Smoothness", 0.18f);
+            EditorUtility.SetDirty(m);
+            return m;
         }
 
         public static GameObject Box(Transform parent, string name, Vector3 center, Vector3 size, Color color) =>

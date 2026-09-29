@@ -111,21 +111,7 @@ namespace Jobsite.Editor
         }
 
         static void Worker(Transform parent, Vector3 at, float yaw, string name = null, string trade = null,
-            CrewGestures.Activity activity = CrewGestures.Activity.Idle, Vector3 walkA = default, Vector3 walkB = default)
-        {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Rocketbox);
-            if (prefab == null) return;
-            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
-            go.transform.SetPositionAndRotation(at, Quaternion.Euler(0, yaw, 0));
-            var skin = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
-            for (var current = skin != null ? skin.transform : null; current != null; current = current.parent)
-            {
-                current.gameObject.SetActive(true);
-                if (current == go.transform) break;
-            }
-            MondaySliceBuilderAccess.RelaxArms(go);
-            if (name != null) go.AddComponent<NameTag>().Configure(name, trade);
-            go.AddComponent<CrewGestures>().Configure(activity, walkA, walkB);
-        }
+            CrewGestures.Activity activity = CrewGestures.Activity.Idle, Vector3 walkA = default, Vector3 walkB = default) =>
+            SliceKit.Worker(parent, at, yaw, name, trade, activity, name != null && name.StartsWith("Tasha"), walkA, walkB);
     }
 }

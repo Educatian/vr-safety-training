@@ -66,7 +66,8 @@ namespace Jobsite.Editor
                 new Vector3(44.8f, 1f, 53.5f), new Vector3(1f, 2f, 1f),
                 EnergySource.Motion, CpArea.StruckBy, 1, 1, ControlLevel.Administrative, float.PositiveInfinity, false,
                 "29 CFR 1926.1428", "A qualified signal person directs the pick when the operator's view is obstructed.", "Qualified", true);
-            SliceKit.Worker(SliceKit.Before(signal), new Vector3(44.8f, 0f, 53.5f), 60f, "Kiara Wells", "Signal person", CrewGestures.Activity.Crew, true);
+            SliceKit.Worker(SliceKit.Before(signal), new Vector3(44.8f, 0f, 53.5f), 60f, "Kiara Wells", "Signal person", CrewGestures.Activity.Signal, true,
+                new Vector3(47f, 6f, 57f));   // hand signals, eyes on the load
 
             // --- roof (via the stair tower) ---
             var access = new GameObject("StairTower_Access"); access.transform.SetParent(root, false); access.transform.position = new Vector3(87.4f, 1f, 24f);

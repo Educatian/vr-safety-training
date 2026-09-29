@@ -11,6 +11,7 @@ namespace Jobsite.Runtime
         public static bool InvertY { get => PlayerPrefs.GetInt("set_invert", 0) == 1; set => PlayerPrefs.SetInt("set_invert", value ? 1 : 0); }
         public static int Quality { get => PlayerPrefs.GetInt("set_quality", 1); set { PlayerPrefs.SetInt("set_quality", value); Apply(); } }     // 0 low, 1 medium, 2 high
         public static float TextScale { get => PlayerPrefs.GetFloat("set_text", 1f); set => PlayerPrefs.SetFloat("set_text", value); }             // 1, 1.25, 1.5
+        public static int Guidance { get => PlayerPrefs.GetInt("set_guidance", -1); set => PlayerPrefs.SetInt("set_guidance", value); }   // -1 auto by level, 0 off, 1 light, 2 full
         public static bool Tutorial { get => PlayerPrefs.GetInt("set_tutorial", 1) == 1; set => PlayerPrefs.SetInt("set_tutorial", value ? 1 : 0); }
         // AI chat consent: -1 not asked, 0 declined (offline answers), 1 agreed.
         public static int AiConsent { get => PlayerPrefs.GetInt("set_ai_consent", -1); set => PlayerPrefs.SetInt("set_ai_consent", value); }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Linq;
 using Jobsite.Core;
 using UnityEngine;
 using UnityEngine.UI;
@@ -63,6 +64,8 @@ namespace Jobsite.Runtime
             {
                 Label("SITE WALK", 34, Color.white);
                 Label("Center a condition. Move close. Press E.");
+                MissionCard();
+                if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
                 Button($"Hint from Dolores · {director.Hints.Tokens} left (half XP on that find)", director.UseHint);
                 Button("Return to site", director.ToggleTablet);
                 Button("Finish shift", director.EndShift);
@@ -71,7 +74,7 @@ namespace Jobsite.Runtime
             var target = director.Selected;
             var state = director.Session.GetState(target.Id);
             Label(target.DisplayName, 32, Color.white);
-            foreach (var gear in director.Career.Owned)
+            foreach (var gear in director.Instruments)
             {
                 var reading = target.Reading(gear);
                 if (reading != null) Label(GearCatalog.Get(gear).Name + ": " + reading, 19, new Color(.55f, .85f, 1f));
@@ -88,6 +91,7 @@ namespace Jobsite.Runtime
             {
                 Label("Reported · " + state, 22, Ink);
                 if (!string.IsNullOrEmpty(director.LastFeedback)) Label(director.LastFeedback, 20, new Color(.55f, .85f, 1f));
+                if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
                 Standard(target);
                 if (state == HazardState.Reported || state == HazardState.Stopped)
                 {
@@ -153,6 +157,7 @@ namespace Jobsite.Runtime
             if (director.EpisodeComplete)
             {
                 Label($"EPISODE {director.Episode.Number} COMPLETE · {director.Xp} XP", 26, Accent);
+                KsaProfile();
                 foreach (var (ev, q) in director.WeatherCalls)
                     Label($"Weather call ({ev.Id}): " + (q == 2 ? "good" : q == 1 ? "partial" : "unsafe") + $"  +{WeatherPlan.Xp(q)} XP", 19, q == 2 ? Ink : new Color(1f, .6f, .45f));
                 foreach (var b in director.BadgesEarned) Label("BADGE · " + BadgeName(b) + $"  +{Career.BadgeBonus} SP", 22, Color.white);
@@ -168,6 +173,38 @@ namespace Jobsite.Runtime
             Label("Tomorrow's toolbox talk opens with:", 22, Accent);
             Button("Protect edges. Clear access. Verify controls.", () => director.ExplainBack(0));
             Button("Keep schedule. Rely on reminders and PPE.", () => director.ExplainBack(1));
+        }
+
+        // Field-practice mission: the CP's real checklist for today; steps tick off as you do the work on site.
+        private void MissionCard()
+        {
+            var run = director.Mission;
+            if (run == null) return;
+            Label($"MISSION · {run.Mission.Title}  ({run.Completed}/{run.Mission.Steps.Count})", 22, Accent);
+            Label(run.Mission.Form + (run.Mission.Issued.Count > 0 ? " · issued: " + string.Join(", ", run.Mission.Issued.Select(g => GearCatalog.Get(g).Name)) : ""), 17, Ink);
+            for (var i = 0; i < run.Mission.Steps.Count; i++)
+            {
+                var s = run.Mission.Steps[i];
+                Label((run.IsDone(i) ? "✓  " : "□  ") + s.Text + "  ·  " + s.Cfr, 19, run.IsDone(i) ? new Color(.6f, .9f, .6f) : Color.white);
+                if (!run.IsDone(i) && s == run.Next) Label("     Why: " + s.Why, 17, Ink);
+            }
+        }
+
+        // End-of-shift KSA profile with OSHA review list (what to study before the next shift).
+        private void KsaProfile()
+        {
+            var run = director.Mission;
+            if (run != null) Label($"Mission: {run.Mission.Title} · {run.Completed}/{run.Mission.Steps.Count} steps" + (run.Complete ? " · signed" : ""), 20, Ink);
+            Label("COMPETENT-PERSON PROFILE (KSA)", 22, Accent);
+            foreach (Ksa k in Enum.GetValues(typeof(Ksa)))
+            {
+                if (!(director.Competence.Mean(k) is float m)) continue;
+                var bars = Mathf.RoundToInt(m * 10);
+                Label($"{KsaInfo.Domain(k)}  {KsaInfo.Name(k)}  {new string('█', bars)}{new string('░', 10 - bars)} {m:P0}", 18, m >= .8f ? Ink : m >= .5f ? Accent : new Color(1f, .55f, .45f));
+                if (m < .8f) Label("     On the job: " + KsaInfo.OnTheJob(k), 16, Ink);
+            }
+            var review = director.Competence.ByStandard().Where(t => t.mean < .8f).Take(3).ToList();
+            if (review.Count > 0) Label("Review before next shift: " + string.Join(" · ", review.Select(t => $"{t.cfr} ({t.mean:P0})")), 18, Accent);
         }
 
         // Crew conversation: transcript + typed question (LLM via OpenRouter; offline fallback).

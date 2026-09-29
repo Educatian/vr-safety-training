@@ -50,14 +50,9 @@ namespace Jobsite.Editor
 
         static void Crew(Transform parent, string model, Vector3 at, float yaw, string name, string role, string facts, LlmEndpointConfig config)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(model);
-            if (prefab == null) return;
-            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            var go = SliceKit.Person(parent, at, yaw, name, model == Female, out var tagHeight);
+            if (go == null) return;
             go.name = "Crew_" + name;
-            go.transform.SetPositionAndRotation(at, Quaternion.Euler(0, yaw, 0));
-            var skin = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
-            for (var c = skin != null ? skin.transform : null; c != null; c = c.parent) { c.gameObject.SetActive(true); if (c == go.transform) break; }
-            MondaySliceBuilderAccess.RelaxArms(go);
             go.AddComponent<CrewGestures>().Configure(CrewGestures.Activity.Crew);   // idle variety, wave, look, nod, explain, point
             var capsule = go.AddComponent<CapsuleCollider>();  // E ray target
             capsule.center = new Vector3(0, 0.9f, 0); capsule.height = 1.8f; capsule.radius = 0.35f;
@@ -65,7 +60,7 @@ namespace Jobsite.Editor
             crew.Configure(name, role, facts, config);
             crew.SetCharacter(name.ToLowerInvariant());
             var who = Jobsite.Core.Cast.Get(name.ToLowerInvariant());
-            go.AddComponent<NameTag>().Configure(who.Name, name == "Dolores" ? "Safety manager" : "General foreman");
+            go.AddComponent<NameTag>().Configure(who.Name, name == "Dolores" ? "Safety manager" : "General foreman", tagHeight);
         }
 
         static LlmEndpointConfig EnsureConfig()
