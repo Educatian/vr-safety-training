@@ -53,6 +53,9 @@ namespace Jobsite.Runtime
             foreach (Transform child in content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
             if (!director.MenuOpen) return;
             Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp} · {Career.Rank(director.Career.Level)}", 22, Accent);
+            var w = director.Weather;
+            if (w != null) Label($"SITE WEATHER  {w.Summary} · heat risk {HeatIndex.Risk(w.HeatIndexF)}", 17, new Color(.55f, .85f, 1f));
+            if (director.PendingWeather != null) { WeatherAlert(director.PendingWeather); return; }
             if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
             if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
             if (director.Finished) { Closing(); return; }
@@ -150,6 +153,8 @@ namespace Jobsite.Runtime
             if (director.EpisodeComplete)
             {
                 Label($"EPISODE {director.Episode.Number} COMPLETE · {director.Xp} XP", 26, Accent);
+                foreach (var (ev, q) in director.WeatherCalls)
+                    Label($"Weather call ({ev.Id}): " + (q == 2 ? "good" : q == 1 ? "partial" : "unsafe") + $"  +{WeatherPlan.Xp(q)} XP", 19, q == 2 ? Ink : new Color(1f, .6f, .45f));
                 foreach (var b in director.BadgesEarned) Label("BADGE · " + BadgeName(b) + $"  +{Career.BadgeBonus} SP", 22, Color.white);
                 Label($"+{director.PointsAwarded} Safety Points · {director.Career.Points} SP to spend in the gear locker", 22, Ink);
                 Label($"Level {director.Career.Level} · {Career.Rank(director.Career.Level)}", 22, Ink);
@@ -202,6 +207,14 @@ namespace Jobsite.Runtime
             var ph = UnityEngine.Object.Instantiate(text, go.transform); ph.text = placeholder; ph.color = new Color(1, 1, 1, .35f);
             var field = go.GetComponent<InputField>(); field.textComponent = text; field.placeholder = ph; field.lineType = InputField.LineType.SingleLine;
             return field;
+        }
+
+        private void WeatherAlert(WeatherEvent ev)
+        {
+            Label("WEATHER ALERT", 30, new Color(1f, .45f, .3f));
+            Label(ev.Prompt, 24, Color.white);
+            if (!string.IsNullOrEmpty(ev.Cfr)) Label(ev.Cfr, 17, Accent);
+            for (var i = 0; i < ev.Options.Count; i++) { var k = i; Button(ev.Options[i].Text, () => director.ChooseWeather(k)); }
         }
 
         static string BadgeName(Badge b) => b switch

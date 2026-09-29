@@ -49,6 +49,7 @@ namespace Jobsite.Editor
             cam.transform.localPosition = new Vector3(0, 1.7f, 0);
             cam.fieldOfView = 70f;
             cam.tag = "MainCamera";
+            UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(cam).renderPostProcessing = true;   // grading + heat symptoms
             cam.gameObject.AddComponent<AudioListener>();
             var sitePlayer = player.AddComponent<SitePlayer>();
 
@@ -56,6 +57,8 @@ namespace Jobsite.Editor
             director.gameObject.AddComponent<EpisodeDirector>();
             director.gameObject.AddComponent<Telemetry>();
             director.gameObject.AddComponent<AudioDirector>();
+            sitePlayer.gameObject.AddComponent<HeatStrain>();
+            director.gameObject.AddComponent<WeatherDirector>().Configure(WeatherFx("Rain", true), WeatherFx("WindDust", false));
             var radio = director.gameObject.AddComponent<AudioSource>();
             var tablet = BuildTablet(cam, out var panel, out var radioText, out var frame, out var flash);
             tablet.Configure(director, panel, radioText, radioText.font, frame, flash);
@@ -159,6 +162,33 @@ namespace Jobsite.Editor
         }
 
         // ---------- tablet UI (screen-space camera so captures include it) ----------
+        static ParticleSystem WeatherFx(string name, bool rain)
+        {
+            var go = new GameObject(name);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = rain ? 3000 : 400;
+            main.playOnAwake = false;
+            main.startLifetime = rain ? 1.1f : 4f;
+            main.startSpeed = rain ? 0f : 0.5f;
+            main.startSize = rain ? new ParticleSystem.MinMaxCurve(0.02f, 0.035f) : new ParticleSystem.MinMaxCurve(0.6f, 1.8f);
+            main.startColor = rain ? new Color(0.78f, 0.82f, 0.88f, 0.55f) : new Color(0.72f, 0.46f, 0.32f, 0.22f);   // red-clay dust
+            main.gravityModifier = rain ? 1.4f : 0f;
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Box; shape.scale = rain ? new Vector3(28, 0.5f, 28) : new Vector3(24, 3, 10);
+            var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+            vel.x = rain ? new ParticleSystem.MinMaxCurve(-1.5f, -0.5f) : new ParticleSystem.MinMaxCurve(3f, 6f);
+            vel.y = rain ? new ParticleSystem.MinMaxCurve(-9f, -7f) : new ParticleSystem.MinMaxCurve(-0.2f, 0.4f);
+            vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+            var emission = ps.emission; emission.rateOverTime = 0;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Default-ParticleSystem.mat");
+            if (rain) { r.renderMode = ParticleSystemRenderMode.Stretch; r.velocityScale = 0.05f; r.lengthScale = 2f; }
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return ps;
+        }
+
         static FieldTablet BuildTablet(Camera cam, out RectTransform screen, out Text radioText, out RectTransform frame, out Image flash)
         {
             foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/_Game/Resources/UI" }))

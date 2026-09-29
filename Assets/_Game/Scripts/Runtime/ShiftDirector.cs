@@ -53,6 +53,9 @@ namespace Jobsite.Runtime
         public string LastFeedback { get; private set; } = "";
         public string CompletionCode { get; private set; }
         public Telemetry Telemetry { get; private set; }
+        public WeatherEvent PendingWeather { get; private set; }
+        public readonly List<(WeatherEvent ev, int quality)> WeatherCalls = new List<(WeatherEvent, int)>();
+        public WeatherState Weather => FindFirstObjectByType<WeatherDirector>()?.Current;
 
         public void Configure(SiteCondition[] targets, SitePlayer explorer, FieldTablet ui, AudioSource speaker)
         { conditions = targets; player = explorer; tablet = ui; radio = speaker; }
@@ -295,6 +298,35 @@ namespace Jobsite.Runtime
                 episode = Episode.Number, xp = Xp, hii = Session.HazardIdentificationIndex, precision = Session.ReportPrecision,
                 incidents = Session.NearMisses + Session.Recordables, quizCorrect = Quiz?.CorrectCount ?? 0, quizTotal = Quiz?.Items.Count ?? 0,
             }, code => { CompletionCode = code ?? "offline"; tablet.Refresh(); });
+            tablet.Refresh();
+        }
+
+        // ---------- weather (GDD §20): the CP makes the call when conditions change ----------
+        public void WeatherChanged(WeatherEvent ev)
+        {
+            Say(ev.Radio);
+            Log("weather", ev.Id, ev.State.Summary);
+            if (!ev.IsDecision || Current != Phase.Shift) return;
+            PendingWeather = ev;
+            if (TalkingTo != null) EndTalk();
+            MenuOpen = true;                        // the tablet pops the alert; the shift clock pauses while it is open
+            AudioDirector.Play("radio");
+            tablet.Refresh();
+        }
+
+        public void LogHeat(string kind, float strain) => Log(kind, "player", "strain=" + strain.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+
+        public void ChooseWeather(int option)
+        {
+            var ev = PendingWeather;
+            if (ev == null || option < 0 || option >= ev.Options.Count) return;
+            var o = ev.Options[option];
+            WeatherCalls.Add((ev, o.Quality));
+            Xp += WeatherPlan.Xp(o.Quality);
+            Log("weather_decision", ev.Id, "q=" + o.Quality + ":" + option);
+            Say((o.Quality == 2 ? "Good call. " : "") + o.Feedback);
+            AudioDirector.Play(o.Quality == 2 ? "success" : "click");
+            PendingWeather = null; MenuOpen = false;
             tablet.Refresh();
         }
 

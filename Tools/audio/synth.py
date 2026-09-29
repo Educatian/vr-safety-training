@@ -112,6 +112,23 @@ def one_shots():
         save(f"step_{i}", thump + grit, 0.5)
 
 
+def weather():
+    n = t(6.6)   # rain on dirt and steel: dense filtered noise + sparse drips
+    x = lowpass(highpass(rng.normal(0, 1, len(n)), 400), 5000) * 0.6
+    for _ in range(90):
+        i = int(rng.uniform(0, len(n) - 400)); k = np.arange(300)
+        x[i:i + 300] += np.sin(2 * np.pi * rng.uniform(1800, 4200) * k / SR) * np.exp(-k / 40) * 0.25
+    save("rain_loop", loopable(x, 0.4), 0.6)
+    n = t(8.4)   # wind: slow gusting band noise
+    g = 0.55 + 0.45 * np.sin(2 * np.pi * 0.23 * n) * np.sin(2 * np.pi * 0.07 * n + 1)
+    x = lowpass(highpass(rng.normal(0, 1, len(n)), 120), 900) * g
+    save("wind_loop", loopable(x, 0.5), 0.6)
+    k = t(4.5)   # distant thunder: low rumble with a crack
+    x = lowpass(rng.normal(0, 1, len(k)), 140) * np.exp(-k * 0.9) * (1 + 0.6 * np.sin(2 * np.pi * 3 * k))
+    x[: int(0.15 * SR)] += highpass(rng.normal(0, 1, int(0.15 * SR)), 1200) * 0.5 * np.exp(-np.arange(int(0.15 * SR)) / 800)
+    save("thunder", x, 0.8)
+
+
 if __name__ == "__main__":
-    ambience(); engine(); saw(); generator(); backup(); one_shots()
+    ambience(); engine(); saw(); generator(); backup(); one_shots(); weather()
     print(sorted(p.name for p in OUT.glob("*.wav")))

@@ -57,9 +57,10 @@ namespace Jobsite.Runtime
             {
                 cine = new GameObject("CinematicCamera", typeof(Camera), typeof(AudioListener)).GetComponent<Camera>();
                 cine.fieldOfView = 38; cine.nearClipPlane = 0.1f; cine.depth = 10; cine.tag = "MainCamera";
+                UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(cine).renderPostProcessing = true;
                 var go = new GameObject("CinematicCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
                 canvas = go.GetComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = cine; canvas.planeDistance = 0.3f;
+                canvas.renderMode = Application.isEditor ? RenderMode.ScreenSpaceCamera : RenderMode.ScreenSpaceOverlay; canvas.worldCamera = cine; canvas.planeDistance = 0.3f;
                 var scaler = go.GetComponent<CanvasScaler>();
                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; scaler.referenceResolution = new Vector2(1920, 1080) / GameSettings.TextScale; scaler.matchWidthOrHeight = 1;
             }

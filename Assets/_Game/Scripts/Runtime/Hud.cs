@@ -28,6 +28,10 @@ namespace Jobsite.Runtime
             director = FindFirstObjectByType<ShiftDirector>();
             player = FindFirstObjectByType<SitePlayer>();
             font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // Players draw the HUD after post-processing so heat blur / grading never smear text. (Editor captures keep
+            // camera-space so screenshots include the UI.)
+            var canvas = GetComponent<Canvas>();
+            if (!Application.isEditor && canvas != null) canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = GetComponent<CanvasScaler>();
             if (scaler != null) scaler.referenceResolution /= GameSettings.TextScale;
 
