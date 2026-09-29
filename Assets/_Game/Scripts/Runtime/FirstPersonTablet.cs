@@ -36,6 +36,10 @@ namespace Jobsite.Runtime
         [SerializeField] private GripPose grip = DefaultGrip;
         [SerializeField] private bool autoGrip = true;      // search a clean pinch at start (see SearchPinch)
         [SerializeField] private float handRoom = 0.1f;     // fraction of the view width kept free right of the tablet for the hand
+        // Panel size caps (playtest feedback 2026-09-29: "smaller, don't cover so much of the view"): the whole device,
+        // bumpers included, stays within these fractions of the view, and sits low (held at chest height).
+        [SerializeField] private float maxHeightFrac = 0.7f;
+        [SerializeField] private float maxWidthFrac = 0.42f;
 
         private Camera cam;
         private ShiftDirector director;
@@ -405,22 +409,22 @@ namespace Jobsite.Runtime
             screenRect.anchorMin = new Vector2(ax0, cy - hf / 2f); screenRect.anchorMax = new Vector2(ax1, cy + hf / 2f);
             screenRect.offsetMin = screenRect.offsetMax = Vector2.zero;
 
-            // 2) Size in pixels: the whole device (bumpers included) must fit the view height and stay within ~60% of
-            //    its width so the site stays visible.
+            // 2) Size in pixels: the whole device (bumpers included) stays within maxHeightFrac of the view height and
+            //    maxWidthFrac of its width so the site stays visible.
             var margin = 0.03f * fitH;
             PanelPixels(out var p0, out var p1);
             float wPx = p1.x - p0.x, hPx = p1.y - p0.y;
             if (wPx < 1f || hPx < 1f) { frameBase = frame.anchoredPosition; return; }
             var bodyWPx = wPx * bodyWidthUnit / screenWidthUnit; var bodyHPx = hPx * bodyHeightUnit / screenHeightUnit;
-            var k = Mathf.Min(1f, Mathf.Min((fitH - 2f * margin) / bodyHPx, fitW * 0.6f / bodyWPx));
+            var k = Mathf.Min(1f, Mathf.Min(Mathf.Min(fitH - 2f * margin, fitH * maxHeightFrac) / bodyHPx, fitW * maxWidthFrac / bodyWPx));
             frame.localScale = frameScaleOrig * k;
             Canvas.ForceUpdateCanvases();
 
-            // 3) Nudge in pixels so no bumper is cut off by the right, top or bottom edge.
+            // 3) Nudge in pixels: hand room on the right, device resting near the bottom edge.
             PanelPixels(out p0, out p1); wPx = p1.x - p0.x; hPx = p1.y - p0.y;
             var ex = (bodyWidthUnit / screenWidthUnit - 1f) * 0.5f * wPx; var ey = (bodyHeightUnit / screenHeightUnit - 1f) * 0.5f * hPx;
             var dx = Mathf.Min(0f, fitW - (oneHanded ? Mathf.Max(margin, handRoom * fitW) : margin) - (p1.x + ex));   // room for the hand on the right
-            var dy = p1.y + ey > fitH - margin ? fitH - margin - (p1.y + ey) : p0.y - ey < margin ? margin - (p0.y - ey) : 0f;
+            var dy = margin - (p0.y - ey);   // bottom bumpers just above the bottom edge: the upper view stays clear
             var pxPerUnit = PixelsPerParentUnit();
             if (pxPerUnit > 1e-4f) frame.anchoredPosition += new Vector2(dx, dy) / pxPerUnit;
             frameBase = frame.anchoredPosition;
