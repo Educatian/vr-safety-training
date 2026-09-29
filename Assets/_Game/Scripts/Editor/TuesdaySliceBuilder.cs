@@ -26,7 +26,7 @@ namespace Jobsite.Editor
                 new Vector3((X0 + X1) / 2, -Depth / 2, 26.4f), new Vector3(1.6f, Depth + 0.6f, 4.8f),
                 EnergySource.Gravity, CpArea.Excavation, 4, 5, ControlLevel.Engineering, 420f, true,
                 "29 CFR 1926.652(a)(1)", "Protect workers in excavations 5 ft or deeper from cave-ins.", "5 ft", true);
-            Worker(gap.transform.Find("Unresolved"), new Vector3(66f, -Depth, 26.4f), 0, "Marcus Bell", "Pipe layer");
+            Worker(gap.transform.Find("Unresolved"), new Vector3(66f, -Depth, 26.4f), 0, "Marcus Bell", "Pipe layer", CrewGestures.Activity.Dig);
             TrenchBox(gap.transform.Find("Resolved"), 24.4f);
 
             // Spoil dumped at the edge on one stretch (the rest of the spoil line is set back more than 2 ft).
@@ -41,7 +41,7 @@ namespace Jobsite.Editor
                 new Vector3((X0 + X1) / 2, -Depth / 2, 44f), new Vector3(1.6f, Depth + 0.6f, 3f),
                 EnergySource.Gravity, CpArea.Excavation, 3, 4, ControlLevel.Engineering, 560f, false,
                 "29 CFR 1926.651(c)(2)", "Trenches 4 ft or deeper need a ladder within 25 ft of travel.", "25 ft", true);
-            Worker(egress.transform.Find("Unresolved"), new Vector3(66f, -Depth, 44f), 180);
+            Worker(egress.transform.Find("Unresolved"), new Vector3(66f, -Depth, 44f), 180, null, null, CrewGestures.Activity.Dig);
             Ladder(root, 12f);
             Ladder(egress.transform.Find("Resolved"), 44.8f);
 
@@ -51,7 +51,7 @@ namespace Jobsite.Editor
                 EnergySource.Motion, CpArea.StruckBy, 4, 5, ControlLevel.Engineering, 480f, true,
                 "Swing-radius barricading (excavator rule: SME check)",
                 "Barricade the counterweight swing area; stop work if someone is inside.", "Full swing radius", false);
-            Worker(swing.transform.Find("Unresolved"), new Vector3(60.2f, 0f, 31f), 90);
+            Worker(swing.transform.Find("Unresolved"), new Vector3(60.2f, 0f, 31f), 90, null, null, CrewGestures.Activity.Walk, new Vector3(58.6f, 0f, 31f), new Vector3(62.2f, 0f, 31f));
             for (var a = 0f; a < 360f; a += 30f)
                 MondaySliceBuilderAccess.Cone(swing.transform.Find("Resolved"),
                     new Vector3(62.5f, 0, 30f) + Quaternion.Euler(0, a, 0) * Vector3.forward * 5.5f);
@@ -61,7 +61,7 @@ namespace Jobsite.Editor
                 new Vector3(55.6f, 0.9f, 15f), new Vector3(2f, 1.8f, 2f),
                 EnergySource.Chemical, CpArea.General, 4, 4, ControlLevel.Engineering, 540f, false,
                 "29 CFR 1926.1153 Table 1", "Use integrated water delivery when cutting concrete.", "Wet method", true);
-            Worker(silica.transform.Find("Unresolved"), new Vector3(55.2f, 0f, 15f), 90, "Luis Ortega", "Saw operator"); // at the pipe end, not inside the stack
+            Worker(silica.transform.Find("Unresolved"), new Vector3(55.2f, 0f, 15f), 90, "Luis Ortega", "Saw operator", CrewGestures.Activity.Saw); // at the pipe end, not inside the stack
             Dust(silica.transform.Find("Unresolved"), new Vector3(55.9f, 0.5f, 15f));
 
             // Look-alikes: a correctly placed box and a competent-person inspection board.
@@ -124,7 +124,8 @@ namespace Jobsite.Editor
             go.GetComponent<Renderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Game/Art/Materials/M_RedClayCut.mat");
         }
 
-        static void Worker(Transform parent, Vector3 at, float yaw, string name = null, string trade = null)
+        static void Worker(Transform parent, Vector3 at, float yaw, string name = null, string trade = null,
+            CrewGestures.Activity activity = CrewGestures.Activity.Idle, Vector3 walkA = default, Vector3 walkB = default)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Rocketbox);
             if (prefab == null) return;
@@ -139,7 +140,7 @@ namespace Jobsite.Editor
             }
             MondaySliceBuilderAccess.RelaxArms(go);
             if (name != null) go.AddComponent<NameTag>().Configure(name, trade);
-            go.AddComponent<SafetyTraining.Runtime.NpcRelaxedPose>();
+            go.AddComponent<CrewGestures>().Configure(activity, walkA, walkB);
         }
 
         static void Dust(Transform parent, Vector3 at)

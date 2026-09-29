@@ -222,6 +222,7 @@ namespace Jobsite.Editor
 
             canvasGo.AddComponent<Minimap>().Build(canvasGo.transform);
             canvasGo.AddComponent<Hud>();
+            canvasGo.AddComponent<MobileControls>();
             canvasGo.AddComponent<PauseMenu>();
             var tablet = canvasGo.AddComponent<FieldTablet>();
             tablet.name = "TabletCanvas";

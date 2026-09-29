@@ -40,15 +40,15 @@ namespace Jobsite.Runtime
 
             tutorial = new List<(string, Func<bool>)>
             {
-                ("Click the view to look around (Esc frees the mouse)", () => everCaptured),
-                ("Walk: W A S D, hold Shift to hurry", () => player != null && Vector3.Distance(player.transform.position, start) > 2.5f),
-                ("Aim at the sign-in board and press E", () => director.CheckedIn.Contains(CheckInStation.Kind.SignIn)),
+                (MobileControls.Active ? "Drag the right side of the screen to look" : "Click the view to look around (Esc frees the mouse)", () => everCaptured || MobileControls.Active),
+                (MobileControls.Active ? "Move with the left stick" : "Walk: W A S D, hold Shift to hurry", () => player != null && Vector3.Distance(player.transform.position, start) > 2.5f),
+                (MobileControls.Active ? "Aim at the sign-in board and tap ACT" : "Aim at the sign-in board and press E", () => director.CheckedIn.Contains(CheckInStation.Kind.SignIn)),
                 ("Take your hard hat, vest, glasses and gloves", () => director.CheckInComplete),
                 ("Tablet: rank the controls, answer the toolbox talk, begin", () => director.Started),
-                ("Dolores marked a cord. Frame it, press E", () => director.Selected != null || AnyDetected()),
+                (MobileControls.Active ? "Dolores marked a cord. Frame it, tap ACT" : "Dolores marked a cord. Frame it, press E", () => director.Selected != null || AnyDetected()),
                 ("Tag the energy, rate P and S, submit", AnyDetected),
                 ("Choose a control. Engineering beats PPE.", () => director.Conditions.Any(c => director.Session.GetEvidence(c.Id).AppliedControl.HasValue)),
-                ("Minimap: M. Tablet: Tab. Radio help: Dolores (E).", () => director.Session.Clock > 200 || director.Finished),
+                (MobileControls.Active ? "MAP for the site plan. TABLET for your reports." : "Minimap: M. Tablet: Tab. Radio help: Dolores (E).", () => director.Session.Clock > 200 || director.Finished),
             };
         }
 
@@ -59,7 +59,7 @@ namespace Jobsite.Runtime
             if (director == null) return;
             everCaptured |= player != null && player.Captured;
             var text = director.AimPrompt(out var actionable);
-            prompt.text = text;
+            prompt.text = MobileControls.Active && text.StartsWith("E  ") ? "ACT: " + text.Substring(3) : text;
             var inWorld = !director.MenuOpen && !director.Finished && !PauseMenu.Paused;
             dot.enabled = inWorld;
             dot.color = actionable ? new Color(1f, .78f, .1f) : new Color(1, 1, 1, .75f);

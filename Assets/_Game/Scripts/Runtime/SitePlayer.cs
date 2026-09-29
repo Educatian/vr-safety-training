@@ -25,8 +25,16 @@ namespace Jobsite.Runtime
         {
             var keys = Keyboard.current;
             var mouse = Mouse.current;
-            if (keys == null || mouse == null || director == null) return;
+            if (director == null) return;
             if (PauseMenu.Paused) return;
+            var touch = MobileControls.Active;
+            if (touch)
+            {
+                if (MobileControls.TakePause()) { PauseMenu.Open(); return; }
+                if (MobileControls.TakeTablet()) director.ToggleTablet();
+                if (MobileControls.TakeMap()) FindFirstObjectByType<Minimap>()?.Toggle();
+            }
+            if (keys == null || mouse == null) { if (touch) TouchUpdate(); return; }
             if (keys.escapeKey.wasPressedThisFrame)
             {
                 if (director.MenuOpen && !director.Finished && director.Current == ShiftDirector.Phase.Shift) director.ToggleTablet();
@@ -42,24 +50,41 @@ namespace Jobsite.Runtime
             if (!Captured && mouse.leftButton.wasPressedThisFrame && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
             { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             if (!Captured) Cursor.visible = !mouse.rightButton.isPressed;
-            if (Captured || mouse.rightButton.isPressed)
-            {
-                var look = mouse.delta.ReadValue() * GameSettings.MouseSensitivity;
-                transform.Rotate(0, look.x, 0);
-                pitch = Mathf.Clamp(pitch + (GameSettings.InvertY ? look.y : -look.y), -75, 75);
-                view.transform.localRotation = Quaternion.Euler(pitch, 0, 0);
-            }
+            var lookDelta = MobileControls.TakeLook();
+            if (Captured || mouse.rightButton.isPressed) lookDelta += mouse.delta.ReadValue() * GameSettings.MouseSensitivity;
+            Look(lookDelta);
+            // Walk 1.4 m/s, Shift to hurry 2.5 m/s (SiteLayout §2 starting values).
             var axis = new Vector2((keys.dKey.isPressed ? 1 : 0) - (keys.aKey.isPressed ? 1 : 0),
-                (keys.wKey.isPressed ? 1 : 0) - (keys.sKey.isPressed ? 1 : 0));
+                (keys.wKey.isPressed ? 1 : 0) - (keys.sKey.isPressed ? 1 : 0)) + MobileControls.Move;
+            Walk(axis, keys.leftShiftKey.isPressed);
+            if (keys.eKey.wasPressedThisFrame || MobileControls.TakeAct()) director.Interact();
+        }
+
+        // Phones/tablets: stick moves, right-side drag looks, ACT interacts (MobileControls).
+        private void TouchUpdate()
+        {
+            if (director.MenuOpen || director.Finished) return;
+            Look(MobileControls.TakeLook());
+            Walk(MobileControls.Move, false);
+            if (MobileControls.TakeAct()) director.Interact();
+        }
+
+        private void Look(Vector2 delta)
+        {
+            transform.Rotate(0, delta.x, 0);
+            pitch = Mathf.Clamp(pitch + (GameSettings.InvertY ? delta.y : -delta.y), -75, 75);
+            view.transform.localRotation = Quaternion.Euler(pitch, 0, 0);
+        }
+
+        private void Walk(Vector2 axis, bool hurry)
+        {
             axis = Vector2.ClampMagnitude(axis, 1);
             fallSpeed = controller.isGrounded ? -2 : fallSpeed - 18 * Time.deltaTime;
-            // Walk 1.4 m/s, Shift to hurry 2.5 m/s (SiteLayout §2 starting values).
-            var speed = keys.leftShiftKey.isPressed ? 2.5f : 1.4f;
+            var speed = hurry ? 2.5f : 1.4f;
             controller.Move((transform.forward * axis.y * speed + transform.right * axis.x * speed + Vector3.up * fallSpeed) * Time.deltaTime);
             if (axis.sqrMagnitude > 0.01f && controller.isGrounded && (stepClock += Time.deltaTime * speed) > 1.05f)
             { stepClock = 0; AudioDirector.Play("step_" + (stepIndex++ % 3), 0.5f); }
             KeepInZone();
-            if (keys.eKey.wasPressedThisFrame) director.Interact();
         }
 
         // Today's controlled work zone (per episode): walking out is stopped with a reason, not an invisible wall.

@@ -28,6 +28,10 @@ namespace Jobsite.Runtime
         public string DisplayName => displayName;
         public IReadOnlyList<string> Transcript => transcript;
         public bool Thinking { get; private set; }
+        public bool IsTalking => listener != null;
+        public int LastReplyLength { get; private set; }
+        private int answeredFrame = -10;
+        public bool JustAnswered => Time.frameCount - answeredFrame <= 1;
 
         public void Configure(string name, string npcRole, string groundedFacts, LlmEndpointConfig config)
         { displayName = name; role = npcRole; facts = groundedFacts; endpoint = config; }
@@ -99,6 +103,7 @@ namespace Jobsite.Runtime
             }
             Thinking = false;
             transcript.Add($"{displayName}: {answer}");
+            LastReplyLength = answer.Length; answeredFrame = Time.frameCount;
         }
     }
 }

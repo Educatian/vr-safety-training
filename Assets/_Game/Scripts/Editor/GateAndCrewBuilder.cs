@@ -58,7 +58,7 @@ namespace Jobsite.Editor
             var skin = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
             for (var c = skin != null ? skin.transform : null; c != null; c = c.parent) { c.gameObject.SetActive(true); if (c == go.transform) break; }
             MondaySliceBuilderAccess.RelaxArms(go);
-            go.AddComponent<NpcRelaxedPose>();                 // idle weight shift + explain/point gestures
+            go.AddComponent<CrewGestures>().Configure(CrewGestures.Activity.Crew);   // idle variety, wave, look, nod, explain, point
             var capsule = go.AddComponent<CapsuleCollider>();  // E ray target
             capsule.center = new Vector3(0, 0.9f, 0); capsule.height = 1.8f; capsule.radius = 0.35f;
             var crew = go.AddComponent<CrewMember>();

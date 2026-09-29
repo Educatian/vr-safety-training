@@ -310,6 +310,9 @@ namespace Jobsite.Runtime
             var spec = target.Spec;
             Say(Career.HintText(tier, target.DisplayName, spec.Energy, spec.FocusFour, Where(target.transform.position - player.transform.position)));
             Log("hint", target.Id, "tier=" + tier);
+            var dolores = FindObjectsByType<CrewMember>(FindObjectsSortMode.None).FirstOrDefault(c => c.DisplayName == "Dolores");
+            if (dolores != null && Vector3.Distance(dolores.transform.position, player.transform.position) < 25f)
+                dolores.GetComponent<CrewGestures>()?.Point(target.PhotoBounds.center);
             tablet.Refresh();
         }
 
