@@ -12,6 +12,8 @@ namespace Jobsite.Runtime
         [SerializeField] private RectTransform screenRect;     // FieldTablet content area
         [SerializeField] private RectTransform frame;          // 2D frame art (hidden: the 3D tablet is the frame)
         [SerializeField] private float distance = 0.45f;
+        [SerializeField] private GameObject handsPrefab;       // Tripo gloved hands, rigged (Tools/blender/rig_fp_hands.py)
+        [SerializeField] private Material handsMaterial;
 
         private Camera cam;
         private ShiftDirector director;
@@ -24,7 +26,8 @@ namespace Jobsite.Runtime
         private Canvas canvas;
         private Vector3 gloveOffset;
 
-        public void Configure(GameObject prefab, RectTransform uiScreen, RectTransform uiFrame) { modelPrefab = prefab; screenRect = uiScreen; frame = uiFrame; }
+        public void Configure(GameObject prefab, RectTransform uiScreen, RectTransform uiFrame, GameObject hands = null, Material handsMat = null)
+        { modelPrefab = prefab; screenRect = uiScreen; frame = uiFrame; handsPrefab = hands; handsMaterial = handsMat; }
         public float Raise => raise;
 
         private void Start()
@@ -49,6 +52,77 @@ namespace Jobsite.Runtime
                 if (img != null) img.color = Color.clear;
             }
             Calibrate();
+            if (handsPrefab != null) RigHands();
+        }
+
+        // ---- Tripo rigged hands: grip the tablet's side edges, fingers wrapped behind, thumbs on the bezel ----
+        private void RigHands()
+        {
+            var inst = Instantiate(handsPrefab, model, false);
+            inst.name = "FP_RiggedHands";
+            foreach (var smr in inst.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                if (handsMaterial != null) smr.sharedMaterial = handsMaterial;
+                smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; smr.updateWhenOffscreen = true;
+            }
+            // Tablet frame in model-local space (fix maps model -> camera), measured from the tablet mesh bounds.
+            var inv = Quaternion.Inverse(fix);
+            Vector3 right = inv * Vector3.right, up = inv * Vector3.up, back = inv * Vector3.back;
+            var tb = tablet.GetComponent<MeshFilter>().sharedMesh.bounds;
+            var centre = model.InverseTransformPoint(tablet.TransformPoint(tb.center));
+            float halfW = 0, halfH = 0;
+            for (var i = 0; i < 8; i++)
+            {
+                var corner = model.InverseTransformPoint(tablet.TransformPoint(tb.center + Vector3.Scale(tb.extents, new Vector3((i & 1) * 2 - 1, (i & 2) - 1, (i & 4) / 2 - 1))));
+                halfW = Mathf.Max(halfW, Mathf.Abs(Vector3.Dot(corner - centre, right)));
+                halfH = Mathf.Max(halfH, Mathf.Abs(Vector3.Dot(corner - centre, up)));
+            }
+            foreach (var smr in inst.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                var bones = new System.Collections.Generic.Dictionary<string, Transform>();
+                foreach (var b in smr.bones) if (b != null) bones[b.name] = b;
+                var s = smr.name.EndsWith("_L") ? "_L" : "_R";
+                if (!bones.TryGetValue("Hand" + s, out var hand) || !bones.TryGetValue("Middle1" + s, out var mid)) continue;
+                var rig = bones["Forearm" + s].parent;
+                // Rest frame from the bones (world): finger direction, across the knuckles, palm normal (rest palms face down).
+                Vector3 fingerW = (mid.position - hand.position).normalized;
+                Vector3 acrossW = (bones["Index1" + s].position - bones["Pinky1" + s].position).normalized;
+                Vector3 palmW = Vector3.Cross(fingerW, acrossW).normalized;
+                if (Vector3.Dot(palmW, inst.transform.TransformDirection(Vector3.down)) < 0) palmW = -palmW;
+                // Target (model-local -> world): left hand on the left edge; fingers up and inward, palm facing the edge and the back.
+                var sideSign = s == "_L" ? -1f : 1f;
+                var inward = -right * sideSign;
+                var tFinger = model.TransformDirection((up * 0.9f + inward * 0.3f).normalized);
+                var tPalm = model.TransformDirection((inward * 0.8f - back * 0.6f).normalized);
+                var rot = Quaternion.LookRotation(tFinger, tPalm) * Quaternion.Inverse(Quaternion.LookRotation(fingerW, palmW));
+                rig.rotation = rot * rig.rotation;
+                // Palm centre just outside the edge, a little below mid-height.
+                var edge = model.TransformPoint(centre + right * sideSign * halfW - up * halfH * 0.18f);
+                var palmCentre = (hand.position + mid.position) * 0.5f;
+                rig.position += edge - palmCentre - tPalm * 0.02f * model.lossyScale.x;
+                // Curl the four fingers around the back; the thumb rests on the front bezel.
+                var palmNow = rot * palmW;
+                foreach (var f in new[] { "Index", "Middle", "Ring", "Pinky" })
+                    for (var j = 1; j <= 3; j++)
+                        if (bones.TryGetValue(f + j + s, out var b)) Curl(b, palmNow, j == 1 ? 62f : j == 2 ? 70f : 45f);
+                for (var j = 1; j <= 3; j++)
+                    if (bones.TryGetValue("Thumb" + j + s, out var th)) Curl(th, palmNow, j == 1 ? 8f : 22f);
+                if (s == "_L") gloveL = smr.transform; else gloveR = smr.transform;
+            }
+            foreach (var n in new[] { "Glove_L", "Glove_R" })
+            {
+                var old = model.Find(n); if (old != null) old.gameObject.SetActive(false);
+            }
+        }
+
+        // Bend a finger bone toward the palm about the axis (bone direction x palm normal); roll-independent.
+        private static void Curl(Transform bone, Vector3 palm, float degrees)
+        {
+            var child = bone.childCount > 0 ? bone.GetChild(0).position : bone.position + bone.up * 0.02f;
+            var dir = (child - bone.position).normalized;
+            var axis = Vector3.Cross(dir, palm);
+            if (axis.sqrMagnitude < 1e-6f) return;
+            bone.rotation = Quaternion.AngleAxis(degrees, axis.normalized) * bone.rotation;
         }
 
         // Orient so the Screen mesh faces the camera (upright), then measure its width and offset at scale 1.

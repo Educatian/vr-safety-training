@@ -62,7 +62,8 @@ namespace Jobsite.Editor
             var radio = director.gameObject.AddComponent<AudioSource>();
             var tablet = BuildTablet(cam, out var panel, out var radioText, out var frame, out var flash);
             cam.gameObject.AddComponent<FirstPersonTablet>().Configure(
-                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-PROC/SM_FP_TabletHands.fbx"), panel, frame);
+                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-PROC/SM_FP_TabletHands.fbx"), panel, frame,
+                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/TR-3D/Rigs/SM_FP_Hands_Rig.fbx"), HandsMaterial());
             tablet.Configure(director, panel, radioText, radioText.font, frame, flash);
             sitePlayer.Configure(cam, director);
             director.Configure(conditions, sitePlayer, tablet, radio);
@@ -191,6 +192,18 @@ namespace Jobsite.Editor
             if (rain) { r.renderMode = ParticleSystemRenderMode.Stretch; r.velocityScale = 0.05f; r.lengthScale = 2f; }
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return ps;
+        }
+
+        // Tripo glove texture (1024 px, Tools/blender/rig_fp_hands.py) on URP Lit.
+        static Material HandsMaterial()
+        {
+            const string path = "Assets/_Game/Art/Materials/M_FP_Hands.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Game/Art/Textures/FP/T_FP_Hands.png"));
+            m.SetFloat("_Smoothness", 0.25f);
+            EditorUtility.SetDirty(m);
+            return m;
         }
 
         static FieldTablet BuildTablet(Camera cam, out RectTransform screen, out Text radioText, out RectTransform frame, out Image flash)
