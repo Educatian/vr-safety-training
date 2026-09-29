@@ -498,6 +498,33 @@ namespace Jobsite.Runtime
             Bar(collapseIcon.transform, Vector2.zero, new Vector2(28, 4), 45f, ink);
             Bar(collapseIcon.transform, Vector2.zero, new Vector2(28, 4), -45f, ink);
             collapseIcon.SetActive(false);
+            BuildScrollbar();
+        }
+
+        // Thin scrollbar on the display's right edge, under the view button (playtest feedback 2026-09-29). Drag it or
+        // use the wheel; hidden when the page fits.
+        private void BuildScrollbar()
+        {
+            var scroll = screenRect.GetComponent<ScrollRect>();
+            if (scroll == null) return;
+            var go = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            go.transform.SetParent(screenRect, false);
+            var r = (RectTransform)go.transform;
+            r.anchorMin = new Vector2(1, 0); r.anchorMax = Vector2.one; r.pivot = new Vector2(1, 0.5f);
+            r.offsetMin = new Vector2(-14, 10); r.offsetMax = new Vector2(-4, -62);
+            go.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.07f);
+            var area = new GameObject("SlidingArea", typeof(RectTransform));
+            area.transform.SetParent(go.transform, false);
+            Stretch((RectTransform)area.transform);
+            var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handle.transform.SetParent(area.transform, false);
+            var hr = (RectTransform)handle.transform; Stretch(hr);
+            var hi = handle.GetComponent<Image>(); hi.color = new Color(.84f, .87f, .86f, .6f);
+            var sb = go.GetComponent<Scrollbar>();
+            sb.handleRect = hr; sb.targetGraphic = hi; sb.direction = Scrollbar.Direction.BottomToTop;
+            var colors = sb.colors; colors.highlightedColor = new Color(1f, .78f, .1f); colors.pressedColor = new Color(1f, .78f, .1f); sb.colors = colors;
+            scroll.verticalScrollbar = sb;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
         }
 
         private static void Stretch(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero; }
