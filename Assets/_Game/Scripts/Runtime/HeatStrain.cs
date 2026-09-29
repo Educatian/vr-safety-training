@@ -32,6 +32,10 @@ namespace Jobsite.Runtime
             weather = FindFirstObjectByType<WeatherDirector>();
             player = GetComponent<SitePlayer>();
             water = FindObjectsByType<SiteCondition>(FindObjectsSortMode.None).FirstOrDefault(c => c.Id == "mon-empty-water");
+            // QA/demo: ?heat=0.9 starts the shift already heat-strained.
+            var url = Application.absoluteURL ?? ""; var i = url.IndexOf("heat=");
+            if (i >= 0 && float.TryParse(new string(url.Substring(i + 5).TakeWhile(ch => char.IsDigit(ch) || ch == '.').ToArray()),
+                    System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h)) Strain = Mathf.Clamp01(h);
 
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             dof = profile.Add<DepthOfField>(true); dof.mode.Override(DepthOfFieldMode.Gaussian);

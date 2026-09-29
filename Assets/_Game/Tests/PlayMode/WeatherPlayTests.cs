@@ -71,7 +71,7 @@ namespace Jobsite.PlayTests
             Shot(player.View, "06_ep1_heat_clear");
             var heat = player.GetComponent<HeatStrain>();
             heat.SetStrainForTest(0.9f);
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(4f);            // sweat beads build up
             Shot(player.View, "07_ep1_heat_symptoms");
             Assert.That(heat.Strain, Is.GreaterThan(0.85f), "strain keeps building in the sun");
             Face(player, new Vector3(6f, 0.05f, 12f), new Vector3(20f, 1f, 24f));   // trailer shade

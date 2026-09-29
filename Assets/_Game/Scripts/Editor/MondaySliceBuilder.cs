@@ -61,6 +61,8 @@ namespace Jobsite.Editor
             director.gameObject.AddComponent<WeatherDirector>().Configure(WeatherFx("Rain", true), WeatherFx("WindDust", false));
             var radio = director.gameObject.AddComponent<AudioSource>();
             var tablet = BuildTablet(cam, out var panel, out var radioText, out var frame, out var flash);
+            cam.gameObject.AddComponent<FirstPersonTablet>().Configure(
+                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-PROC/SM_FP_TabletHands.fbx"), panel, frame);
             tablet.Configure(director, panel, radioText, radioText.font, frame, flash);
             sitePlayer.Configure(cam, director);
             director.Configure(conditions, sitePlayer, tablet, radio);

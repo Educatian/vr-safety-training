@@ -49,6 +49,8 @@ namespace Jobsite.PlayTests
             Physics.Raycast(player.View.ViewportPointToRay(new Vector3(.5f, .5f)), out var rackHit, 5f);
             director.Interact();
             Assert.That(director.Carrying, Is.True, director.Notice + " | ray hit: " + (rackHit.collider ? rackHit.collider.transform.parent.name + " " + rackHit.collider.bounds + " at " + rackHit.point + " from " + player.View.transform.position : "nothing"));
+            yield return null;
+            Capture("03b_carrying_kit_gloved");
             Face(Condition("mon-trailer-ladder").PhotoBounds.center, 3.5f, Vector3.right);
             director.Interact();
             Assert.That(director.Session.GetState("mon-trailer-ladder"), Is.EqualTo(HazardState.Controlled), director.Notice);
