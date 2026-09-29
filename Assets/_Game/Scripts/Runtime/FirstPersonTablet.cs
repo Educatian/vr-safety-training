@@ -60,6 +60,7 @@ namespace Jobsite.Runtime
         public static bool FullView;
         private bool fullApplied;
         private GameObject expandIcon, collapseIcon;
+        private float screenAlpha = -1f;
         public static void ToggleFullView() => FullView = !FullView;
         private Vector3 frameScaleOrig;
         private int fitW, fitH;
@@ -452,7 +453,7 @@ namespace Jobsite.Runtime
             frame.anchorMin = frame.anchorMax = frame.pivot = new Vector2(0.5f, 0.5f);
             frame.localScale = Vector3.one;
             // Top 2% .. bottom 12% of the view: the radio line (bottom 3-11%) stays readable under the panel.
-            frame.sizeDelta = new Vector2(Mathf.Min(1180f, c.width - 80f), c.height * 0.86f);
+            frame.sizeDelta = new Vector2(Mathf.Min(820f, c.width - 80f), c.height * 0.86f);   // narrow column: short lines, more site visible
             frame.anchoredPosition = new Vector2(0f, c.height * 0.05f);
             screenRect.anchorMin = Vector2.zero; screenRect.anchorMax = Vector2.one; screenRect.offsetMin = screenRect.offsetMax = Vector2.zero;
             frameBase = frame.anchoredPosition;
@@ -462,6 +463,13 @@ namespace Jobsite.Runtime
         {
             fullApplied = FullView;
             if (FullView) FitFullView(); else FitPanel();
+            // Full view: a lightly see-through panel so the site stays visible behind it (playtest feedback
+            // 2026-09-29: "a bit translucent, the full panel feels closed in"). Handheld: the 3D display is behind anyway.
+            if (screenRect != null && screenRect.TryGetComponent<Image>(out var bg))
+            {
+                if (screenAlpha < 0f) screenAlpha = bg.color.a;
+                var col = bg.color; col.a = FullView ? 0.72f : screenAlpha; bg.color = col;
+            }
             if (expandIcon != null) expandIcon.SetActive(!FullView);
             if (collapseIcon != null) collapseIcon.SetActive(FullView);
         }

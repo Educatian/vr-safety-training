@@ -24,7 +24,7 @@ namespace Jobsite.Runtime
 
         static readonly Color Ink = new Color(.84f, .87f, .86f);
         static readonly Color Accent = new Color(1f, .78f, .1f);
-        static readonly Color Chip = new Color(.14f, .17f, .18f);
+        static readonly Color Chip = new Color(.14f, .17f, .18f, .88f);   // slightly see-through in the full view
         static readonly Color Good = new Color(.6f, .9f, .6f);
         static readonly Color Bad = new Color(1f, .45f, .35f);
 

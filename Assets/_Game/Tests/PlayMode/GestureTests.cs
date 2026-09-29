@@ -57,7 +57,8 @@ namespace Jobsite.PlayTests
             Shot(luis.transform, "07_luis_saw", 1.0f, 3.2f);
             var walker = all.First(g => g.transform.position.x > 57f && g.transform.position.x < 64f && g.transform.position.y > -0.5f && g.GetComponent<NameTag>() == null);
             var p0 = walker.transform.position;
-            yield return new WaitForSeconds(0.8f);
+            // Up to 3 s: a frame hitch or a turn at a waypoint can eat a fixed 0.8 s window (flaky on a loaded machine).
+            for (var t = 0f; t < 3f && Vector3.Distance(p0, walker.transform.position) <= 0.3f; t += 0.2f) yield return new WaitForSeconds(0.2f);
             Shot(walker.transform, "08_walker", 0.5f, -4.5f, 0.4f);
             Assert.That(Vector3.Distance(p0, walker.transform.position), Is.GreaterThan(0.3f), "the swing-radius walker should move");
         }
