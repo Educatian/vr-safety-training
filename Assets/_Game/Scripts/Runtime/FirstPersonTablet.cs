@@ -87,8 +87,9 @@ namespace Jobsite.Runtime
                 // Rest frame from the bones (world): finger direction, across the knuckles, palm normal (rest palms face down).
                 Vector3 fingerW = (mid.position - hand.position).normalized;
                 Vector3 acrossW = (bones["Index1" + s].position - bones["Pinky1" + s].position).normalized;
-                Vector3 palmW = Vector3.Cross(fingerW, acrossW).normalized;
-                if (Vector3.Dot(palmW, inst.transform.TransformDirection(Vector3.down)) < 0) palmW = -palmW;
+                // Palm normal from handedness (index-pinky points to the thumb side): right = f x a, left = a x f.
+                // The Tripo hands were sculpted mid-grip, so "rest palms face down" is not a safe assumption.
+                Vector3 palmW = (s == "_R" ? Vector3.Cross(fingerW, acrossW) : Vector3.Cross(acrossW, fingerW)).normalized;
                 // Target (model-local -> world): left hand on the left edge; fingers up and inward, palm facing the edge and the back.
                 var sideSign = s == "_L" ? -1f : 1f;
                 var inward = -right * sideSign;

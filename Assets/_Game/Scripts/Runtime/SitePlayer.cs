@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 
 namespace Jobsite.Runtime
 {
-    // First-person walker. Click the view to capture the mouse (browser pointer lock); Esc releases it and pauses.
-    // Holding the right button also looks around, for trackpads and anyone who prefers it. Tab = tablet, E = interact.
+    // First-person walker. Drag with the mouse (left or right button) to turn the view, WASD to walk, Shift to hurry.
+    // No pointer lock: the cursor stays free for the minimap and tablet. Tab = tablet, E = interact, Esc = pause.
     [RequireComponent(typeof(CharacterController))]
     public sealed class SitePlayer : MonoBehaviour
     {
@@ -18,6 +18,8 @@ namespace Jobsite.Runtime
         private int stepIndex;
         public Camera View => view;
         public bool Captured => Cursor.lockState == CursorLockMode.Locked;
+        public bool HasLooked { get; private set; }       // HUD tutorial: the learner has dragged the view at least once
+        private bool dragging;
         public void Configure(Camera camera, ShiftDirector shift) { view = camera; director = shift; }
         private void Awake() { controller = GetComponent<CharacterController>(); }
 
@@ -25,7 +27,7 @@ namespace Jobsite.Runtime
         {
             var keys = Keyboard.current;
             var mouse = Mouse.current;
-            if (director == null) return;
+            if (director == null || DemoAutoplay.Active) return;   // the trailer run drives the camera itself
             if (PauseMenu.Paused) return;
             var touch = MobileControls.Active;
             if (touch)
@@ -46,12 +48,17 @@ namespace Jobsite.Runtime
             if (keys.tabKey.wasPressedThisFrame) { director.ToggleTablet(); Release(); }
             if (director.MenuOpen || director.Finished) { Release(); return; }
 
-            // Click to capture (ignored when the click lands on UI such as the minimap).
-            if (!Captured && mouse.leftButton.wasPressedThisFrame && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
-            { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
-            if (!Captured) Cursor.visible = !mouse.rightButton.isPressed;
+            // Mouse drag looks (a drag that starts on UI, e.g. the minimap, doesn't).
+            if (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)
+                dragging = EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject();
+            if (!mouse.leftButton.isPressed && !mouse.rightButton.isPressed) dragging = false;
             var lookDelta = MobileControls.TakeLook();
-            if (Captured || mouse.rightButton.isPressed) lookDelta += mouse.delta.ReadValue() * GameSettings.MouseSensitivity;
+            if (dragging)
+            {
+                var d = mouse.delta.ReadValue();
+                lookDelta += d * GameSettings.MouseSensitivity;
+                if (d.sqrMagnitude > 4f) HasLooked = true;
+            }
             Look(lookDelta);
             // Walk 1.4 m/s, Shift to hurry 2.5 m/s (SiteLayout §2 starting values).
             var axis = new Vector2((keys.dKey.isPressed ? 1 : 0) - (keys.aKey.isPressed ? 1 : 0),

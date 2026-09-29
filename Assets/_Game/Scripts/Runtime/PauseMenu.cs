@@ -42,7 +42,7 @@ namespace Jobsite.Runtime
             Cycle(() => $"Visual cues  {new[] { "Auto (by level)", "Off", "Light", "Full" }[GameSettings.Guidance + 1]} (next shift)", () => GameSettings.Guidance = GameSettings.Guidance >= 2 ? -1 : GameSettings.Guidance + 1);
             Cycle(() => $"AI crew chat  {(GameSettings.AiConsent == 1 ? "Allowed" : "Offline answers")}", () => GameSettings.AiConsent = GameSettings.AiConsent == 1 ? 0 : 1);
             Row("Episode select", () => { Show(false); EpisodeDirector.BackToMenu(); });
-            Row("Controls: click = look · WASD · E act · Tab tablet · M map · Esc pause", null, 18, new Color(.75f, .8f, .8f));
+            Row("Controls: drag mouse = look · WASD · E act · Tab tablet · M map · Esc pause", null, 18, new Color(.75f, .8f, .8f));
         }
 
         private void Cycle(Func<string> label, Action next)

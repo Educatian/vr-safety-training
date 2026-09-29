@@ -60,11 +60,11 @@ namespace Jobsite.Editor
             sitePlayer.gameObject.AddComponent<HeatStrain>();
             director.gameObject.AddComponent<WeatherDirector>().Configure(WeatherFx("Rain", true), WeatherFx("WindDust", false));
             var radio = director.gameObject.AddComponent<AudioSource>();
-            var tablet = BuildTablet(cam, out var panel, out var radioText, out var frame, out var flash);
+            var tablet = BuildTablet(cam, out var panel, out var content, out var radioText, out var frame, out var flash);
             cam.gameObject.AddComponent<FirstPersonTablet>().Configure(
                 AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/B-PROC/SM_FP_TabletHands.fbx"), panel, frame,
                 AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Art/Models/TR-3D/Rigs/SM_FP_Hands_Rig.fbx"), HandsMaterial());
-            tablet.Configure(director, panel, radioText, radioText.font, frame, flash);
+            tablet.Configure(director, content, radioText, radioText.font, frame, flash);
             sitePlayer.Configure(cam, director);
             director.Configure(conditions, sitePlayer, tablet, radio);
 
@@ -206,7 +206,7 @@ namespace Jobsite.Editor
             return m;
         }
 
-        static FieldTablet BuildTablet(Camera cam, out RectTransform screen, out Text radioText, out RectTransform frame, out Image flash)
+        static FieldTablet BuildTablet(Camera cam, out RectTransform screen, out RectTransform content, out Text radioText, out RectTransform frame, out Image flash)
         {
             foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/_Game/Resources/UI" }))
             {
@@ -238,13 +238,24 @@ namespace Jobsite.Editor
             frameImg.sprite = Resources.Load<Sprite>("UI/tablet_frame");
             frameImg.color = frameImg.sprite != null ? Color.white : new Color(0.07f, 0.09f, 0.1f, 0.94f);
 
-            var screenGo = new GameObject("Screen", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
+            // Screen = scroll viewport (mask + wheel/drag scroll); cards live in Content, top-anchored, so long pages
+            // (closing debrief + KSA profile) scroll instead of spilling past the bezel.
+            var screenGo = new GameObject("Screen", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
             screenGo.transform.SetParent(frameGo.transform, false);
             screen = screenGo.GetComponent<RectTransform>();
             screen.anchorMin = new Vector2(0.131f, 0.158f); screen.anchorMax = new Vector2(0.867f, 0.869f);
             screen.offsetMin = screen.offsetMax = Vector2.zero;
             screenGo.GetComponent<Image>().color = new Color(0.05f, 0.07f, 0.08f, 0.97f);
-            var layout = screenGo.GetComponent<VerticalLayoutGroup>();
+            var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            contentGo.transform.SetParent(screenGo.transform, false);
+            content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0, 1); content.anchorMax = new Vector2(1, 1); content.pivot = new Vector2(0.5f, 1);
+            content.offsetMin = content.offsetMax = Vector2.zero;
+            contentGo.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var scroll = screenGo.GetComponent<ScrollRect>();
+            scroll.content = content; scroll.viewport = screen; scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 40f;
+            var layout = contentGo.GetComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(22, 22, 22, 22);
             layout.spacing = 8;
             layout.childForceExpandHeight = false;

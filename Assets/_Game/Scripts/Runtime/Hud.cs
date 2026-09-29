@@ -44,7 +44,7 @@ namespace Jobsite.Runtime
 
             tutorial = new List<(string, Func<bool>)>
             {
-                (MobileControls.Active ? "Drag the right side of the screen to look" : "Click the view to look around (Esc frees the mouse)", () => everCaptured || MobileControls.Active),
+                (MobileControls.Active ? "Drag the right side of the screen to look" : "Drag the mouse to look around", () => everCaptured || MobileControls.Active),
                 (MobileControls.Active ? "Move with the left stick" : "Walk: W A S D, hold Shift to hurry", () => player != null && Vector3.Distance(player.transform.position, start) > 2.5f),
                 (MobileControls.Active ? "Aim at the sign-in board and tap ACT" : "Aim at the sign-in board and press E", () => director.CheckedIn.Contains(CheckInStation.Kind.SignIn)),
                 ("Take your hard hat, vest, glasses and gloves", () => director.CheckInComplete),
@@ -118,7 +118,7 @@ namespace Jobsite.Runtime
         private void Update()
         {
             if (director == null) return;
-            everCaptured |= player != null && player.Captured;
+            everCaptured |= player != null && player.HasLooked;
             Sweat();
             var text = director.AimPrompt(out var actionable);
             prompt.text = MobileControls.Active && text.StartsWith("E  ") ? "ACT: " + text.Substring(3) : text;

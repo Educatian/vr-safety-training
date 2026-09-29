@@ -52,6 +52,8 @@ namespace Jobsite.Runtime
             if (content == null || director == null) return;
             (frame != null ? frame : content).gameObject.SetActive(director.MenuOpen);
             foreach (Transform child in content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
+            var scroll = content.GetComponentInParent<ScrollRect>();
+            if (scroll != null) scroll.verticalNormalizedPosition = 1f;    // each page opens at the top
             if (!director.MenuOpen) return;
             Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp} · {Career.Rank(director.Career.Level)}", 22, Accent);
             var w = director.Weather;

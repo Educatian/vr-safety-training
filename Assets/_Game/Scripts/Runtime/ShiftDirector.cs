@@ -160,7 +160,7 @@ namespace Jobsite.Runtime
         public void Begin()
         {
             Current = Phase.Shift; MenuOpen = false;
-            Say("Walk the site. Photograph conditions with E. Right mouse looks.");
+            Say("Walk the site with WASD, drag the mouse to look. Photograph conditions with E.");
             tablet.Refresh(); Log("shift_begin", "day", "");
             GetComponent<ScaffoldCues>()?.Refresh();
         }
