@@ -46,6 +46,7 @@ namespace Jobsite.Runtime
                 return;
             }
             if (keys.tabKey.wasPressedThisFrame) { director.ToggleTablet(); Release(); }
+            if (director.MenuOpen && keys.fKey.wasPressedThisFrame) FirstPersonTablet.ToggleFullView();   // full view / handheld
             if (director.MenuOpen || director.Finished) { Release(); return; }
 
             // Mouse drag looks (a drag that starts on UI, e.g. the minimap, doesn't).

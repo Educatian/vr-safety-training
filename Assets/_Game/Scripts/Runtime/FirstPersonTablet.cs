@@ -54,6 +54,13 @@ namespace Jobsite.Runtime
         // Layout as authored, restored before every refit (the fit depends on the camera's pixel size).
         private bool fitSaved;
         private Vector2 frameOrig, aMinOrig, aMaxOrig, offMinOrig, offMaxOrig;
+        private Vector2 frameAMinOrig, frameAMaxOrig, framePivotOrig, frameSizeOrig;
+        // Full view (playtest feedback 2026-09-29): the corner button (or F) swaps the handheld tablet for a large,
+        // centred reading panel with no 3D device, and back. Sticky while the scene runs.
+        public static bool FullView;
+        private bool fullApplied;
+        private GameObject expandIcon, collapseIcon;
+        public static void ToggleFullView() => FullView = !FullView;
         private Vector3 frameScaleOrig;
         private int fitW, fitH;
 
@@ -88,6 +95,8 @@ namespace Jobsite.Runtime
             FitPanel();
             if (oneHanded && gloveL != null) { gloveL.gameObject.SetActive(false); gloveL = null; }
             if (handsPrefab != null) RigHands();
+            FullView = false;
+            BuildViewButton();
         }
 
         // Re-pose the glove (grip tuning captures). Auto = search a pinch that satisfies the contact constraints.
@@ -386,9 +395,11 @@ namespace Jobsite.Runtime
             {
                 fitSaved = true;
                 frameOrig = frameBase; frameScaleOrig = frame.localScale;
+                frameAMinOrig = frame.anchorMin; frameAMaxOrig = frame.anchorMax; framePivotOrig = frame.pivot; frameSizeOrig = frame.sizeDelta;
                 aMinOrig = screenRect.anchorMin; aMaxOrig = screenRect.anchorMax; offMinOrig = screenRect.offsetMin; offMaxOrig = screenRect.offsetMax;
             }
             fitW = cam.pixelWidth; fitH = cam.pixelHeight;
+            frame.anchorMin = frameAMinOrig; frame.anchorMax = frameAMaxOrig; frame.pivot = framePivotOrig; frame.sizeDelta = frameSizeOrig;
             frame.localScale = frameScaleOrig; frame.anchoredPosition = frameOrig;
             screenRect.anchorMin = aMinOrig; screenRect.anchorMax = aMaxOrig; screenRect.offsetMin = offMinOrig; screenRect.offsetMax = offMaxOrig;
             Canvas.ForceUpdateCanvases();
@@ -430,6 +441,68 @@ namespace Jobsite.Runtime
             frameBase = frame.anchoredPosition;
         }
 
+        // Large centred reading panel: the display fills the frame, the frame fills most of the canvas (capped width
+        // so lines stay readable), unscaled, so text is ~1.5x the handheld size.
+        private void FitFullView()
+        {
+            if (screenRect == null || frame == null || canvas == null) return;
+            if (!fitSaved) FitPanel();
+            fitW = cam.pixelWidth; fitH = cam.pixelHeight;
+            var c = ((RectTransform)canvas.transform).rect;
+            frame.anchorMin = frame.anchorMax = frame.pivot = new Vector2(0.5f, 0.5f);
+            frame.localScale = Vector3.one;
+            // Top 2% .. bottom 12% of the view: the radio line (bottom 3-11%) stays readable under the panel.
+            frame.sizeDelta = new Vector2(Mathf.Min(1180f, c.width - 80f), c.height * 0.86f);
+            frame.anchoredPosition = new Vector2(0f, c.height * 0.05f);
+            screenRect.anchorMin = Vector2.zero; screenRect.anchorMax = Vector2.one; screenRect.offsetMin = screenRect.offsetMax = Vector2.zero;
+            frameBase = frame.anchoredPosition;
+        }
+
+        private void ApplyView()
+        {
+            fullApplied = FullView;
+            if (FullView) FitFullView(); else FitPanel();
+            if (expandIcon != null) expandIcon.SetActive(!FullView);
+            if (collapseIcon != null) collapseIcon.SetActive(FullView);
+        }
+
+        // Corner button on the display: four corner brackets (expand) / an X (back to the handheld tablet).
+        private void BuildViewButton()
+        {
+            if (screenRect == null) return;
+            var go = new GameObject("FullViewButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(screenRect, false);
+            go.transform.SetAsLastSibling();
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = r.pivot = Vector2.one; r.sizeDelta = new Vector2(46, 46); r.anchoredPosition = new Vector2(-8, -8);
+            go.GetComponent<Image>().color = new Color(.14f, .17f, .18f, .92f);
+            go.GetComponent<Button>().onClick.AddListener(() => { AudioDirector.Play("click"); ToggleFullView(); });
+            var ink = new Color(1f, .78f, .1f);
+            expandIcon = new GameObject("Expand", typeof(RectTransform)); expandIcon.transform.SetParent(go.transform, false);
+            Stretch((RectTransform)expandIcon.transform);
+            foreach (var (sx, sy) in new[] { (-1, 1), (1, 1), (-1, -1), (1, -1) })
+            {
+                Bar(expandIcon.transform, new Vector2(sx * 10, sy * 13), new Vector2(10, 3), 0f, ink);   // horizontal arm
+                Bar(expandIcon.transform, new Vector2(sx * 13, sy * 10), new Vector2(3, 10), 0f, ink);   // vertical arm
+            }
+            collapseIcon = new GameObject("Collapse", typeof(RectTransform)); collapseIcon.transform.SetParent(go.transform, false);
+            Stretch((RectTransform)collapseIcon.transform);
+            Bar(collapseIcon.transform, Vector2.zero, new Vector2(28, 4), 45f, ink);
+            Bar(collapseIcon.transform, Vector2.zero, new Vector2(28, 4), -45f, ink);
+            collapseIcon.SetActive(false);
+        }
+
+        private static void Stretch(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero; }
+
+        private static void Bar(Transform parent, Vector2 pos, Vector2 size, float angle, Color color)
+        {
+            var b = new GameObject("Bar", typeof(RectTransform), typeof(Image));
+            b.transform.SetParent(parent, false);
+            var r = (RectTransform)b.transform;
+            r.anchorMin = r.anchorMax = r.pivot = new Vector2(0.5f, 0.5f); r.sizeDelta = size; r.anchoredPosition = pos; r.localEulerAngles = new Vector3(0, 0, angle);
+            var img = b.GetComponent<Image>(); img.color = color; img.raycastTarget = false;
+        }
+
         private Camera UiCam => canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
 
         private void PanelPixels(out Vector2 p0, out Vector2 p1)
@@ -450,14 +523,14 @@ namespace Jobsite.Runtime
         private void LateUpdate()
         {
             if (model == null || director == null) return;
-            if (cam.pixelWidth != fitW || cam.pixelHeight != fitH) FitPanel();
+            if (FullView != fullApplied || cam.pixelWidth != fitW || cam.pixelHeight != fitH) ApplyView();
             var open = director.MenuOpen && !PauseMenu.Paused;
             raise = Application.isBatchMode ? (open ? 1f : 0f)          // headless captures: no mid-animation frames
                 : Mathf.MoveTowards(raise, open ? 1f : 0f, Time.unscaledDeltaTime / 0.28f);
             var e = raise * raise * (3f - 2f * raise);     // smoothstep
 
             var carrying = director.Carrying && !open;
-            model.gameObject.SetActive(e > 0.01f || carrying);
+            model.gameObject.SetActive(e > 0.01f && !FullView || carrying);
             if (tablet != null) tablet.gameObject.SetActive(e > 0.01f);
             if (screen != null) screen.gameObject.SetActive(e > 0.01f);
             if (gloveL != null) gloveL.gameObject.SetActive(e > 0.01f);

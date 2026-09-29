@@ -74,6 +74,12 @@ namespace Jobsite.PlayTests
                     }
                 fp.Regrip(FirstPersonTablet.DefaultGrip); yield return null;
                 Shot(p.View, rt, $"default_{size.x}x{size.y}");
+                FirstPersonTablet.FullView = true; yield return null; yield return null;
+                Shot(p.View, rt, $"fullview_{size.x}x{size.y}");
+                Assert.IsFalse(GameObject.Find("FP_TabletHands") != null && GameObject.Find("FP_TabletHands").activeInHierarchy, "the 3D device hides in full view");
+                FirstPersonTablet.ToggleFullView(); yield return null; yield return null;
+                Assert.IsFalse(FirstPersonTablet.FullView);
+                Shot(p.View, rt, $"handheld_again_{size.x}x{size.y}");
                 p.View.targetTexture = null; rt.Release(); Object.Destroy(rt);
                 yield return null;
             }

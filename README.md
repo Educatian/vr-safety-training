@@ -20,7 +20,7 @@ Around the core loop: near-miss stop-down cards ("what almost happened", no gore
 ## Run it
 - **Web:** https://competent-person.pages.dev/. The build and deploy steps are in `docs/Deploy.md`.
 - **Editor:** open the project in Unity 6000.3.25f1 and play `Assets/_Game/Scenes/Jobsite.unity`.
-- **Controls:** WASD to move, drag the mouse to look, E to photograph or interact, Tab for the tablet, M for the map, Esc for settings. On a phone or tablet, use the touch controls.
+- **Controls:** WASD to move, drag the mouse to look, E to photograph or interact, Tab for the tablet (F or its corner button for full view), M for the map, Esc for settings. On a phone or tablet, use the touch controls.
 
 ## Playtests
 See `docs/PlaytestGuide.md` for the session script, the facilitator settings (research opt-in, unlock all episodes, visual cues) and what to observe.
