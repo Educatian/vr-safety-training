@@ -100,6 +100,7 @@ namespace Jobsite.Runtime
             conditions = FindObjectsByType<SiteCondition>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             Seed = Environment.TickCount & 0x7fffffff;
             if (SampleHazards) Sample(new System.Random(Seed));
+            EcdLoader.LoadOnce();   // scoring weights / thresholds / observable map from Resources/ecd.json
             Session = new DaySession(conditions.Select(c => c.Spec));
             Telemetry = GetComponent<Telemetry>() ?? gameObject.AddComponent<Telemetry>();
             Telemetry.Episode = Episode.Number; Telemetry.Seed = SampleHazards ? Seed : 0;
@@ -107,14 +108,15 @@ namespace Jobsite.Runtime
             Mission = new MissionRun(Missions.For(Episode.Number));
             if (GetComponent<ScaffoldCues>() == null) gameObject.AddComponent<ScaffoldCues>();
             if (FindFirstObjectByType<SitePolish>() == null) gameObject.AddComponent<SitePolish>();
+            TrenchLighting.Apply();   // below-grade crew: ambient + sky bounce instead of black faces
             // A good toolbox talk last shift banks a hint token for this one (GDD §14: earn by explain-back).
             var banked = PlayerPrefs.GetInt(BankedHintsKey, 0);
             Hints = new HintBank(Career.StartingHints + banked);
             if (banked > 0) { PlayerPrefs.SetInt(BankedHintsKey, 0); PlayerPrefs.Save(); }
             logPath = Path.Combine(Application.persistentDataPath, "jobsite-" + Guid.NewGuid().ToString("N") + ".jsonl");
             Log("session_start", "ep" + Episode.Number, "conditions=" + conditions.Length + " seed=" + (SampleHazards ? Seed : 0) +
-                " level=" + Career.Level + " guidance=" + ScaffoldCues.Level(Career.Level) + " mission=" + Mission.Mission.Title +
-                " consent=" + GameSettings.ResearchConsent + ":" + GameSettings.ConsentVersion);
+                " level=" + Career.Level + " guidance=" + ScaffoldCues.Level(Career.Level, TodaysAreas, out var fadeWhy) + ":" + fadeWhy + " mission=" + Mission.Mission.Title +
+                " consent=" + GameSettings.ResearchConsent + ":" + GameSettings.ConsentVersion + " ecd=" + EvidenceModel.Current.version);
             tablet.Refresh();
         }
 
@@ -130,17 +132,46 @@ namespace Jobsite.Runtime
             foreach (var c in conditions.Where(c => c.IsHazard)) c.ShiftTrigger(rng.Next(-45, 46));
         }
 
+        // Hazard areas active today (drives the mastery-based guidance fading).
+        public IEnumerable<CpArea> TodaysAreas => conditions == null ? Enumerable.Empty<CpArea>() : conditions.Where(c => c != null && c.IsHazard).Select(c => c.Spec.Area).Distinct();
+
         private void Update()
         {
             if (Session == null || Current != Phase.Shift) return;
             Session.Paused = MenuOpen;
             foreach (var ev in Session.Advance(Time.deltaTime)) Handle(ev);
             if (!selfReported && Session.CrewTrust >= DaySession.SelfReportTrust && Session.Clock >= 90f) CrewSelfReport();
+            if (Time.time >= nextAffect) { nextAffect = Time.time + 0.5f; ApplyAffect(); }
             if (Session.Clock >= ShiftLength) EndShift();
         }
 
         // High crew trust pays off (GDD §5.2): a worker radios in one hazard you have not found yet. It is a cue,
         // so the find is flagged like any other scaffold.
+        // Faces follow the bounded affect state: the foreman reads Ray's trust/stress, everyone else the crew's.
+        private float nextAffect;
+        private NpcFace[] faces;
+        private void ApplyAffect()
+        {
+            faces ??= FindObjectsByType<NpcFace>(FindObjectsSortMode.None);
+            foreach (var f in faces)
+            {
+                if (f == null || !f.HasFace) continue;
+                var who = f.name.Contains("Ray") ? CrewAffect.Foreman : CrewAffect.Crew;
+                f.Ambient = Session.Affect.BandOf(who) switch
+                {
+                    CrewAffect.Band.Hostile => NpcFace.Mood.Angry,
+                    CrewAffect.Band.Tense => NpcFace.Mood.Frown,
+                    CrewAffect.Band.Warm => NpcFace.Mood.Smile,
+                    _ => NpcFace.Mood.Neutral,
+                };
+            }
+        }
+
+        public static string AffectWord(CrewAffect.Band b) => b switch
+        {
+            CrewAffect.Band.Hostile => "hostile", CrewAffect.Band.Tense => "tense", CrewAffect.Band.Warm => "on your side", _ => "neutral",
+        };
+
         private void CrewSelfReport()
         {
             selfReported = true;
@@ -149,7 +180,7 @@ namespace Jobsite.Runtime
             if (target == null) return;
             MarkCued(target.Id);
             Say($"Crew (radio): Hey, you've got our backs, so... check the {target.NeutralName.ToLowerInvariant()}, {Where(target.transform.position - player.transform.position)}. Doesn't look right.");
-            Log("crew_self_report", target.Id, "trust=" + Session.CrewTrust);
+            Log("crew_self_report", target.Id, "trust=" + Session.CrewTrust, Ecd("crew_self_report"), 1f);
         }
 
         // Spend shift time on an action; timers and incidents fire as they would in real time.
@@ -176,10 +207,10 @@ namespace Jobsite.Runtime
                 Say((ev.Kind == DayEventKind.Recordable ? "Injury on site: " : "Near miss: ") + (at != null ? at.DisplayName : "the crew") + ". All stop. Secure the area.");
                 AudioDirector.Play("alarm");
                 if (at != null) CrewGestures.ReactNear(at.transform.position, 14f, CrewGestures.Situation.NearMiss, at.PhotoBounds.center);
-                Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0f);
+                Log(ev.Kind.ToString(), ev.HazardId, "", Ecd("incident"), 0f);
             }
             else if (ev.Kind == DayEventKind.StopLifted) { CrewGestures.Named("Ray")?.React(CrewGestures.Situation.BackToWork); Log(ev.Kind.ToString(), ev.HazardId, ""); }
-            else Log(ev.Kind.ToString(), ev.HazardId, "", Jobsite.Core.Ksa.AProactive, 0.5f);
+            else Log(ev.Kind.ToString(), ev.HazardId, "", Ecd("incident"), 0.5f);
         }
 
         public void AcknowledgeIncident()
@@ -212,7 +243,7 @@ namespace Jobsite.Runtime
         public void SubmitHierarchy(IReadOnlyList<string> order)
         {
             HierarchyScore = HierarchyOrdering.Score(order);
-            Log("hierarchy_order", "gate", HierarchyScore + "/5:" + string.Join(">", order), Jobsite.Core.Ksa.KHierarchy, HierarchyScore / 5f, "1926.20(b)");
+            Log("hierarchy_order", "gate", HierarchyScore + "/5:" + string.Join(">", order), Ecd("hierarchy_order"), HierarchyScore / 5f, "1926.20(b)");
             Say(HierarchyScore == 5 ? "Right order. Remove it, swap it, guard it, manage it, then PPE." :
                 "Not yet: most effective controls go on top. PPE is last.");
             if (HierarchyScore == 5) Xp += 50;
@@ -225,7 +256,7 @@ namespace Jobsite.Runtime
             var item = Quiz.Current;
             var ok = Quiz.Answer(option);
             if (ok) Xp += 25;
-            Log("quiz", item.Id, (ok ? "correct:" : "wrong:") + option, Jobsite.Core.Ksa.KStandard, ok ? 1f : 0f, string.IsNullOrEmpty(item.Cfr) ? "1926.21(b)(2)" : item.Cfr);
+            Log("quiz", item.Id, (ok ? "correct:" : "wrong:") + option, Ecd("quiz"), ok ? 1f : 0f, string.IsNullOrEmpty(item.Cfr) ? "1926.21(b)(2)" : item.Cfr);
             Say((ok ? "Correct. " : "Not quite. ") + item.Explanation + (string.IsNullOrEmpty(item.Cfr) ? "" : " (" + item.Cfr + ")"));
             tablet.Refresh();
         }
@@ -306,16 +337,30 @@ namespace Jobsite.Runtime
             SpendShiftTime(MeasureSeconds);
             measured.Add((selected.Id, gear));
             if (reading == null) { Say(GearCatalog.Get(gear).Name + ": no useful reading here."); Log("measure_none", selected.Id, gear.ToString()); }
-            else if (!Session.Judged(selected.Id)) Log("measure", selected.Id, gear.ToString(), Jobsite.Core.Ksa.SInspect, 1f);
+            else if (!Session.Judged(selected.Id)) Log("measure", selected.Id, gear.ToString(), Ecd("measure"), 1f);
+            // Picking an instrument that reads the hazard's energy (GFCI tester on power, gas meter in a trench) is
+            // evidence of energy knowledge; an irrelevant instrument before the call is not.
+            if (!Session.Judged(selected.Id)) Log("instrument_match", selected.Id, gear.ToString(), Ecd("instrument_match"), reading != null ? 1f : 0f);
             else Log("measure", selected.Id, gear.ToString() + " after-call");
             tablet.Refresh();
             return reading;
+        }
+
+        // Thoroughness: when an instrument on this shift can read the condition, did the learner measure before the call?
+        private void LogMeasuredFirst(SiteCondition c)
+        {
+            if (c == null || Session.Judged(c.Id)) return;
+            var readable = Instruments.Where(g => c.Reading(g) != null).ToList();
+            if (readable.Count == 0) return;
+            var did = readable.Any(g => measured.Contains((c.Id, g)));
+            Log("measured_first", c.Id, did ? "measured" : "no-measurement", Ecd("measured_first"), did ? 1f : 0f);
         }
 
         // "Checked, compliant." Positive evidence on a look-alike; a miss (hazard left live) on a real hazard.
         public void ConfirmCompliant()
         {
             if (selected == null || Finished) return;
+            LogMeasuredFirst(selected);
             var result = Session.ConfirmCompliant(selected.Id);
             // Right and wrong look identical on the tablet (same line, no XP tick, no crew reaction): feedback waits
             // for the debrief, otherwise "log it compliant" becomes a free probe for which objects are hazards.
@@ -323,7 +368,7 @@ namespace Jobsite.Runtime
             if (result == ConfirmOutcome.Confirmed || result == ConfirmOutcome.DismissedHazard)
             {
                 var ok = result == ConfirmOutcome.Confirmed;
-                Log("confirm_compliant", selected.Id, ok ? "correct" : "hazard-dismissed", Jobsite.Core.Ksa.SDiscriminate, ok ? 1f : 0f);
+                Log("confirm_compliant", selected.Id, ok ? "correct" : "hazard-dismissed", Ecd("confirm_compliant"), ok ? 1f : 0f);
                 LastKsa = "";
                 Say("Logged as compliant.");
             }
@@ -360,7 +405,7 @@ namespace Jobsite.Runtime
             Log("placement_attempt", goal.Id, $"error={error:F2}m ok={ok}");
             if (!ok)
             {
-                Log("ksa", goal.Id, "misplaced", Jobsite.Core.Ksa.SInstall, 0f);
+                Log("ksa", goal.Id, "misplaced", Ecd("install_misplaced"), 0f);
                 Say($"Wrong spot — {error:F1} m off. Set it at the hazard itself."); return;
             }
             // Right place, wrong control: it fails at the hazard, counts as an install attempt, and goes back.
@@ -368,7 +413,7 @@ namespace Jobsite.Runtime
             {
                 Session.CompleteInstall(goal.Id, false);
                 var kit = ControlKits.Get(goal.Id);
-                Log("install_attempt", goal.Id, "wrong-kit:" + KitOptions[ChosenKit], Jobsite.Core.Ksa.SControl, 0f);
+                Log("install_attempt", goal.Id, "wrong-kit:" + KitOptions[ChosenKit], Ecd("install_wrong_kit"), 0f);
                 Say("That won't pass. " + (kit != null ? kit.Why : "") + " Pick the right control on the tablet.");
                 LastKsa = Feedback(Jobsite.Core.Ksa.SControl, goal.Cfr, "\"" + KitOptions[ChosenKit] + "\" doesn't meet the standard here.");
                 AudioDirector.Play("click");
@@ -384,7 +429,7 @@ namespace Jobsite.Runtime
                 Xp += ControlLevel.Engineering <= goal.Spec.BestFeasibleControl ? XpRules.BestControl + XpRules.EngineeredBonus : XpRules.EngineeredBonus;
                 Say("Control installed. Crew can continue safely.");
                 AudioDirector.Play("success");
-                Log("install_success", goal.Id, "Engineering", Jobsite.Core.Ksa.SInstall, 1f);
+                Log("install_success", goal.Id, "Engineering", Ecd("install_success"), 1f);
                 LastKsa = Feedback(Jobsite.Core.Ksa.SInstall, goal.Cfr, "control in place at the exposure and verified.");
                 CrewGestures.ReactNear(goal.transform.position, 12f, CrewGestures.Situation.ControlInstalled, goal.PhotoBounds.center);
             }
@@ -408,6 +453,7 @@ namespace Jobsite.Runtime
         public void Report(EnergySource energy, int probability, int severity)
         {
             if (selected == null || Finished) return;
+            LogMeasuredFirst(selected);
             var streakBefore = Session.StreakBonuses;
             var outcome = Session.Report(selected.Id, energy, probability, severity);
             var streakPaid = Session.StreakBonuses > streakBefore;
@@ -427,10 +473,10 @@ namespace Jobsite.Runtime
                 AudioDirector.Play("success");
                 var ev = Session.GetEvidence(selected.Id);
                 var detect = KsaLedger.DetectScore(ev.DetectedAtSeconds, ShiftLength, ev.Hinted || ev.Cued);
-                Log("ksa", selected.Id, ev.Cued ? "recognize cued" : "recognize", Jobsite.Core.Ksa.SRecognize, ev.Hinted || ev.Cued ? 0.5f : 1f);
-                Log("ksa", selected.Id, "energy=" + energy, Jobsite.Core.Ksa.KEnergy, energy == spec.Energy ? 1f : 0f);
-                Log("ksa", selected.Id, $"P{probability}xS{severity}", Jobsite.Core.Ksa.SAssess, KsaLedger.RiskScore(ev.RiskDeviation));
-                Log("ksa", selected.Id, "t=" + ev.DetectedAtSeconds.ToString("F0"), Jobsite.Core.Ksa.AProactive, detect);
+                Log("ksa", selected.Id, ev.Cued ? "recognize cued" : "recognize", Ecd("recognize"), ev.Hinted || ev.Cued ? 0.5f : 1f);
+                Log("ksa", selected.Id, "energy=" + energy, Ecd("energy"), energy == spec.Energy ? 1f : 0f);
+                Log("ksa", selected.Id, $"P{probability}xS{severity}", Ecd("risk"), KsaLedger.RiskScore(ev.RiskDeviation));
+                Log("ksa", selected.Id, "t=" + ev.DetectedAtSeconds.ToString("F0"), Ecd("detect_time"), detect);
                 LastKsa = "K  " + (string.IsNullOrEmpty(selected.Cfr) ? spec.Energy + " energy" : selected.Cfr + ": " + selected.Threshold) + "\n" +
                           "S  recognized" + (ev.Hinted ? " (with a hint)" : ev.Cued ? " (with a guide marker)" : "") + " · energy " + (energy == spec.Energy ? "✓" : "✗") +
                           " · risk " + (ev.RiskDeviation == 0 ? "on the key" : "±" + ev.RiskDeviation) + "\n" +
@@ -440,8 +486,8 @@ namespace Jobsite.Runtime
             }
             else if (outcome == ReportOutcome.FalseReport)
             {
-                Log("ksa", selected.Id, "look-alike reported", Jobsite.Core.Ksa.SDiscriminate, 0f);
-                Log("ksa", selected.Id, "crew trust", Jobsite.Core.Ksa.ACare, 0f);
+                Log("ksa", selected.Id, "look-alike reported", Ecd("lookalike_reported"), 0f);
+                Log("ksa", selected.Id, "crew trust", Ecd("lookalike_trust"), 0f);
                 LastKsa = Feedback(Jobsite.Core.Ksa.SDiscriminate, selected.Cfr, "this one is compliant. Confirm it, don't report it: false alarms cost crew trust.");
                 CrewGestures.ReactNear(selected.transform.position, 10f, CrewGestures.Situation.Puzzled, selected.PhotoBounds.center);
             }
@@ -456,7 +502,7 @@ namespace Jobsite.Runtime
             var result = Session.ChooseControl(selected.Id, level);
             var best = selected.Spec.BestFeasibleControl;
             var cs = result == ControlOutcome.Installing || result == ControlOutcome.Assigned || result == ControlOutcome.Eliminated ? KsaLedger.ControlScore(level, best) : -1f;
-            Log("control_choose", selected.Id, result + ":" + level, cs >= 0 ? Jobsite.Core.Ksa.SControl : (Ksa?)null, cs);
+            Log("control_choose", selected.Id, result + ":" + level, cs >= 0 ? Ecd("control_choose") : (Ksa?)null, cs);
             if (cs >= 0) LastKsa = Feedback(Jobsite.Core.Ksa.SControl, selected.Cfr, cs >= 1f ? $"{level} is the most effective feasible control here."
                 : $"{level} leans on people. {best} is feasible here and removes the exposure.");
             if (result == ControlOutcome.Installing)
@@ -478,7 +524,7 @@ namespace Jobsite.Runtime
                 Xp += XpRules.BestControl + XpRules.EngineeredBonus;
                 Say("Removed from service and tagged out. The hazard is gone.");
                 AudioDirector.Play("success");
-                Log("install_success", selected.Id, "Elimination", Jobsite.Core.Ksa.SInstall, 1f);
+                Log("install_success", selected.Id, "Elimination", Ecd("install_success"), 1f);
                 CrewGestures.ReactNear(selected.transform.position, 12f, CrewGestures.Situation.ControlInstalled, selected.PhotoBounds.center);
             }
             else if (result == ControlOutcome.Assigned) Say("Temporary control assigned. Check it again later.");
@@ -503,7 +549,7 @@ namespace Jobsite.Runtime
             }
             Say(result == StopOutcome.Justified ? $"Work stopped for about {DaySession.StopHoldSeconds / 60:0} min. Get a control in before Ray restarts the crew." : "Report an active hazard before stopping this crew.");
             var js = result == StopOutcome.Justified ? (selected.Spec.RequiresStopWork ? 1f : 0.7f) : 0f;
-            Log("stop_work", selected.Id, result.ToString(), Jobsite.Core.Ksa.AIntervene, js);
+            Log("stop_work", selected.Id, result.ToString(), Ecd("stop_work"), js);
             LastKsa = Feedback(Jobsite.Core.Ksa.AIntervene, selected.Cfr, result != StopOutcome.Justified ? "report the hazard first; a stop needs a named reason."
                 : selected.Spec.RequiresStopWork ? "right call: this exposure can't wait for a fix." : "defensible, but a quick fix would have kept the crew working.");
             if (result == StopOutcome.Justified)
@@ -537,7 +583,7 @@ namespace Jobsite.Runtime
             if (Session.SpeakUp(id, style))
             {
                 if (style == SpeakUpStyle.Assertive) Xp += XpRules.SpeakUpAssertive;
-                Log("speakup_choice", id, style.ToString(), Jobsite.Core.Ksa.SCommunicate, SpeakUp.Score(style));
+                Log("speakup_choice", id, style.ToString(), Ecd("speakup_choice"), SpeakUp.Score(style));
                 LastKsa = Feedback(Jobsite.Core.Ksa.SCommunicate, selected != null ? selected.Cfr : "", style == SpeakUpStyle.Assertive
                     ? "firm and respectful: the stop holds and Ray stays on your side."
                     : style == SpeakUpStyle.Aggressive ? "the stop holds, but you spent the foreman's trust to do it."
@@ -562,10 +608,10 @@ namespace Jobsite.Runtime
                 " early=" + EndedEarly + " stopped_s=" + Session.StoppedSeconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) +
                 " confirmed=" + Session.ConfirmedCompliant +
                 " mission=" + Mission.Completed + "/" + Mission.Mission.Steps.Count);
-            Log("ksa", "mission", Mission.Completed + "/" + Mission.Mission.Steps.Count, Jobsite.Core.Ksa.AThorough,
+            Log("ksa", "mission", Mission.Completed + "/" + Mission.Mission.Steps.Count, Ecd("mission"),
                 (float)Mission.Completed / Mission.Mission.Steps.Count, "1926.20(b)(2)");
             foreach (var c in conditions.Where(c => c.IsHazard && !Session.GetEvidence(c.Id).Detected))
-                Log("ksa", c.Id, "missed", Jobsite.Core.Ksa.SRecognize, 0f);
+                Log("ksa", c.Id, "missed", Ecd("missed"), 0f);
             foreach (Ksa k in Enum.GetValues(typeof(Ksa)))
                 if (Competence.Mean(k) is float m) Log("ksa_profile", k.ToString(), "n=" + Competence.Count(k), k, m, "");
             tablet.Refresh();
@@ -594,6 +640,7 @@ namespace Jobsite.Runtime
             TalkScore = ToolboxTalk.Score(ordered, found, whyOk);
             var leads = ToolboxTalk.LeadsWithTopRisk(ordered, found);
             if (leads) Xp += XpRules.ToolboxLead;
+            if (found.Count > 1) Log("talk_top_risk", "day", leads ? "leads-with-top-risk" : "top-risk-not-first", Ecd("talk_top_risk"), leads ? 1f : 0f);
             if (whyOk) Xp += XpRules.ToolboxWhy;
             var good = TalkScore >= ToolboxTalk.GoodTalk;
             if (good) { PlayerPrefs.SetInt(BankedHintsKey, PlayerPrefs.GetInt(BankedHintsKey, 0) + 1); PlayerPrefs.Save(); }
@@ -604,8 +651,8 @@ namespace Jobsite.Runtime
                 + "\n" + (whyOk ? "Why: right. " : "Why: not quite. ") + why.Explanation
                 + (good ? "\nGood talk: +1 hint token banked for your next shift." : "");
             Log("toolbox_talk", "day", "order=" + string.Join(">", talkPicks) + " why=" + (whyOk ? "ok" : "wrong") +
-                " score=" + TalkScore.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), Jobsite.Core.Ksa.SCommunicate, TalkScore, "1926.21(b)(2)");
-            Log("why_choice", why.Id, whyOk ? "correct" : "wrong", Jobsite.Core.Ksa.KHierarchy, whyOk ? 1f : 0f, "1926.21(b)(2)");
+                " score=" + TalkScore.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), Ecd("toolbox_talk"), TalkScore, "1926.21(b)(2)");
+            Log("why_choice", why.Id, whyOk ? "correct" : "wrong", Ecd("why_choice"), whyOk ? 1f : 0f, "1926.21(b)(2)");
             Say(TalkFeedback.Split('\n')[0]);
             CompleteEpisode();
         }
@@ -663,7 +710,7 @@ namespace Jobsite.Runtime
             var o = ev.Options[option];
             WeatherCalls.Add((ev, o.Quality));
             Xp += WeatherPlan.Xp(o.Quality);
-            Log("weather_decision", ev.Id, "q=" + o.Quality + ":" + option, Jobsite.Core.Ksa.AIntervene, o.Quality / 2f, ev.Cfr);
+            Log("weather_decision", ev.Id, "q=" + o.Quality + ":" + option, Ecd("weather_decision"), o.Quality / 2f, ev.Cfr);
             LastKsa = Feedback(Jobsite.Core.Ksa.AIntervene, ev.Cfr, o.Quality == 2 ? "you made the call the conditions demanded." : "conditions changed; the plan has to change with them.");
             CrewGestures.Named("Dolores")?.React(o.Quality == 2 ? CrewGestures.Situation.Acknowledge : CrewGestures.Situation.Puzzled);
             Say((o.Quality == 2 ? "Good call. " : "") + o.Feedback);
@@ -725,6 +772,7 @@ namespace Jobsite.Runtime
             var crew = TalkingTo;
             tablet.Refresh();
             await crew.Ask(text, selected != null ? selected.Cfr + " " + selected.RequirementPlain : "");
+            Log("chat_reply", crew.DisplayName, "verdict=" + crew.LastVerdict + " ms=" + crew.LastLatencyMs + " len=" + crew.LastReplyLength);
             if (TalkingTo == crew) tablet.Refresh();
         }
 
@@ -769,6 +817,9 @@ namespace Jobsite.Runtime
 
         // Every event is tied to an OSHA standard (explicit, or the condition's own citation) and, when it is a scored
         // action, to a KSA with a 0..1 performance score. Rows go to the local JSONL log, the course server and missions.
+        // KSA for an observable, from the ECD model (EvidenceModel / Resources/ecd.json).
+        private static Ksa Ecd(string observable) => EvidenceModel.KsaOf(observable);
+
         private void Log(string kind, string id, string detail, Ksa? ksa = null, float score = -1f, string cfr = null)
         {
             cfr ??= conditions?.FirstOrDefault(c => c != null && c.Id == id)?.Cfr ?? "";

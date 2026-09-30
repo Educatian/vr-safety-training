@@ -30,6 +30,9 @@ namespace Jobsite.Runtime
         public bool Thinking { get; private set; }
         public bool IsTalking => listener != null;
         public int LastReplyLength { get; private set; }
+        // Last reply's provenance for telemetry: "llm:ok", "llm:ok_trimmed", "invalid:<reason>" or "offline"; latency in ms.
+        public string LastVerdict { get; private set; } = "";
+        public int LastLatencyMs { get; private set; }
         private int answeredFrame = -10;
         public bool JustAnswered => Time.frameCount - answeredFrame <= 1;
 
@@ -75,7 +78,9 @@ namespace Jobsite.Runtime
         {
             transcript.Add("You: " + question);
             Thinking = true;
-            string answer;
+            string answer = null;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var grounding = facts + " " + selectedContext;
             try
             {
                 if (endpoint == null) throw new InvalidOperationException("no endpoint");
@@ -91,12 +96,19 @@ namespace Jobsite.Runtime
                     transcript = string.Join("\n", transcript.GetRange(Math.Max(0, transcript.Count - 8), Math.Min(8, transcript.Count))),
                     learnerMessage = question,
                 }, cts.Token);
-                answer = reply.Text;
-                pose?.PlayEncouragement(false);
+                // The deterministic guard decides whether generated wording may be shown (ReplyGuard, area 9).
+                var verdict = Jobsite.Core.ReplyGuard.Check(reply.Text, grounding);
+                LastVerdict = verdict.Ok ? "llm:" + verdict.Reason : "invalid:" + verdict.Reason;
+                if (verdict.Ok) { answer = verdict.Text; pose?.PlayEncouragement(false); }
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[Crew] {displayName} offline: {e.GetType().Name}");
+                LastVerdict = "offline";
+            }
+            LastLatencyMs = (int)clock.ElapsedMilliseconds;
+            if (answer == null)
+            {
                 // Built-in answer: the grounded fact for what you photographed, else the authored facts, else the generic prompt.
                 answer = !string.IsNullOrWhiteSpace(selectedContext) ? "Here's the rule: " + selectedContext.Trim()
                     : !string.IsNullOrWhiteSpace(facts) ? facts.Split('.')[0] + "." : offlineLine;

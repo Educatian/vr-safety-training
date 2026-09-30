@@ -16,7 +16,12 @@ namespace Jobsite.Runtime
         const float FlushEvery = 10f;
 
         [Serializable] public sealed class Row { public string t; public string kind; public string condition; public string detail; public float clock; public string cfr; public string ksa; public float score; }
-        [Serializable] sealed class Batch { public string session; public string classCode; public string learner; public int episode; public int seed; public List<Row> rows; }
+        // Event schema v1 (docs/DesignUpgrade_2026-09-30.md §11): versions travel with every batch; the server rejects unknown
+        // kinds (Web/functions/api/_kinds.js, kept in sync by TelemetrySchemaTests) and non-roster learner codes.
+        public const string Schema = "cp-events-v1";
+        [Serializable] sealed class Batch { public string schema; public string build; public string consent; public string ecd; public string session; public string classCode; public string learner; public int episode; public int seed; public List<Row> rows; }
+        [Serializable] sealed class Withdrawal { public List<string> sessions; }
+        const string SessionsKey = "research_sessions";
         [Serializable] public sealed class Completion
         {
             public string session; public string classCode; public string learner; public int episode; public int xp; public float hii;
@@ -49,7 +54,9 @@ namespace Jobsite.Runtime
             if (!Online || pending.Count == 0) return;
             // No research consent, no play events off the device (the completion code below still works).
             if (GameSettings.ResearchConsent != 1) { pending.Clear(); return; }
-            var batch = new Batch { session = SessionId, classCode = GameSettings.ClassCode, learner = GameSettings.LearnerId, episode = Episode, seed = Seed, rows = new List<Row>(pending) };
+            var batch = new Batch { schema = Schema, build = Application.version, consent = GameSettings.ConsentVersion, ecd = Jobsite.Core.EvidenceModel.Current.version,
+                session = SessionId, classCode = RosterCode(GameSettings.ClassCode), learner = RosterCode(GameSettings.LearnerId), episode = Episode, seed = Seed, rows = new List<Row>(pending) };
+            Remember(SessionId);
             pending.Clear();
             StartCoroutine(Post("/api/events", JsonUtility.ToJson(batch), ok => { if (ok != null) Sent += batch.rows.Count; else pending.InsertRange(0, batch.rows); }));
         }
@@ -58,9 +65,40 @@ namespace Jobsite.Runtime
         public void Complete(Completion c, Action<string> done)
         {
             Flush();
-            c.session = SessionId; c.classCode = GameSettings.ClassCode; c.learner = GameSettings.LearnerId;
+            c.session = SessionId; c.classCode = RosterCode(GameSettings.ClassCode); c.learner = RosterCode(GameSettings.LearnerId);
             if (!Online) { done(null); return; }
             StartCoroutine(Post("/api/complete", JsonUtility.ToJson(c), body => done(body == null ? null : JsonUtility.FromJson<CodeReply>(body)?.code)));
+        }
+
+        // Roster codes only (letters, digits, - and _): a typed name loses its spaces and punctuation before it can leave.
+        public static string RosterCode(string v)
+        {
+            if (string.IsNullOrEmpty(v)) return "";
+            var sb = new StringBuilder();
+            foreach (var ch in v) if (char.IsLetterOrDigit(ch) && ch < 128 || ch == '-' || ch == '_') sb.Append(ch);
+            return sb.Length > 24 ? sb.ToString(0, 24) : sb.ToString();
+        }
+
+        // Sessions whose events left this device (kept locally so the participant can withdraw them later).
+        static void Remember(string session)
+        {
+            var list = PlayerPrefs.GetString(SessionsKey, "");
+            if (list.Contains(session)) return;
+            PlayerPrefs.SetString(SessionsKey, list.Length == 0 ? session : list + "," + session); PlayerPrefs.Save();
+        }
+
+        public static int RememberedSessions => PlayerPrefs.GetString(SessionsKey, "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Length;
+
+        // Participant withdrawal: deletes every session this browser sent (server: /api/withdraw), then forgets them.
+        public static IEnumerator Withdraw(Action<string> done)
+        {
+            var ids = new List<string>(PlayerPrefs.GetString(SessionsKey, "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+            if (ids.Count == 0) { done("Nothing to withdraw: no research data was sent from this browser."); yield break; }
+            string reply = null;
+            yield return Post("/api/withdraw", JsonUtility.ToJson(new Withdrawal { sessions = ids }), body => reply = body);
+            if (reply == null) { done("Couldn't reach the server. Try again when online."); yield break; }
+            PlayerPrefs.DeleteKey(SessionsKey); PlayerPrefs.Save();
+            done($"Withdrawn: {ids.Count} session(s) deleted from the research data.");
         }
 
         static IEnumerator Post(string path, string json, Action<string> done)

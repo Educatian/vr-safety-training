@@ -15,7 +15,9 @@ namespace Jobsite.Runtime
         private float nextBlink, blinkT = -1, moodUntil, speakUntil, nextViseme;
         private Mood mood; private int viseme = -1;
         private readonly float[] moodW = new float[6];
-        public Mood Current => Time.time < moodUntil ? mood : Mood.Neutral;
+        // Ambient mood from the bounded affect state (CrewAffect band); situational expressions override it briefly.
+        public Mood Ambient { get; set; } = Mood.Neutral;
+        public Mood Current => Time.time < moodUntil ? mood : Ambient;
         public bool HasFace => face != null;
 
         private void Awake()

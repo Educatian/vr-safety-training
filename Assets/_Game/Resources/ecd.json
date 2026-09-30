@@ -1,0 +1,181 @@
+{
+  "version": "ecd-v1",
+  "competentThreshold": 0.7,
+  "wDetect": 0.35,
+  "wTag": 0.15,
+  "wRisk": 0.15,
+  "wControl": 0.25,
+  "wEscalation": 0.1,
+  "cuedOrHintedFactor": 0.5,
+  "riskDeviationSpan": 8.0,
+  "controlGapQuality": [
+    1.0,
+    0.5,
+    0.25
+  ],
+  "controlScoreStep": 0.4,
+  "detectHintedFactor": 0.5,
+  "detectLateFactor": 0.75,
+  "detectEarlyWindow": 0.5,
+  "speakAssertive": 1.0,
+  "speakAggressive": 0.5,
+  "speakPassive": 0.0,
+  "observables": [
+    {
+      "key": "hierarchy_order",
+      "ksa": "KHierarchy",
+      "cfr": "1926.20(b)",
+      "evidence": "orders the hierarchy of controls at the gate"
+    },
+    {
+      "key": "quiz",
+      "ksa": "KStandard",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "answers the toolbox quiz on the day's standards"
+    },
+    {
+      "key": "measure",
+      "ksa": "SInspect",
+      "cfr": "",
+      "evidence": "measures with a field instrument before judging"
+    },
+    {
+      "key": "confirm_compliant",
+      "ksa": "SDiscriminate",
+      "cfr": "",
+      "evidence": "confirms a compliant look-alike instead of reporting it"
+    },
+    {
+      "key": "lookalike_reported",
+      "ksa": "SDiscriminate",
+      "cfr": "",
+      "evidence": "reports a compliant look-alike (false alarm)"
+    },
+    {
+      "key": "lookalike_trust",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "false alarm costs crew trust"
+    },
+    {
+      "key": "recognize",
+      "ksa": "SRecognize",
+      "cfr": "",
+      "evidence": "photographs and reports a real hazard"
+    },
+    {
+      "key": "missed",
+      "ksa": "SRecognize",
+      "cfr": "",
+      "evidence": "hazard still latent at the end of the shift"
+    },
+    {
+      "key": "energy",
+      "ksa": "KEnergy",
+      "cfr": "",
+      "evidence": "names the energy source"
+    },
+    {
+      "key": "risk",
+      "ksa": "SAssess",
+      "cfr": "",
+      "evidence": "rates probability x severity"
+    },
+    {
+      "key": "detect_time",
+      "ksa": "AProactive",
+      "cfr": "",
+      "evidence": "finds it early, before exposure grows"
+    },
+    {
+      "key": "incident",
+      "ksa": "AProactive",
+      "cfr": "",
+      "evidence": "hazard turned into a near miss / recordable"
+    },
+    {
+      "key": "control_choose",
+      "ksa": "SControl",
+      "cfr": "",
+      "evidence": "chooses a control level (vs. best feasible)"
+    },
+    {
+      "key": "install_wrong_kit",
+      "ksa": "SControl",
+      "cfr": "",
+      "evidence": "brings a kit that doesn't meet the standard"
+    },
+    {
+      "key": "install_misplaced",
+      "ksa": "SInstall",
+      "cfr": "",
+      "evidence": "sets the control down away from the exposure"
+    },
+    {
+      "key": "install_success",
+      "ksa": "SInstall",
+      "cfr": "",
+      "evidence": "installs / removes and verifies the control"
+    },
+    {
+      "key": "stop_work",
+      "ksa": "AIntervene",
+      "cfr": "",
+      "evidence": "radios stop-work with a named reason"
+    },
+    {
+      "key": "weather_decision",
+      "ksa": "AIntervene",
+      "cfr": "",
+      "evidence": "changes the plan when conditions change"
+    },
+    {
+      "key": "speakup_choice",
+      "ksa": "SCommunicate",
+      "cfr": "",
+      "evidence": "holds the stop under the foreman's pushback"
+    },
+    {
+      "key": "toolbox_talk",
+      "ksa": "SCommunicate",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "orders tomorrow's toolbox talk by risk"
+    },
+    {
+      "key": "why_choice",
+      "ksa": "KHierarchy",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "explains why the top risk leads the talk"
+    },
+    {
+      "key": "mission",
+      "ksa": "AThorough",
+      "cfr": "",
+      "evidence": "completes the inspection routine"
+    },
+    {
+      "key": "crew_self_report",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "crew trust high enough that a worker self-reports"
+    },
+    {
+      "key": "instrument_match",
+      "ksa": "KEnergy",
+      "cfr": "",
+      "evidence": "picks an instrument that reads the hazard's energy"
+    },
+    {
+      "key": "measured_first",
+      "ksa": "AThorough",
+      "cfr": "",
+      "evidence": "measures before making the call when an instrument can read it"
+    },
+    {
+      "key": "talk_top_risk",
+      "ksa": "SAssess",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "leads tomorrow's toolbox talk with the highest-risk finding"
+    }
+  ]
+}

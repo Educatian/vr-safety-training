@@ -156,6 +156,7 @@ namespace Jobsite.Runtime
             if (s == null) return "";
             var line = $"Shift {s.Clock / 60f:0.0} of {ShiftDirector.ShiftLength / 60f:0} min";
             if (s.StoppedSeconds > 0) line += $" · crew idle {s.StoppedSeconds / 60f:0.0} min (stops)";
+            line += $" · crew {ShiftDirector.AffectWord(s.Affect.BandOf(CrewAffect.Crew))}, Ray {ShiftDirector.AffectWord(s.Affect.BandOf(CrewAffect.Foreman))}";
             return line;
         }
 
@@ -199,6 +200,7 @@ namespace Jobsite.Runtime
             Label("SHIFT CLOSED", 34, Color.white);
             Label($"Hazards found {s.HazardIdentificationIndex:P0} · Precision {s.ReportPrecision:P0} · Incidents {s.NearMisses + s.Recordables}");
             Label($"Crew trust {s.CrewTrust:+0;-0;0} · Schedule slip {s.ScheduleSlipMinutes:0.0} min · +{director.Xp} XP");
+            Label($"Crew: {ShiftDirector.AffectWord(s.Affect.BandOf(CrewAffect.Crew))} · Ray: {ShiftDirector.AffectWord(s.Affect.BandOf(CrewAffect.Foreman))}", 18, Ink);
             if (director.EndedEarly) Label($"Shift ended early at {s.Clock / 60f:0.0} min: anything not found counts as missed.", 18, Accent);
 
             // Hazards grouped by outcome, with the control chosen vs. the best feasible one (GDD §15 item 4).
@@ -244,6 +246,8 @@ namespace Jobsite.Runtime
                 if (!string.IsNullOrEmpty(director.TalkFeedback)) Label(director.TalkFeedback, 19, new Color(.75f, 1f, .7f));
                 MasteryBars();
                 KsaProfile();
+                // Post-debrief support (area 12): the incident scenes are fictional but can echo real experiences.
+                Label("If anything in today's incidents brings up a real experience, talk to your instructor or campus counseling. You can stop or withdraw your research data any time (Esc).", 16, new Color(.7f, .75f, .75f));
                 foreach (var (ev, q) in director.WeatherCalls)
                     Label($"Weather call ({ev.Id}): " + (q == 2 ? "good" : q == 1 ? "partial" : "unsafe") + $"  +{WeatherPlan.Xp(q)} XP", 19, q == 2 ? Ink : new Color(1f, .6f, .45f));
                 foreach (var b in director.BadgesEarned) Label("BADGE · " + BadgeName(b) + $"  +{Career.BadgeBonus} SP", 22, Color.white);

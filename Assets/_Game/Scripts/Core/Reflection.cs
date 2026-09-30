@@ -105,7 +105,8 @@ namespace Jobsite.Core
 
         // Assertive-respectful holds the stop and keeps the foreman on side; aggressive holds it but costs trust;
         // passive gives the crew back to the hazard.
-        public static float Score(SpeakUpStyle s) => s == SpeakUpStyle.Assertive ? 1f : s == SpeakUpStyle.Aggressive ? 0.5f : 0f;
+        public static float Score(SpeakUpStyle s) => s == SpeakUpStyle.Assertive ? EvidenceModel.Current.speakAssertive
+            : s == SpeakUpStyle.Aggressive ? EvidenceModel.Current.speakAggressive : EvidenceModel.Current.speakPassive;
 
         public static string Reply(SpeakUpStyle s) => s switch
         {
@@ -221,5 +222,22 @@ namespace Jobsite.Core
 
         public static bool Plays(LineGate gate, bool clean) =>
             gate == LineGate.Always || (gate == LineGate.CleanShift) == clean;
+    }
+    // Guidance fading from the learner model (quality review 2026-09-30, area 3): the career level sets the starting
+    // guidance; the learner's best mastery in TODAY's areas then moves it one step. Mastered every area -> one step
+    // less; struggling (below StruggleBelow) in any area -> one step more. Unknown areas don't move it.
+    public static class Fading
+    {
+        public const float StruggleBelow = 0.4f;
+
+        public static int Adjust(int baseLevel, IEnumerable<float?> todaysAreaMastery, out string reason)
+        {
+            var known = todaysAreaMastery.Where(m => m.HasValue).Select(m => m.Value).ToList();
+            reason = "career";
+            if (known.Count == 0) return baseLevel;
+            if (known.Any(m => m < StruggleBelow)) { reason = "struggling"; return Math.Min(2, baseLevel + 1); }
+            if (known.All(m => m >= DaySession.CompetentThreshold)) { reason = "mastered"; return Math.Max(0, baseLevel - 1); }
+            return baseLevel;
+        }
     }
 }

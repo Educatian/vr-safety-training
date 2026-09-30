@@ -12,11 +12,48 @@ namespace Jobsite.Runtime
         private readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
         private AudioSource ui;
 
+        // Sound captions (GameSettings.SoundCaptions): sound-only cues as short bracketed text, bottom left, ~2.5 s.
+        static readonly Dictionary<string, string> Captions = new Dictionary<string, string>
+        {
+            ["radio"] = "[radio chirp]", ["shutter"] = "[camera shutter]", ["alarm"] = "[alarm sounding]",
+            ["success"] = "[confirmation chime]", ["thunder"] = "[thunder]",
+        };
+        private UnityEngine.UI.Text captionText;
+        private float captionUntil;
+        public static string LastCaption { get; private set; } = "";
+
+        private void ShowCaption(string text)
+        {
+            LastCaption = text;
+            if (captionText == null)
+            {
+                var go = new GameObject("SoundCaptions", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler));
+                var c = go.GetComponent<Canvas>(); c.renderMode = RenderMode.ScreenSpaceOverlay; c.sortingOrder = 400;
+                var sc = go.GetComponent<UnityEngine.UI.CanvasScaler>(); sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                sc.referenceResolution = new Vector2(1920, 1080) / GameSettings.TextScale; sc.matchWidthOrHeight = 1;
+                go.transform.SetParent(transform, false);
+                var t = new GameObject("Caption", typeof(RectTransform), typeof(UnityEngine.UI.Text), typeof(UnityEngine.UI.Outline));
+                t.transform.SetParent(go.transform, false);
+                var r = (RectTransform)t.transform; r.anchorMin = new Vector2(0.04f, 0.11f); r.anchorMax = new Vector2(0.5f, 0.15f); r.offsetMin = r.offsetMax = Vector2.zero;
+                captionText = t.GetComponent<UnityEngine.UI.Text>();
+                captionText.font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                captionText.fontSize = 26; captionText.color = new Color(1f, 1f, 1f, 0.9f); captionText.raycastTarget = false; captionText.alignment = TextAnchor.MiddleLeft;
+            }
+            captionText.text = text; captionText.enabled = true; captionUntil = Time.unscaledTime + 2.5f;
+        }
+
+        private void LateUpdate()
+        {
+            if (captionText != null && captionText.enabled && Time.unscaledTime > captionUntil) captionText.enabled = false;
+        }
+
         public static void Play(string name, float volume = 1f)
         {
             if (instance == null) instance = new GameObject("AudioDirector").AddComponent<AudioDirector>();
             var clip = instance.Clip(name);
             if (clip != null) instance.ui.PlayOneShot(clip, volume);
+            // Sound captions: sound-only cues also appear as text (the clicks are feedback for a visible press, skip them).
+            if (GameSettings.SoundCaptions && Captions.TryGetValue(name, out var caption)) instance.ShowCaption(caption);
         }
 
         private AudioClip Clip(string name)

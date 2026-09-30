@@ -101,15 +101,20 @@ namespace Jobsite.Core
             rows.Where(r => r.Cfr.Length > 0).GroupBy(r => r.Cfr)
                 .Select(g => (g.Key, g.Average(r => r.Score), g.Count())).OrderBy(t => t.Item2);
 
-        // Scoring rules (starting values; tune from the pilot data).
+        // Scoring rules: numbers live in the ECD model (EvidenceModel / Resources/ecd.json).
         public static float ControlScore(ControlLevel chosen, ControlLevel best) =>
-            chosen <= best ? 1f : Math.Max(0f, 1f - 0.4f * ((int)chosen - (int)best));
+            chosen <= best ? 1f : Math.Max(0f, 1f - EvidenceModel.Current.controlScoreStep * ((int)chosen - (int)best));
 
-        public static float RiskScore(int deviation) => 1f - Math.Min(8, Math.Max(0, deviation)) / 8f;
+        public static float RiskScore(int deviation)
+        {
+            var span = EvidenceModel.Current.riskDeviationSpan;
+            return 1f - Math.Min(span, Math.Max(0, deviation)) / span;
+        }
 
         // Found in the first half of the shift = full vigilance; later finds still count, a bit less.
         public static float DetectScore(float seconds, float shiftLength, bool hinted) =>
-            (hinted ? 0.5f : 1f) * (seconds <= shiftLength * 0.5f ? 1f : 0.75f);
+            (hinted ? EvidenceModel.Current.detectHintedFactor : 1f) *
+            (seconds <= shiftLength * EvidenceModel.Current.detectEarlyWindow ? 1f : EvidenceModel.Current.detectLateFactor);
     }
 
     // ---------- field-practice missions: the competent person's real inspection routines ----------

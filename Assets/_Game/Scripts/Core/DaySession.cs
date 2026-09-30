@@ -29,7 +29,7 @@ namespace Jobsite.Core
     public sealed class DaySession
     {
         // Starting values (GDD §5.2) — tune via playtest, not guesswork.
-        public const float CompetentThreshold = 0.7f;
+        public static float CompetentThreshold => EvidenceModel.Current.competentThreshold;   // ecd.json
         // A stop holds this long; then the foreman restarts the crew unless a control is on the way.
         public const float StopHoldSeconds = 120f;
         // Crew trust at which a worker starts self-reporting a hazard over the radio (GDD §5.2 feedback loop).
@@ -67,6 +67,8 @@ namespace Jobsite.Core
         public float Clock { get; private set; }
         public bool Paused { get; set; }
         public int CrewTrust { get; private set; }
+        // Continuous, bounded affect of the crew and the foreman (presentation; see CrewAffect).
+        public CrewAffect Affect { get; } = new CrewAffect();
         public int NearMisses { get; private set; }
         public int Recordables { get; private set; }
         public int TrueReports { get; private set; }
@@ -117,7 +119,7 @@ namespace Jobsite.Core
                 FalseReports++;
                 streak = 0;
                 if (++e.FalseReports == 2)
-                    CrewTrust--; // only a repeated false alarm on the same object costs trust
+                { CrewTrust--; Affect.Nudge(CrewAffect.Crew, -0.25f, 0.1f); } // only a repeated false alarm on the same object costs trust
                 return ReportOutcome.FalseReport;
             }
 
@@ -210,7 +212,7 @@ namespace Jobsite.Core
                 e.State = HazardState.Controlled;
                 e.LapseAt = float.PositiveInfinity;
                 e.PendingControl = null;
-                CrewTrust++;
+                CrewTrust++; Affect.Nudge(CrewAffect.Crew, 0.2f, -0.1f);
                 return ControlOutcome.Eliminated;
             }
 
@@ -245,7 +247,7 @@ namespace Jobsite.Core
             e.LapseAt = float.PositiveInfinity;
             e.Evidence.AppliedControl = e.PendingControl ?? ControlLevel.Engineering;
             e.PendingControl = null;
-            CrewTrust++;
+            CrewTrust++; Affect.Nudge(CrewAffect.Crew, 0.2f, -0.1f);
             return true;
         }
 
@@ -274,7 +276,7 @@ namespace Jobsite.Core
             if (e.Evidence.StopWorkCalled)
                 return StopOutcome.Repeated;
             e.Evidence.StopWorkCalled = true;
-            CrewTrust++;
+            CrewTrust++; Affect.Nudge(CrewAffect.Crew, 0.15f, 0.1f); Affect.Nudge(CrewAffect.Foreman, -0.05f, 0.35f);   // the foreman feels the schedule
             return StopOutcome.Justified;
         }
 
@@ -285,9 +287,9 @@ namespace Jobsite.Core
             if (!entries.TryGetValue(id, out var e) || !e.Spec.IsHazard || e.Evidence.SpeakUp.HasValue)
                 return false;
             e.Evidence.SpeakUp = style;
-            if (style == SpeakUpStyle.Assertive) CrewTrust++;
-            else if (style == SpeakUpStyle.Aggressive) CrewTrust--;
-            else LiftStop(id);
+            if (style == SpeakUpStyle.Assertive) { CrewTrust++; Affect.Nudge(CrewAffect.Foreman, 0.25f, -0.15f); Affect.Nudge(CrewAffect.Crew, 0.1f, 0f); }
+            else if (style == SpeakUpStyle.Aggressive) { CrewTrust--; Affect.Nudge(CrewAffect.Foreman, -0.35f, 0.3f); Affect.Nudge(CrewAffect.Crew, -0.1f, 0.1f); }
+            else { LiftStop(id); Affect.Nudge(CrewAffect.Foreman, 0.05f, -0.2f); Affect.Nudge(CrewAffect.Crew, -0.15f, 0.05f); }
             return true;
         }
 
@@ -304,6 +306,7 @@ namespace Jobsite.Core
                 return events;
 
             Clock += deltaSeconds;
+            Affect.Tick(deltaSeconds);
             foreach (var e in entries.Values)
             {
                 if (!e.Spec.IsHazard)
@@ -323,7 +326,7 @@ namespace Jobsite.Core
                     e.State = HazardState.Lapsed;
                     e.LapseAt = float.PositiveInfinity;
                     e.Evidence.Lapses++;
-                    CrewTrust--;
+                    CrewTrust--; Affect.Nudge(CrewAffect.Crew, -0.15f, 0.1f);
                     events.Add(new DayEvent(DayEventKind.Lapsed, e.Spec.Id, Clock));
                 }
 
@@ -335,6 +338,7 @@ namespace Jobsite.Core
                     e.Evidence.BecameIncident = true;
                     var kind = e.Spec.IsHighSeverity ? DayEventKind.Recordable : DayEventKind.NearMiss;
                     if (kind == DayEventKind.Recordable) Recordables++; else NearMisses++;
+                    Affect.Nudge(CrewAffect.Crew, -0.1f, kind == DayEventKind.Recordable ? 0.35f : 0.25f); Affect.Nudge(CrewAffect.Foreman, 0f, 0.2f);
                     events.Add(new DayEvent(kind, e.Spec.Id, Clock));
                 }
             }
@@ -342,19 +346,20 @@ namespace Jobsite.Core
             return events;
         }
 
-        // Composite 0..1 per real hazard: detect .35, tag .15, risk .15, control .25, escalation .10.
+        // Composite 0..1 per real hazard; weights and factors come from the ECD model (EvidenceModel / ecd.json).
         public static float HazardScore(HazardSpec spec, HazardEvidence ev)
         {
             if (!ev.Detected)
                 return 0f;
 
-            var score = 0.35f;
-            if (ev.TagCorrect) score += 0.15f;
-            score += 0.15f * (1f - ev.RiskDeviation / 8f);
-            score += 0.25f * ControlQuality(spec, ev);
+            var m = EvidenceModel.Current;
+            var score = m.wDetect;
+            if (ev.TagCorrect) score += m.wTag;
+            score += m.wRisk * (1f - Math.Min(1f, ev.RiskDeviation / m.riskDeviationSpan));
+            score += m.wControl * ControlQuality(spec, ev);
             // Escalation counts only if the stop was called and held (backing down to the foreman forfeits it).
-            if (!spec.RequiresStopWork || (ev.StopWorkCalled && ev.SpeakUp != SpeakUpStyle.Passive)) score += 0.10f;
-            return ev.Hinted || ev.Cued ? score * 0.5f : score;
+            if (!spec.RequiresStopWork || (ev.StopWorkCalled && ev.SpeakUp != SpeakUpStyle.Passive)) score += m.wEscalation;
+            return ev.Hinted || ev.Cued ? score * m.cuedOrHintedFactor : score;
         }
 
         static float ControlQuality(HazardSpec spec, HazardEvidence ev)
@@ -362,7 +367,8 @@ namespace Jobsite.Core
             if (ev.AppliedControl == null || ev.BecameIncident)
                 return 0f;
             var gap = (int)ev.AppliedControl.Value - (int)spec.BestFeasibleControl;
-            var quality = gap <= 0 ? 1f : gap == 1 ? 0.5f : 0.25f;
+            var q = EvidenceModel.Current.controlGapQuality;
+            var quality = gap <= 0 ? q[0] : gap == 1 ? q[1] : q[2];
             return ev.Lapses > 0 ? quality * 0.5f : quality;
         }
 

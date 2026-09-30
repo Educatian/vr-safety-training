@@ -83,7 +83,7 @@ namespace Jobsite.Runtime
             // Dizziness: a slow sway, swapped in each frame (previous sway removed first, so it never accumulates).
             if (player != null && player.View != null)
             {
-                var sway = inShift && s > 0 ? Quaternion.Euler(Mathf.Sin(Time.time * 0.7f) * 1.2f * s, 0, Mathf.Sin(Time.time * 0.5f) * 2.5f * s) : Quaternion.identity;
+                var sway = inShift && s > 0 && !GameSettings.ReduceMotion ? Quaternion.Euler(Mathf.Sin(Time.time * 0.7f) * 1.2f * s, 0, Mathf.Sin(Time.time * 0.5f) * 2.5f * s) : Quaternion.identity;
                 var v = player.View.transform;
                 v.localRotation = v.localRotation * Quaternion.Inverse(lastSway) * sway;
                 lastSway = sway;

@@ -131,7 +131,50 @@ namespace Jobsite.Runtime
             flavorUntil = Time.time + Random.Range(4f, 9f);
         }
 
-        private void Start() { var p = FindFirstObjectByType<SitePlayer>(); viewer = p != null ? p.transform : null; }
+        private void Start()
+        {
+            var p = FindFirstObjectByType<SitePlayer>(); viewer = p != null ? p.transform : null;
+            if (rHand != null && lHand != null && (activity == Activity.Dig || activity == Activity.Saw))
+                tool = HandTools.Build(activity == Activity.Dig ? HandTools.Kind.Shovel : HandTools.Kind.CutoffSaw, transform);
+        }
+
+        // ---- hand tool (shovel / cut-off saw): gripped while working, set down beside the worker while reacting ----
+        private Transform tool;
+        public Transform Tool => tool;
+        public Vector3 Palm(bool right)
+        {
+            var h = right ? rHand : lHand; var f = right ? rFore : lFore;
+            if (h == null) return transform.position;
+            return f != null ? h.position + (h.position - f.position).normalized * 0.07f : h.position;
+        }
+
+        private void PlaceTool(bool working)
+        {
+            if (tool == null) return;
+            var fwd = transform.forward; fwd.y = 0; fwd.Normalize();
+            if (!working)
+            {
+                tool.SetPositionAndRotation(transform.position + transform.right * 0.4f + fwd * 0.15f + Vector3.up * 0.03f,
+                    Quaternion.LookRotation(transform.right, Vector3.up));
+                return;
+            }
+            Vector3 r = Palm(true), l = Palm(false);
+            if (activity == Activity.Dig)
+            {
+                // Handle through both palms: origin at the upper hand, pointing past the lower hand to the blade.
+                Vector3 upper = l.y > r.y ? l : r, lower = l.y > r.y ? r : l;
+                var dir = lower - upper;
+                dir = dir.magnitude < 0.08f ? (fwd * 0.5f - Vector3.up).normalized : dir.normalized;
+                var up = Vector3.ProjectOnPlane(fwd, dir); if (up.sqrMagnitude < 1e-4f) up = Vector3.up;
+                tool.SetPositionAndRotation(upper, Quaternion.LookRotation(dir, up));
+            }
+            else
+            {
+                // Rear handle in the right palm, blade forward and down toward the pipe.
+                var aim = (fwd * 0.87f - Vector3.up * 0.5f).normalized;
+                tool.SetPositionAndRotation(r, Quaternion.LookRotation(aim, Vector3.Cross(aim, transform.right).normalized));
+            }
+        }
 
         private void LateUpdate()
         {
@@ -148,13 +191,14 @@ namespace Jobsite.Runtime
                 }
             }
             var reacting = shot != Shot.None || combo.Count > 0;
+            if (reacting) PlaceTool(false);
 
             // Working crews keep working unless they are reacting to something.
             if (!reacting)
                 switch (activity)
                 {
-                    case Activity.Dig: Dig(t); return;
-                    case Activity.Saw: Saw(t); return;
+                    case Activity.Dig: Dig(t); PlaceTool(true); return;
+                    case Activity.Saw: Saw(t); PlaceTool(true); return;
                     case Activity.Walk: Walk(t); return;
                     case Activity.Signal: Signal(t); return;
                 }

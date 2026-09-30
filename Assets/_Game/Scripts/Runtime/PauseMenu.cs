@@ -47,7 +47,7 @@ namespace Jobsite.Runtime
             panel.SetParent(host != null ? host : transform, false);
             panel.anchorMin = new Vector2(0.34f, 0.04f); panel.anchorMax = new Vector2(0.66f, 0.96f); panel.offsetMin = panel.offsetMax = Vector2.zero;
             panel.GetComponent<Image>().color = new Color(.06f, .07f, .08f, .95f);
-            var v = panel.GetComponent<VerticalLayoutGroup>(); v.padding = new RectOffset(28, 28, 20, 20); v.spacing = 6;
+            var v = panel.GetComponent<VerticalLayoutGroup>(); v.padding = new RectOffset(28, 28, 16, 16); v.spacing = 3;
             v.childControlHeight = v.childControlWidth = true; v.childForceExpandHeight = false;
             Row("PAUSED", null, 40, new Color(1f, .78f, .1f));
             Row("Resume", Close);
@@ -58,10 +58,13 @@ namespace Jobsite.Runtime
             Cycle(() => $"Graphics  {new[] { "Low", "Medium", "High" }[GameSettings.Quality]}", () => GameSettings.Quality = (GameSettings.Quality + 1) % 3);
             Cycle(() => $"Text size  {Mathf.RoundToInt(GameSettings.TextScale * 100)}% (next episode)", () => GameSettings.TextScale = GameSettings.TextScale >= 1.5f ? 1f : GameSettings.TextScale + 0.25f);
             Cycle(() => $"Tutorial  {(GameSettings.Tutorial ? "On" : "Off")}", () => GameSettings.Tutorial = !GameSettings.Tutorial);
+            Cycle(() => $"Reduce motion  {(GameSettings.ReduceMotion ? "On (no camera sway or dolly)" : "Off")}", () => GameSettings.ReduceMotion = !GameSettings.ReduceMotion);
+            Cycle(() => $"Sound captions  {(GameSettings.SoundCaptions ? "On" : "Off")}", () => GameSettings.SoundCaptions = !GameSettings.SoundCaptions);
             Cycle(() => $"Visual cues  {new[] { "Auto (by level)", "Off", "Light", "Full" }[GameSettings.Guidance + 1]} (next shift)", () => GameSettings.Guidance = GameSettings.Guidance >= 2 ? -1 : GameSettings.Guidance + 1);
             Cycle(() => $"AI crew chat  {(GameSettings.AiConsent == 1 ? "Allowed" : "Offline answers")}", () => GameSettings.AiConsent = GameSettings.AiConsent == 1 ? 0 : 1);
             Cycle(() => $"Research data  {(GameSettings.ResearchConsent == 1 ? "Sharing (opted in)" : "Not shared")}", () => GameSettings.ResearchConsent = GameSettings.ResearchConsent == 1 ? 0 : 1);
             Cycle(() => $"Facilitator: all episodes  {(GameSettings.UnlockAll ? "Unlocked" : "Mastery gate")}", () => GameSettings.UnlockAll = !GameSettings.UnlockAll);
+            WithdrawRow();
             ResetRow();
             Row("Episode select", () => { Show(false); EpisodeDirector.BackToMenu(); });
             Row("Controls: drag mouse = look · WASD · E act · Tab tablet (F full view) · M map · Esc pause", null, 18, new Color(.75f, .8f, .8f));
@@ -70,7 +73,21 @@ namespace Jobsite.Runtime
         private void Cycle(Func<string> label, Action next)
         {
             Text text = null;
-            text = Row(label(), () => { next(); PlayerPrefs.Save(); text.text = label(); AudioDirector.Play("click"); }, 22);
+            text = Row(label(), () => { next(); PlayerPrefs.Save(); text.text = label(); AudioDirector.Play("click"); }, 20);
+        }
+
+        // Participant withdrawal (asks twice): deletes the research events this browser sent, on the server.
+        private void WithdrawRow()
+        {
+            var n = Telemetry.RememberedSessions;
+            if (n == 0) return;
+            Text text = null; var armed = false;
+            text = Row($"Withdraw my research data ({n} session{(n == 1 ? "" : "s")})", () =>
+            {
+                if (!armed) { armed = true; text.text = "Tap again to delete it from the research server"; return; }
+                armed = false; text.text = "Withdrawing…";
+                StartCoroutine(Telemetry.Withdraw(msg => { if (text != null) text.text = msg; }));
+            }, 22);
         }
 
         // Facilitator: fresh participant on the same browser (career, mastery, banked hints, best scores). Asks twice.

@@ -9,9 +9,9 @@ export async function onRequestGet({ request, env }) {
 
   if (url.searchParams.get("format") === "csv") {
     const { results } = await env.DB.prepare(
-      "SELECT received, session, learner, episode, seed, t, kind, condition, detail, clock, cfr, ksa, score FROM events WHERE class_code = ?1 ORDER BY id LIMIT 50000")
+      "SELECT received, session, learner, episode, seed, t, kind, condition, detail, clock, cfr, ksa, score, schema, build, consent, ecd FROM events WHERE class_code = ?1 ORDER BY id LIMIT 50000")
       .bind(cls).all();
-    const cols = ["received", "session", "learner", "episode", "seed", "t", "kind", "condition", "detail", "clock", "cfr", "ksa", "score"];
+    const cols = ["received", "session", "learner", "episode", "seed", "t", "kind", "condition", "detail", "clock", "cfr", "ksa", "score", "schema", "build", "consent", "ecd"];
     const esc = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`;
     const csv = [cols.join(","), ...results.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
     return new Response(csv, { headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="${cls}_events.csv"`, "Cache-Control": "no-store" } });

@@ -19,6 +19,16 @@ namespace Jobsite.Runtime
         public static int Level(int careerLevel) => GameSettings.Guidance >= 0 ? GameSettings.Guidance
             : careerLevel <= 1 ? Full : careerLevel == 2 ? Light : Off;
 
+        // Auto guidance, then one step by the learner model: best mastery in today's hazard areas (Core.Fading).
+        public static int Level(int careerLevel, IEnumerable<CpArea> todaysAreas, out string reason)
+        {
+            reason = GameSettings.Guidance >= 0 ? "fixed" : "career";
+            var start = Level(careerLevel);
+            if (GameSettings.Guidance >= 0 || todaysAreas == null) return start;
+            var best = MasteryStore.Load();
+            return Fading.Adjust(start, todaysAreas.Distinct().Select(a => best.TryGetValue(a, out var v) ? v : (float?)null), out reason);
+        }
+
         static readonly Color MissionColor = new Color(0.25f, 0.85f, 1f, 0.9f);
         static readonly Color HintColor = new Color(1f, 0.8f, 0.1f, 0.85f);
         static readonly Color KitColor = new Color(1f, 0.75f, 0.1f, 0.9f);
@@ -50,7 +60,7 @@ namespace Jobsite.Runtime
             director = GetComponent<ShiftDirector>() ?? FindFirstObjectByType<ShiftDirector>();
             mat = new Material(Shader.Find("Sprites/Default"));       // always included in builds; unlit + alpha
             root = new GameObject("ScaffoldCues").transform;
-            Guidance = Level(director != null ? director.Career.Level : 1);
+            Guidance = director != null ? Level(director.Career.Level, director.TodaysAreas, out _) : Level(1);
             missionCue = Diamond("MissionCue", MissionColor, 0.45f);
             missionRing = Ring("MissionRing", MissionColor, ZoneRadius, 0.15f);
             kitRing = Ring("KitDropRing", KitColor, 1.2f, 0.15f);

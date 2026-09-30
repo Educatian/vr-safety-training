@@ -174,8 +174,10 @@ namespace Jobsite.Runtime
             var hint = Text(box, placeholder, 22, new Color(1, 1, 1, .4f), Vector2.zero, Vector2.one, TextAnchor.MiddleLeft);
             hint.rectTransform.offsetMin = new Vector2(14, 0);
             var field = box.gameObject.AddComponent<InputField>();
-            field.textComponent = text; field.placeholder = hint; field.characterLimit = 24; field.text = value;
-            field.onEndEdit.AddListener(v => { save(v); PlayerPrefs.Save(); });
+            field.textComponent = text; field.placeholder = hint; field.characterLimit = 24; field.text = Telemetry.RosterCode(value);
+            // Roster codes only: no spaces or names can be typed (the server refuses them too).
+            field.onValidateInput += (t, i, c) => char.IsLetterOrDigit(c) && c < 128 || c == '-' || c == '_' ? c : '\0';
+            field.onEndEdit.AddListener(v => { save(Telemetry.RosterCode(v)); PlayerPrefs.Save(); });
         }
 
         private static void Art(RectTransform parent, string resource, Vector2 min, Vector2 max, Rect uv, bool lit)
@@ -290,7 +292,8 @@ namespace Jobsite.Runtime
             {
                 for (var t = 0f; t < shot.Seconds && !skip; t += Time.deltaTime)
                 {
-                    var k = Mathf.SmoothStep(0, 1, t / shot.Seconds);
+                    // Reduce motion: hold each shot's framing instead of dollying (a cut between shots, no camera travel).
+                    var k = GameSettings.ReduceMotion ? 0.5f : Mathf.SmoothStep(0, 1, t / shot.Seconds);
                     cine.transform.position = Vector3.Lerp(Vec(shot.From), Vec(shot.To), k);
                     cine.transform.rotation = Quaternion.LookRotation(Vec(shot.LookAt) - cine.transform.position);
                     lineClock += Time.deltaTime;

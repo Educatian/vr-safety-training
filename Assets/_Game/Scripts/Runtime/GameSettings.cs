@@ -13,6 +13,10 @@ namespace Jobsite.Runtime
         public static float TextScale { get => PlayerPrefs.GetFloat("set_text", 1f); set => PlayerPrefs.SetFloat("set_text", value); }             // 1, 1.25, 1.5
         public static int Guidance { get => PlayerPrefs.GetInt("set_guidance", -1); set => PlayerPrefs.SetInt("set_guidance", value); }   // -1 auto by level, 0 off, 1 light, 2 full
         public static bool Tutorial { get => PlayerPrefs.GetInt("set_tutorial", 1) == 1; set => PlayerPrefs.SetInt("set_tutorial", value ? 1 : 0); }
+        // Accessibility (quality review 2026-09-30, areas 10/11): no camera motion the learner didn't cause (heat-strain
+        // sway, cinematic dollies become cuts), and text captions for sound-only cues.
+        public static bool ReduceMotion { get => PlayerPrefs.GetInt("set_reduce_motion", 0) == 1; set => PlayerPrefs.SetInt("set_reduce_motion", value ? 1 : 0); }
+        public static bool SoundCaptions { get => PlayerPrefs.GetInt("set_sound_captions", 1) == 1; set => PlayerPrefs.SetInt("set_sound_captions", value ? 1 : 0); }
         // AI chat consent: -1 not asked, 0 declined (offline answers), 1 agreed.
         public static int AiConsent { get => PlayerPrefs.GetInt("set_ai_consent", -1); set => PlayerPrefs.SetInt("set_ai_consent", value); }
         // Research participation (IRB): play events reach the course server only after an explicit opt-in.
