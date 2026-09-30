@@ -17,6 +17,8 @@ namespace Jobsite.Runtime
         // sway, cinematic dollies become cuts), and text captions for sound-only cues.
         public static bool ReduceMotion { get => PlayerPrefs.GetInt("set_reduce_motion", 0) == 1; set => PlayerPrefs.SetInt("set_reduce_motion", value ? 1 : 0); }
         public static bool SoundCaptions { get => PlayerPrefs.GetInt("set_sound_captions", 1) == 1; set => PlayerPrefs.SetInt("set_sound_captions", value ? 1 : 0); }
+        // Crew lines spoken by the browser voice (web build), pitch/rate following each speaker's trust/stress.
+        public static bool CrewVoices { get => PlayerPrefs.GetInt("set_crew_voices", 1) == 1; set => PlayerPrefs.SetInt("set_crew_voices", value ? 1 : 0); }
         // AI chat consent: -1 not asked, 0 declined (offline answers), 1 agreed.
         public static int AiConsent { get => PlayerPrefs.GetInt("set_ai_consent", -1); set => PlayerPrefs.SetInt("set_ai_consent", value); }
         // Research participation (IRB): play events reach the course server only after an explicit opt-in.

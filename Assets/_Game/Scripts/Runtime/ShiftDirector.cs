@@ -143,10 +143,13 @@ namespace Jobsite.Runtime
         // Hazard areas active today (drives the mastery-based guidance fading).
         public IEnumerable<CpArea> TodaysAreas => conditions == null ? Enumerable.Empty<CpArea>() : conditions.Where(c => c != null && c.IsHazard).Select(c => c.Spec.Area).Distinct();
 
+        public FrameStats Frames { get; } = new FrameStats();
+
         private void Update()
         {
             if (Session == null || Current != Phase.Shift) return;
             Session.Paused = MenuOpen;
+            if (!MenuOpen) Frames.Add(Time.unscaledDeltaTime * 1000f);
             foreach (var ev in Session.Advance(Time.deltaTime)) Handle(ev);
             if (!selfReported && Session.CrewTrust >= DaySession.SelfReportTrust && Session.Clock >= 90f) CrewSelfReport();
             if (Time.time >= nextAffect) { nextAffect = Time.time + 0.5f; ApplyAffect(); }
@@ -665,8 +668,10 @@ namespace Jobsite.Runtime
                 Log("ksa", c.Id, "missed", Ecd("missed"), 0f);
             foreach (Ksa k in Enum.GetValues(typeof(Ksa)))
                 if (Competence.Mean(k) is float m) Log("ksa_profile", k.ToString(), "n=" + Competence.Count(k), k, m, "");
-            // Carry the weakest competency into the next episode's briefing (reflection feeds forward).
             foreach (var r in OpenRequests.ToList()) Log("crew_request_missed", r.Id, r.Npc, Ecd("crew_request_missed"), 0f, r.Step.Cfr);
+            // Frame-time summary of the shift (web performance budget; quality review area 11).
+            Log("perf", "shift", Frames.Summary() + $" q={GameSettings.Quality} res={Screen.width}x{Screen.height}");
+            // Carry the weakest competency into the next episode's briefing (reflection feeds forward).
             var weakest = CarryForward.Weakest(Competence);
             if (weakest.HasValue) { PlayerPrefs.SetString(CarryKey, weakest.Value.ksa + ":" + weakest.Value.mean.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)); }
             else PlayerPrefs.DeleteKey(CarryKey);
@@ -833,7 +838,7 @@ namespace Jobsite.Runtime
             if (TalkingTo == crew) tablet.Refresh();
         }
 
-        public void Say(string text) { notice = text; Ping(); }
+        public void Say(string text) { notice = text; Ping(); CrewVoice.SpeakLine(text, Session?.Affect); }
         private void Ping() => AudioDirector.Play("radio");
 
         // Normal reach is the career photo range; overhead hazards (boom near a line) can be photographed from farther.

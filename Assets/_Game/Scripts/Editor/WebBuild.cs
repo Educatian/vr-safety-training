@@ -13,6 +13,18 @@ namespace Jobsite.Editor
     {
         const string Out = "Builds/WebGL";
 
+        // Background crew variety needs the female body in the player: referenced from Resources/CrewBodies.asset.
+        public static void EnsureCrewBodies()
+        {
+            const string path = "Assets/_Game/Resources/CrewBodies.asset";
+            var b = AssetDatabase.LoadAssetAtPath<Jobsite.Runtime.CrewBodies>(path);
+            if (b == null) { b = ScriptableObject.CreateInstance<Jobsite.Runtime.CrewBodies>(); AssetDatabase.CreateAsset(b, path); }
+            b.female = AssetDatabase.LoadAssetAtPath<GameObject>(Jobsite.Runtime.CrewBodies.FemalePath);
+            EditorUtility.SetDirty(b);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[WebBuild] crew bodies: female=" + (b.female != null));
+        }
+
         [MenuItem("Jobsite/Build/WebGL")]
         public static void Build()
         {
@@ -29,6 +41,7 @@ namespace Jobsite.Editor
             ShrinkAssets();
             UrpSetup.EnsurePostProcessData();
             EnsureAlwaysIncludedShaders();
+            EnsureCrewBodies();
             PlayerSettings.productName = "Competent Person";
             PlayerSettings.companyName = "ADIE Lab";
 

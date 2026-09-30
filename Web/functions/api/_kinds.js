@@ -5,7 +5,7 @@ export const KINDS = new Set([
   "access", "carry_forward", "chat_reply", "checkin", "coach_query", "confirm_compliant", "control_choose", "crew_request", "crew_request_done", "crew_request_missed", "crew_self_report", "episode_complete",
   "hierarchy_order", "hint", "incident_review", "install_attempt", "install_success", "instrument_match", "kit_choose",
   "kit_collect", "ksa", "ksa_profile", "mastery", "measure", "measure_none", "measured_first", "mission_complete",
-  "mission_step", "photo", "placement_attempt", "quiz", "radio_query_open", "report", "session_start", "shift_begin",
+  "mission_step", "perf", "photo", "placement_attempt", "quiz", "radio_query_open", "report", "session_start", "shift_begin",
   "shift_end", "speakup_choice", "stop_work", "streak", "talk_top_risk", "toolbox_talk", "vehicle_enter", "weather",
   "weather_decision", "why_choice",
   // DayEventKind (hazard state changes)

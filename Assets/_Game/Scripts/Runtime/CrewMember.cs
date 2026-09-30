@@ -115,6 +115,8 @@ namespace Jobsite.Runtime
             }
             Thinking = false;
             transcript.Add($"{displayName}: {answer}");
+            var id = string.IsNullOrEmpty(characterId) ? displayName.Split(' ')[0].ToLowerInvariant() : characterId;
+            CrewVoice.Speak(Jobsite.Core.VoiceProsody.Knows(id) ? id : "crew", answer, FindFirstObjectByType<ShiftDirector>()?.Session?.Affect);
             LastReplyLength = answer.Length; answeredFrame = Time.frameCount;
         }
     }

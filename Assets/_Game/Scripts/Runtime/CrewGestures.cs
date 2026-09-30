@@ -107,6 +107,18 @@ namespace Jobsite.Runtime
 
         private void Awake()
         {
+            Rebind();
+            crew = GetComponent<CrewMember>();
+            nameTag = GetComponent<NameTag>();
+            face = GetComponent<NpcFace>();
+            seed = Random.value * 100f;
+            flavorUntil = Time.time + Random.Range(4f, 9f);
+        }
+
+        // Bone discovery + rest pose. Called again when the body is swapped at scene load (CrewVariety), before Start.
+        public bool Rigged => head != null && rHand != null && lHand != null;
+        public void Rebind()
+        {
             var ts = GetComponentsInChildren<Transform>(true);
             // Rocketbox "Bip01 X" or Mixamo "mixamorig:X" / "mixamorig_X" / "X".
             Transform Find(params string[] names)
@@ -124,11 +136,7 @@ namespace Jobsite.Runtime
             bones = new[] { pelvis, spine, neck, head, lUpper, lFore, rUpper, rFore, lThigh, rThigh, lCalf, rCalf };
             rest = new Quaternion[bones.Length];
             for (var i = 0; i < bones.Length; i++) if (bones[i] != null) rest[i] = bones[i].localRotation;
-            crew = GetComponent<CrewMember>();
-            nameTag = GetComponent<NameTag>();
-            face = GetComponent<NpcFace>();
-            seed = Random.value * 100f;
-            flavorUntil = Time.time + Random.Range(4f, 9f);
+            haveShown = false;
         }
 
         private void Start()

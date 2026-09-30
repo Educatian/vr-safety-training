@@ -60,6 +60,7 @@ namespace Jobsite.Runtime
             Cycle(() => $"Tutorial  {(GameSettings.Tutorial ? "On" : "Off")}", () => GameSettings.Tutorial = !GameSettings.Tutorial);
             Cycle(() => $"Reduce motion  {(GameSettings.ReduceMotion ? "On (no camera sway or dolly)" : "Off")}", () => GameSettings.ReduceMotion = !GameSettings.ReduceMotion);
             Cycle(() => $"Sound captions  {(GameSettings.SoundCaptions ? "On" : "Off")}", () => GameSettings.SoundCaptions = !GameSettings.SoundCaptions);
+            Cycle(() => $"Crew voices  {(GameSettings.CrewVoices ? "On (tone follows mood)" : "Off (captions only)")}", () => { GameSettings.CrewVoices = !GameSettings.CrewVoices; if (!GameSettings.CrewVoices) CrewVoice.Stop(); });
             Cycle(() => $"Visual cues  {new[] { "Auto (by level)", "Off", "Light", "Full" }[GameSettings.Guidance + 1]} (next shift)", () => GameSettings.Guidance = GameSettings.Guidance >= 2 ? -1 : GameSettings.Guidance + 1);
             Cycle(() => $"AI crew chat  {(GameSettings.AiConsent == 1 ? "Allowed" : "Offline answers")}", () => GameSettings.AiConsent = GameSettings.AiConsent == 1 ? 0 : 1);
             Cycle(() => $"Research data  {(GameSettings.ResearchConsent == 1 ? "Sharing (opted in)" : "Not shared")}", () => GameSettings.ResearchConsent = GameSettings.ResearchConsent == 1 ? 0 : 1);
