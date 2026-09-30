@@ -121,6 +121,7 @@ namespace Jobsite.Runtime
             everCaptured |= player != null && player.HasLooked;
             Sweat();
             var text = director.AimPrompt(out var actionable);
+            SiteFx.Viewfinder(actionable && text.Contains("Photograph"));   // camera brackets lock on
             prompt.text = MobileControls.Active && text.StartsWith("E  ") ? "ACT: " + text.Substring(3) : text;
             var inWorld = !director.MenuOpen && !director.Finished && !PauseMenu.Paused;
             dot.enabled = inWorld;

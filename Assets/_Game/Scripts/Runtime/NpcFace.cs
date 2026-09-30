@@ -15,6 +15,8 @@ namespace Jobsite.Runtime
         private float nextBlink, blinkT = -1, moodUntil, speakUntil, nextViseme;
         private Mood mood; private int viseme = -1;
         private readonly float[] moodW = new float[6];
+        private readonly float[] visemeW = new float[5];
+        private float jawW;
         // Ambient mood from the bounded affect state (CrewAffect band); situational expressions override it briefly.
         public Mood Ambient { get; set; } = Mood.Neutral;
         public Mood Current => Time.time < moodUntil ? mood : Ambient;
@@ -45,7 +47,8 @@ namespace Jobsite.Runtime
             if (blinkT >= 0)
             {
                 blinkT += Time.deltaTime;
-                blink = Mathf.Clamp01(1f - Mathf.Abs(blinkT / 0.07f - 1f));
+                var tri = Mathf.Clamp01(1f - Mathf.Abs(blinkT / 0.07f - 1f));
+                blink = tri * tri * (3f - 2f * tri);   // eased lid, no linear snap at the ends
                 if (blinkT > 0.14f) { blinkT = -1; nextBlink = Time.time + Random.Range(2.5f, 6f); }
             }
             Set(blinkL, blink * 100f); Set(blinkR, blink * 100f);
@@ -65,8 +68,16 @@ namespace Jobsite.Runtime
             // Speech: a new viseme every ~90 ms with the jaw following.
             var speaking = Time.time < speakUntil;
             if (speaking && Time.time >= nextViseme) { viseme = Random.Range(0, visemes.Length); nextViseme = Time.time + Random.Range(0.07f, 0.12f); }
-            for (var i = 0; i < visemes.Length; i++) Set(visemes[i], speaking && i == viseme ? 80f : 0f);
-            Set(jaw, speaking ? (viseme == 3 ? 0f : 35f + Mathf.Sin(Time.time * 20f) * 15f) : 0f);
+            // Visemes and jaw ease toward their targets (they used to jump 0 <-> 80 every ~90 ms, a visible mouth flicker).
+            var ease = 1f - Mathf.Exp(-Time.deltaTime / 0.045f);
+            for (var i = 0; i < visemes.Length; i++)
+            {
+                visemeW[i] = Mathf.Lerp(visemeW[i], speaking && i == viseme ? 70f : 0f, ease);
+                Set(visemes[i], visemeW[i]);
+            }
+            var jawTarget = speaking ? (viseme == 3 ? 4f : 28f + Mathf.Sin(Time.time * 17f) * 10f) : 0f;
+            jawW = Mathf.Lerp(jawW, jawTarget, ease);
+            Set(jaw, jawW);
         }
 
         private void Set(int index, float w) { if (index >= 0) face.SetBlendShapeWeight(index, w); }

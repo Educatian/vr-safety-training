@@ -1,5 +1,5 @@
 {
-  "version": "ecd-v1",
+  "version": "ecd-v1.1",
   "competentThreshold": 0.7,
   "wDetect": 0.35,
   "wTag": 0.15,
@@ -170,6 +170,18 @@
       "ksa": "AThorough",
       "cfr": "",
       "evidence": "measures before making the call when an instrument can read it"
+    },
+    {
+      "key": "crew_request_done",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "answers a crew member's request during the shift"
+    },
+    {
+      "key": "crew_request_missed",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "a crew request still open at the whistle"
     },
     {
       "key": "talk_top_risk",

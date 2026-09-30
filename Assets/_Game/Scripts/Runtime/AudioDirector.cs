@@ -16,7 +16,7 @@ namespace Jobsite.Runtime
         static readonly Dictionary<string, string> Captions = new Dictionary<string, string>
         {
             ["radio"] = "[radio chirp]", ["shutter"] = "[camera shutter]", ["alarm"] = "[alarm sounding]",
-            ["success"] = "[confirmation chime]", ["thunder"] = "[thunder]",
+            ["success"] = "[confirmation chime]", ["thunder"] = "[thunder]", ["whistle"] = "[stop-work whistle]",
         };
         private UnityEngine.UI.Text captionText;
         private float captionUntil;

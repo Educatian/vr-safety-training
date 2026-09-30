@@ -82,5 +82,25 @@ namespace Jobsite.PlayTests
             Assert.That(d.Session.Affect, Is.Not.Null);
             Assert.That(d.Session.Affect.Trust(CrewAffect.Crew), Is.InRange(-1f, 1f));
         }
+    
+        [UnityTest]
+        public IEnumerator Ep1_CrewRequest_IssuesAndCompletesOnTheRealAction()
+        {
+            yield return Load(1);
+            var d = Object.FindFirstObjectByType<ShiftDirector>();
+            foreach (CheckInStation.Kind k in System.Enum.GetValues(typeof(CheckInStation.Kind))) d.CheckIn(k);
+            d.SubmitHierarchy(HierarchyOrdering.Correct);
+            while (!d.Quiz.Done) d.AnswerQuiz(d.Quiz.Current.Correct);
+            d.Begin(); yield return null;
+            var req = CrewRequests.For(1)[0];
+            d.Session.Spend(req.AtSeconds + 5f); yield return null; yield return null;
+            Assert.That(d.OpenRequests.Any(r => r.Id == req.Id), "the request came in over the radio");
+            var water = d.Conditions.First(c => c.Id == req.Step.Targets[0]);
+            var xp = d.Xp;
+            d.Photograph(water); yield return null;
+            Assert.That(d.RequestsDone, Is.EqualTo(1), "photographing the water station answers it");
+            Assert.That(d.Xp, Is.GreaterThanOrEqualTo(xp + req.Xp));
+            StringAssert.Contains("Crew request done", SiteFx.LastToast);
+        }
     }
 }

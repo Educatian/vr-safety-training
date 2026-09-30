@@ -90,6 +90,9 @@ namespace Jobsite.Runtime
         public IReadOnlyDictionary<CpArea, float> MasteryBest { get; private set; }
         private bool selfReported;
         const string BankedHintsKey = "banked_hints";
+        const string CarryKey = "carry_forward";
+        // Last shift's weakest competency, shown at the top of this briefing (null when none worth mentioning).
+        public string CarryLine { get; private set; }
 
         public void Configure(SiteCondition[] targets, SitePlayer explorer, FieldTablet ui, AudioSource speaker)
         { conditions = targets; player = explorer; tablet = ui; radio = speaker; }
@@ -106,6 +109,7 @@ namespace Jobsite.Runtime
             Telemetry.Episode = Episode.Number; Telemetry.Seed = SampleHazards ? Seed : 0;
             Career = CareerStore.Load();
             Mission = new MissionRun(Missions.For(Episode.Number));
+            requests = CrewRequests.For(Episode.Number).ToList();
             if (GetComponent<ScaffoldCues>() == null) gameObject.AddComponent<ScaffoldCues>();
             if (FindFirstObjectByType<SitePolish>() == null) gameObject.AddComponent<SitePolish>();
             TrenchLighting.Apply();   // below-grade crew: ambient + sky bounce instead of black faces
@@ -114,9 +118,13 @@ namespace Jobsite.Runtime
             Hints = new HintBank(Career.StartingHints + banked);
             if (banked > 0) { PlayerPrefs.SetInt(BankedHintsKey, 0); PlayerPrefs.Save(); }
             logPath = Path.Combine(Application.persistentDataPath, "jobsite-" + Guid.NewGuid().ToString("N") + ".jsonl");
+            var carry = PlayerPrefs.GetString(CarryKey, "").Split(':');
+            if (carry.Length == 2 && Enum.TryParse<Ksa>(carry[0], out var carryKsa) && float.TryParse(carry[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var carryMean))
+                CarryLine = CarryForward.Line(carryKsa, carryMean);
             Log("session_start", "ep" + Episode.Number, "conditions=" + conditions.Length + " seed=" + (SampleHazards ? Seed : 0) +
                 " level=" + Career.Level + " guidance=" + ScaffoldCues.Level(Career.Level, TodaysAreas, out var fadeWhy) + ":" + fadeWhy + " mission=" + Mission.Mission.Title +
                 " consent=" + GameSettings.ResearchConsent + ":" + GameSettings.ConsentVersion + " ecd=" + EvidenceModel.Current.version);
+            if (CarryLine != null) Log("carry_forward", PlayerPrefs.GetString(CarryKey, ""), "shown-in-briefing");
             tablet.Refresh();
         }
 
@@ -142,11 +150,46 @@ namespace Jobsite.Runtime
             foreach (var ev in Session.Advance(Time.deltaTime)) Handle(ev);
             if (!selfReported && Session.CrewTrust >= DaySession.SelfReportTrust && Session.Clock >= 90f) CrewSelfReport();
             if (Time.time >= nextAffect) { nextAffect = Time.time + 0.5f; ApplyAffect(); }
+            foreach (var r in requests.Where(r => !requestIssued.Contains(r.Id) && Session.Clock >= r.AtSeconds).ToList()) IssueRequest(r);
             if (Session.Clock >= ShiftLength) EndShift();
         }
 
         // High crew trust pays off (GDD §5.2): a worker radios in one hazard you have not found yet. It is a cue,
         // so the find is flagged like any other scaffold.
+        static Vector3 Ground(SiteCondition c) { var b = c.PhotoBounds; return new Vector3(b.center.x, b.min.y, b.center.z); }
+
+        // ---------- crew requests (side missions) ----------
+        private List<CrewRequest> requests = new List<CrewRequest>();
+        private readonly HashSet<string> requestIssued = new HashSet<string>(), requestDone = new HashSet<string>();
+        private readonly List<(string kind, string id, string detail)> history = new List<(string, string, string)>();
+        public IEnumerable<CrewRequest> OpenRequests => requests.Where(r => requestIssued.Contains(r.Id) && !requestDone.Contains(r.Id));
+        public int RequestsDone => requestDone.Count;
+        public int RequestsIssued => requestIssued.Count;
+
+        private void IssueRequest(CrewRequest r)
+        {
+            requestIssued.Add(r.Id);
+            Log("crew_request", r.Id, r.Npc);
+            // Already done before they asked? Then it's a thank-you, not a task.
+            if (history.Any(h => r.Step.Matches(h.kind, h.id, h.detail))) { CompleteRequest(r, r.Npc + ": Oh, you already checked it? Thanks."); return; }
+            Say(r.Line);
+            var target = conditions?.FirstOrDefault(c => c != null && r.Step.Targets.Contains(c.Id));
+            CrewGestures.Named(r.Npc)?.React(CrewGestures.Situation.Hint, target != null ? target.PhotoBounds.center : default);
+            tablet.Refresh();
+        }
+
+        private void CompleteRequest(CrewRequest r, string line)
+        {
+            requestDone.Add(r.Id);
+            Xp += r.Xp;
+            Session.Affect.Nudge(CrewAffect.Crew, 0.15f, -0.05f);
+            Log("crew_request_done", r.Id, r.Npc, Ecd("crew_request_done"), 1f, r.Step.Cfr);
+            Say(line ?? r.DoneLine);
+            CrewGestures.Named(r.Npc)?.React(CrewGestures.Situation.Acknowledge);
+            SiteFx.Toast("Crew request done  +" + r.Xp + " XP");
+            tablet.Refresh();
+        }
+
         // Faces follow the bounded affect state: the foreman reads Ray's trust/stress, everyone else the crew's.
         private float nextAffect;
         private NpcFace[] faces;
@@ -206,6 +249,9 @@ namespace Jobsite.Runtime
                 if (Current == Phase.Shift) { MenuOpen = true; tablet.Refresh(); }
                 Say((ev.Kind == DayEventKind.Recordable ? "Injury on site: " : "Near miss: ") + (at != null ? at.DisplayName : "the crew") + ". All stop. Secure the area.");
                 AudioDirector.Play("alarm");
+                SiteFx.Flash(new Color(0.8f, 0.05f, 0.02f, 0.45f), 0.6f);
+                if (player != null) SiteFx.Shake(player.View.transform, 0.05f, 0.45f);
+                if (at != null) SiteFx.Burst(Ground(at) + Vector3.up * 0.2f, new Color(.55f, .45f, .35f, .8f), 26, 1.8f, 0.35f);
                 if (at != null) CrewGestures.ReactNear(at.transform.position, 14f, CrewGestures.Situation.NearMiss, at.PhotoBounds.center);
                 Log(ev.Kind.ToString(), ev.HazardId, "", Ecd("incident"), 0f);
             }
@@ -323,6 +369,7 @@ namespace Jobsite.Runtime
             SpendShiftTime(PhotoSeconds);
             selected = target; MenuOpen = true; LastFeedback = ""; LastKsa = "";
             AudioDirector.Play("shutter"); tablet.Flash();
+            SiteFx.Pulse(Ground(target), new Color(.55f, .9f, 1f, .9f));
             Log("photo", target.Id, "valid-frame");
             tablet.Refresh(); Ping();
         }
@@ -406,6 +453,7 @@ namespace Jobsite.Runtime
             if (!ok)
             {
                 Log("ksa", goal.Id, "misplaced", Ecd("install_misplaced"), 0f);
+                SiteFx.Burst(point + Vector3.up * 0.05f, new Color(.6f, .5f, .4f, .7f), 10, 0.8f, 0.2f);
                 Say($"Wrong spot — {error:F1} m off. Set it at the hazard itself."); return;
             }
             // Right place, wrong control: it fails at the hazard, counts as an install attempt, and goes back.
@@ -430,6 +478,8 @@ namespace Jobsite.Runtime
                 Say("Control installed. Crew can continue safely.");
                 AudioDirector.Play("success");
                 Log("install_success", goal.Id, "Engineering", Ecd("install_success"), 1f);
+                SiteFx.Burst(Ground(goal) + Vector3.up * 0.1f, new Color(.62f, .5f, .38f, .85f), 22, 1.3f, 0.3f);
+                SiteFx.Check(goal.PhotoBounds.center + Vector3.up * goal.PhotoBounds.extents.y);
                 LastKsa = Feedback(Jobsite.Core.Ksa.SInstall, goal.Cfr, "control in place at the exposure and verified.");
                 CrewGestures.ReactNear(goal.transform.position, 12f, CrewGestures.Situation.ControlInstalled, goal.PhotoBounds.center);
             }
@@ -525,6 +575,7 @@ namespace Jobsite.Runtime
                 Say("Removed from service and tagged out. The hazard is gone.");
                 AudioDirector.Play("success");
                 Log("install_success", selected.Id, "Elimination", Ecd("install_success"), 1f);
+                SiteFx.Check(selected.PhotoBounds.center + Vector3.up * selected.PhotoBounds.extents.y);
                 CrewGestures.ReactNear(selected.transform.position, 12f, CrewGestures.Situation.ControlInstalled, selected.PhotoBounds.center);
             }
             else if (result == ControlOutcome.Assigned) Say("Temporary control assigned. Check it again later.");
@@ -537,7 +588,7 @@ namespace Jobsite.Runtime
         {
             if (selected == null || Finished) return;
             var result = Session.StopWork(selected.Id);
-            if (result == StopOutcome.Justified) Xp += XpRules.JustifiedStop;
+            if (result == StopOutcome.Justified) { Xp += XpRules.JustifiedStop; AudioDirector.Play("whistle"); SiteFx.Toast("STOP WORK · crew stands down"); }
             if (result == StopOutcome.Repeated)
             {
                 // Still honoured (stopping is never wrong to try) but it earns nothing new and costs schedule.
@@ -614,6 +665,12 @@ namespace Jobsite.Runtime
                 Log("ksa", c.Id, "missed", Ecd("missed"), 0f);
             foreach (Ksa k in Enum.GetValues(typeof(Ksa)))
                 if (Competence.Mean(k) is float m) Log("ksa_profile", k.ToString(), "n=" + Competence.Count(k), k, m, "");
+            // Carry the weakest competency into the next episode's briefing (reflection feeds forward).
+            foreach (var r in OpenRequests.ToList()) Log("crew_request_missed", r.Id, r.Npc, Ecd("crew_request_missed"), 0f, r.Step.Cfr);
+            var weakest = CarryForward.Weakest(Competence);
+            if (weakest.HasValue) { PlayerPrefs.SetString(CarryKey, weakest.Value.ksa + ":" + weakest.Value.mean.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)); }
+            else PlayerPrefs.DeleteKey(CarryKey);
+            PlayerPrefs.Save();
             tablet.Refresh();
         }
 
@@ -836,6 +893,12 @@ namespace Jobsite.Runtime
                         shiftSeconds = clock, cfr = cfr, ksa = ksa?.ToString() ?? "", score = ksa.HasValue ? score : -1f }) + "\n");
                 }
                 catch (IOException e) { Debug.LogWarning("Jobsite log unavailable: " + e.GetType().Name); }
+            if (kind != "crew_request_done" && kind != "crew_request")
+            {
+                if (history.Count < 400) history.Add((kind, id, detail));
+                foreach (var r in OpenRequests.ToList())
+                    if (r.Step.Matches(kind, id, detail)) CompleteRequest(r, null);
+            }
             var step = Mission?.OnEvent(kind, id, detail);
             if (step != null)
             {

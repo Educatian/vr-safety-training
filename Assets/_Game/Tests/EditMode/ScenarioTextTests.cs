@@ -31,6 +31,11 @@ namespace Jobsite.Tests
                 if (m == null) continue;
                 yield return (e.Number, "mission title", m.Title);
                 foreach (var s in m.Steps) { yield return (e.Number, "mission step", s.Text); yield return (e.Number, "mission why", s.Why); }
+                foreach (var r in CrewRequests.For(e.Number))
+                {
+                    yield return (e.Number, "crew request", r.Line); yield return (e.Number, "crew thanks", r.DoneLine);
+                    yield return (e.Number, "mission step", r.Step.Text); yield return (e.Number, "mission why", r.Step.Why);
+                }
             }
         }
 
@@ -45,6 +50,24 @@ namespace Jobsite.Tests
                     foreach (var t in s.Targets.Where(ConditionNames.Has))
                         Assert.That(t.StartsWith(DayPrefix[e.Number]), $"EP{e.Number} mission step \"{s.Text}\" targets {t} from another day");
             }
+        }
+
+        [Test]
+        public void CrewRequests_BelongToTheirEpisode_AndAreWellFormed()
+        {
+            var ids = CrewRequests.All.Select(r => r.Id).ToList();
+            Assert.That(ids.Count, Is.GreaterThanOrEqualTo(5), "at least one request per episode");
+            Assert.That(ids.Distinct().Count() == ids.Count, "request ids are unique");
+            foreach (var e in Episodes.All)
+                foreach (var r in CrewRequests.For(e.Number))
+                {
+                    Assert.That(r.Xp > 0 && r.AtSeconds > 0 && r.AtSeconds < 600, r.Id + ": xp and timing");
+                    Assert.That(r.Line.StartsWith(r.Npc + ":"), r.Id + ": the radio line is spoken by its NPC");
+                    foreach (var t in r.Step.Targets.Where(ConditionNames.Has))
+                        Assert.That(t.StartsWith(DayPrefix[e.Number]), $"EP{e.Number} request {r.Id} targets {t} from another day");
+                    Assert.That(r.Step.Targets.Length > 0 && (r.Step.Targets.Any(ConditionNames.Has) || r.Step.Kind == "radio_query_open"), r.Id + ": completes on a real condition or a talk");
+                    Assert.That(EvidenceModel.Knows("crew_request_done"));
+                }
         }
 
         [Test]

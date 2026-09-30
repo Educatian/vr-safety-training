@@ -12,7 +12,7 @@ namespace Jobsite.Core
     [Serializable]
     public sealed class EvidenceModel
     {
-        public string version = "ecd-v1";
+        public string version = "ecd-v1.1";
         public float competentThreshold = 0.7f;
 
         // Composite hazard score (sums to 1): detect, tag (energy), risk, control, escalation.
@@ -65,6 +65,8 @@ namespace Jobsite.Core
             new Observable("crew_self_report", nameof(Ksa.ACare), "", "crew trust high enough that a worker self-reports"),
             new Observable("instrument_match", nameof(Ksa.KEnergy), "", "picks an instrument that reads the hazard's energy"),
             new Observable("measured_first", nameof(Ksa.AThorough), "", "measures before making the call when an instrument can read it"),
+            new Observable("crew_request_done", nameof(Ksa.ACare), "", "answers a crew member's request during the shift"),
+            new Observable("crew_request_missed", nameof(Ksa.ACare), "", "a crew request still open at the whistle"),
             new Observable("talk_top_risk", nameof(Ksa.SAssess), "1926.21(b)(2)", "leads tomorrow's toolbox talk with the highest-risk finding"),
         };
 

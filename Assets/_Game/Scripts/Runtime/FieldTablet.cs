@@ -76,6 +76,7 @@ namespace Jobsite.Runtime
                 Label("Center a condition. Move close. Press E.");
                 Label(ShiftLine(), 18, Ink);
                 MissionCard();
+                foreach (var r in director.OpenRequests) Label($"CREW REQUEST · {r.Step.Text}  ({r.Npc})", 19, new Color(.55f, .85f, 1f));
                 if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
                 Button($"Hint from Dolores · {director.Hints.Tokens} left (half XP on that find)", director.UseHint);
                 Button("Return to site", director.ToggleTablet);
@@ -171,6 +172,7 @@ namespace Jobsite.Runtime
         // Gate briefing: drag the controls into rank order, then the toolbox quiz, then start the shift.
         private void Briefing()
         {
+            if (!string.IsNullOrEmpty(director.CarryLine)) Label(director.CarryLine, 19, new Color(.75f, 1f, .7f));
             if (director.HierarchyScore < 5)
             {
                 Label("Rank the controls: most effective on top.", 26, Color.white);
@@ -201,6 +203,7 @@ namespace Jobsite.Runtime
             Label($"Hazards found {s.HazardIdentificationIndex:P0} · Precision {s.ReportPrecision:P0} · Incidents {s.NearMisses + s.Recordables}");
             Label($"Crew trust {s.CrewTrust:+0;-0;0} · Schedule slip {s.ScheduleSlipMinutes:0.0} min · +{director.Xp} XP");
             Label($"Crew: {ShiftDirector.AffectWord(s.Affect.BandOf(CrewAffect.Crew))} · Ray: {ShiftDirector.AffectWord(s.Affect.BandOf(CrewAffect.Foreman))}", 18, Ink);
+            if (director.RequestsIssued > 0) Label($"Crew requests answered {director.RequestsDone}/{director.RequestsIssued}", 18, director.RequestsDone == director.RequestsIssued ? new Color(.6f, .9f, .6f) : Accent);
             if (director.EndedEarly) Label($"Shift ended early at {s.Clock / 60f:0.0} min: anything not found counts as missed.", 18, Accent);
 
             // Hazards grouped by outcome, with the control chosen vs. the best feasible one (GDD §15 item 4).

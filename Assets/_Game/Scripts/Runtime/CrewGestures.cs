@@ -176,10 +176,67 @@ namespace Jobsite.Runtime
             }
         }
 
+        // ---- pose blending (quality pass 2026-09-30: poses used to pop from one frame to the next) ----
+        // The procedural pose is computed from the rest pose each frame as before, then every bone eases from what was
+        // shown last frame toward it. Right after a change (new gesture, idle flavor, work <-> react) the ease is slow
+        // (~0.22 s) so nothing snaps; once settled it tightens (~0.07 s) so rhythmic motions keep their amplitude.
+        private Quaternion[] shown;
+        private bool haveShown;
+        private float transitionAt;
+        private Shot lastShot; private Flavor lastFlavor; private bool lastReacting;
+        private bool toolInHand;
+        private float toolEaseUntil;
+
         private void LateUpdate()
         {
             if (bones == null || lUpper == null) return;
             for (var i = 0; i < bones.Length; i++) if (bones[i] != null) bones[i].localRotation = rest[i];
+            var reacting = ComputePose();
+            if (shot != lastShot || flavor != lastFlavor || reacting != lastReacting) transitionAt = Time.time;
+            if (reacting != lastReacting && !reacting) toolEaseUntil = Time.time + 0.35f;
+            lastShot = shot; lastFlavor = flavor; lastReacting = reacting;
+            BlendPose();
+            HoldTool(reacting);
+        }
+
+        private void BlendPose()
+        {
+            shown ??= new Quaternion[bones.Length];
+            var since = Time.time - transitionAt;
+            var tau = Mathf.Lerp(0.22f, 0.07f, Mathf.Clamp01(since / 0.4f));
+            var k = haveShown ? 1f - Mathf.Exp(-Time.deltaTime / tau) : 1f;
+            for (var i = 0; i < bones.Length; i++)
+            {
+                if (bones[i] == null) continue;
+                var o = Quaternion.Slerp(haveShown ? shown[i] : bones[i].localRotation, bones[i].localRotation, k);
+                bones[i].localRotation = o; shown[i] = o;
+            }
+            haveShown = true;
+        }
+
+        // Working: the tool is placed in both palms every frame. Reacting: it stays in the right hand (gestures are made
+        // with the tool held, as people do), instead of teleporting to the ground. Back to work: it eases into the grip.
+        private void HoldTool(bool reacting)
+        {
+            if (tool == null) return;
+            if (reacting)
+            {
+                if (!toolInHand && rHand != null) { toolInHand = true; tool.SetParent(rHand, true); }
+                return;
+            }
+            if (toolInHand) { toolInHand = false; tool.SetParent(transform, true); }
+            var fromPos = tool.position; var fromRot = tool.rotation;
+            PlaceTool(true);
+            if (Time.time < toolEaseUntil)
+            {
+                var k = 1f - Mathf.Exp(-Time.deltaTime / 0.08f);
+                tool.SetPositionAndRotation(Vector3.Lerp(fromPos, tool.position, k), Quaternion.Slerp(fromRot, tool.rotation, k));
+            }
+        }
+
+        // Builds this frame's target pose on top of the rest pose. Returns whether a reaction is playing.
+        private bool ComputePose()
+        {
             var t = Time.time + seed;
             if (Time.time > shotUntil)
             {
@@ -191,16 +248,15 @@ namespace Jobsite.Runtime
                 }
             }
             var reacting = shot != Shot.None || combo.Count > 0;
-            if (reacting) PlaceTool(false);
 
             // Working crews keep working unless they are reacting to something.
             if (!reacting)
                 switch (activity)
                 {
-                    case Activity.Dig: Dig(t); PlaceTool(true); return;
-                    case Activity.Saw: Saw(t); PlaceTool(true); return;
-                    case Activity.Walk: Walk(t); return;
-                    case Activity.Signal: Signal(t); return;
+                    case Activity.Dig: Dig(t); return false;
+                    case Activity.Saw: Saw(t); return false;
+                    case Activity.Walk: Walk(t); return false;
+                    case Activity.Signal: Signal(t); return false;
                 }
 
             // --- crew / idle people ---
@@ -228,10 +284,11 @@ namespace Jobsite.Runtime
                 case Shot.Point:
                     var dir = transform.InverseTransformDirection((pointAt - rUpper.position).normalized);
                     dir.y = Mathf.Clamp(dir.y, -0.3f, 0.6f);
-                    Arm(true, dir, dir);
+                    // Upper arm a little lower and out, forearm on the target: a relaxed elbow, not a locked robot arm.
+                    Arm(true, (dir + new Vector3(0.12f, -0.28f, 0f)).normalized, dir);
                     Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), new Vector3(0f, -1f, 0.15f));
                     Look(transform.TransformPoint(dir * 10f), 0.8f);
-                    return;
+                    return reacting;
                 case Shot.Explain:
                     var w = Mathf.Sin(t * 3.6f);
                     Arm(false, new Vector3(-0.35f, -0.75f, 0.4f), new Vector3(-0.15f, 0.05f + w * 0.2f, 1f));
@@ -259,7 +316,7 @@ namespace Jobsite.Runtime
                     Bend(head, 18f, 0);
                     Arm(false, new Vector3(-0.25f, -0.8f, 0.45f), new Vector3(0.9f, 0.12f, 0.4f));
                     Arm(true, new Vector3(0.2f, -0.8f, 0.4f), new Vector3(-0.8f, 0.2f + Mathf.Abs(Mathf.Sin(t * 8f)) * 0.12f, 0.5f));
-                    return;
+                    return reacting;
                 case Shot.HandsOnHips:
                     Arm(false, new Vector3(-0.75f, -0.6f, -0.2f), new Vector3(0.55f, -0.35f, 0.5f));
                     Arm(true, new Vector3(0.75f, -0.6f, -0.2f), new Vector3(-0.55f, -0.35f, 0.5f));
@@ -267,12 +324,12 @@ namespace Jobsite.Runtime
                 case Shot.HeadShake:
                     Idle(t);
                     Turn(head, Mathf.Sin(t * 10f) * 14f);
-                    return;
+                    return reacting;
                 case Shot.PointUp:  // weather: points at the sky, looks up
                     Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), down);
                     Arm(true, new Vector3(0.2f, 0.85f, 0.35f), new Vector3(0.1f, 1f, 0.2f));
                     Bend(head, -22f, 0);
-                    return;
+                    return reacting;
                 case Shot.ChinScratch: // thinking while the learner talks
                     Arm(false, new Vector3(-0.3f, -0.85f, 0.35f), new Vector3(0.95f, 0.15f, 0.3f));
                     Arm(true, new Vector3(0.2f, -0.7f, 0.6f), new Vector3(-0.4f, 0.8f, 0.3f));
@@ -284,6 +341,10 @@ namespace Jobsite.Runtime
             if (shot == Shot.Nod) Bend(head, Mathf.Sin(Time.time * 9f) * 7f, 0);
             if (near || talking) Look(viewer.position + Vector3.up * 1.6f, talking ? 1f : 0.7f);
             else if (flavor == Flavor.LookAround) Turn(head, Mathf.Sin(t * 0.9f) * 35f);
+            // Micro-motion: a person is never perfectly still; slow noise on the head (a few degrees).
+            Turn(head, (Mathf.PerlinNoise(seed, t * 0.23f) - 0.5f) * 10f);
+            Bend(head, (Mathf.PerlinNoise(t * 0.19f, seed) - 0.5f) * 5f, 0);
+            return reacting;
         }
 
         private void Idle(float t)
@@ -351,20 +412,34 @@ namespace Jobsite.Runtime
 
         private void Walk(float t)
         {
-            // Back and forth along the walkway at 1.2 m/s, turning at each end.
+            // Walk A -> B at 1.2 m/s with eased starts/stops, stop and turn in place at each end (~1 s), walk back.
+            // (Before: an instant ping-pong reversal that slid backwards while the body was still turning.)
             var span = Vector3.Distance(walkA, walkB);
             if (span < 0.5f) { Idle(t); return; }
-            var s = Mathf.PingPong(t * 1.2f, span) / span;
-            var goingB = Mathf.Repeat(t * 1.2f, span * 2) < span;
-            var pos = Vector3.Lerp(walkA, walkB, s);
+            const float speed = 1.2f, turnTime = 1.1f;
+            var leg = span / speed;
+            var cycle = 2f * (leg + turnTime);
+            var c = Mathf.Repeat(t, cycle);
+            Vector3 from, to; float u; bool turning;
+            if (c < leg) { from = walkA; to = walkB; u = c / leg; turning = false; }
+            else if (c < leg + turnTime) { from = walkA; to = walkB; u = 1f; turning = true; }
+            else if (c < 2f * leg + turnTime) { from = walkB; to = walkA; u = (c - leg - turnTime) / leg; turning = false; }
+            else { from = walkB; to = walkA; u = 1f; turning = true; }
+            // Eased start and stop (blend of smoothstep and linear: no instant launch, no crawl mid-walk).
+            var s01 = Mathf.Clamp01(Mathf.SmoothStep(0f, 1f, u) * 0.35f + u * 0.65f);
+            var pos = Vector3.Lerp(from, to, s01);
             transform.position = new Vector3(pos.x, transform.position.y, pos.z);
-            var fwd = (goingB ? walkB - walkA : walkA - walkB); fwd.y = 0;
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(fwd), 0.1f);
+            var fwd = to - from; fwd.y = 0f;
+            var goal = turning ? Quaternion.LookRotation(-fwd) : Quaternion.LookRotation(fwd);
+            transform.rotation = Quaternion.Slerp(transform.rotation, goal, 1f - Mathf.Exp(-Time.deltaTime * (turning ? 4f : 8f)));
+            // Stride amplitude follows speed (feet don't paddle while standing to turn).
+            var moving = turning ? 0.15f : Mathf.Clamp01(Mathf.Min(u, 1f - u) * span / 0.4f + 0.35f);
             var phase = Mathf.Sin(t * 1.2f * Mathf.PI * 1.6f);
-            Legs(phase * 24f, 0);
-            Arm(false, new Vector3(-0.15f, -0.96f, -phase * 0.3f), new Vector3(-0.05f, -1f, -phase * 0.2f + 0.2f));
-            Arm(true, new Vector3(0.15f, -0.96f, phase * 0.3f), new Vector3(0.05f, -1f, phase * 0.2f + 0.2f));
-            Bend(spine, 3f, 0);
+            Legs(phase * 24f * moving, 0);
+            Arm(false, new Vector3(-0.15f, -0.96f, -phase * 0.3f * moving), new Vector3(-0.05f, -1f, -phase * 0.2f * moving + 0.2f));
+            Arm(true, new Vector3(0.15f, -0.96f, phase * 0.3f * moving), new Vector3(0.05f, -1f, phase * 0.2f * moving + 0.2f));
+            Bend(spine, 3f * moving, 0);
+            Breathe(t);
         }
 
         // ---------- helpers (character space) ----------
@@ -400,7 +475,9 @@ namespace Jobsite.Runtime
         {
             if (head == null) return;
             var d = transform.InverseTransformDirection(world - head.position);
-            var yaw = Mathf.Clamp(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, -70f, 70f) * weight;
+            var raw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            weight *= 1f - Mathf.InverseLerp(100f, 150f, Mathf.Abs(raw));   // behind: let go instead of snapping side to side
+            var yaw = Mathf.Clamp(raw, -70f, 70f) * weight;
             var pitch = Mathf.Clamp(-Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg, -25f, 30f) * weight;
             Turn(neck, yaw * 0.35f); Turn(head, yaw * 0.65f);
             Bend(head, pitch, 0);

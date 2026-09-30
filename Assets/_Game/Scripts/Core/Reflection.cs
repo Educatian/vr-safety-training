@@ -240,4 +240,25 @@ namespace Jobsite.Core
             return baseLevel;
         }
     }
+    // Reflection carried into the next episode (quality review 2026-09-30, area 3): the weakest competency of the last
+    // shift (enough evidence to mean something) opens the next briefing, framed as what to do on site today.
+    public static class CarryForward
+    {
+        public const int MinEvidence = 2;
+        public const float WorthMentioningBelow = 0.8f;
+
+        public static (Ksa ksa, float mean)? Weakest(KsaLedger ledger)
+        {
+            (Ksa, float)? worst = null;
+            foreach (Ksa k in Enum.GetValues(typeof(Ksa)))
+            {
+                if (ledger.Count(k) < MinEvidence || !(ledger.Mean(k) is float m) || m >= WorthMentioningBelow) continue;
+                if (worst == null || m < worst.Value.Item2) worst = (k, m);
+            }
+            return worst;
+        }
+
+        public static string Line(Ksa k, float mean) =>
+            $"From your last shift: {KsaInfo.Name(k)} was your weakest area ({mean:P0}). Today: {KsaInfo.OnTheJob(k)}";
+    }
 }
