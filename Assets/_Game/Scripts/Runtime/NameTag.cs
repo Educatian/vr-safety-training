@@ -13,6 +13,7 @@ namespace Jobsite.Runtime
         private Transform label;
 
         public string DisplayName => displayName;
+        public static bool Hidden;   // cinematics (game opening, episode intros) frame faces without labels
         public void Configure(string name, string role, float headHeight = 2.12f) { displayName = name; trade = role; height = headHeight; }
 
         private void Start()
@@ -36,7 +37,7 @@ namespace Jobsite.Runtime
             if (cam == null || label == null) return;
             label.rotation = Quaternion.LookRotation(label.position - cam.transform.position);
             var d = Vector3.Distance(cam.transform.position, label.position);
-            group.alpha = Mathf.Clamp01((14f - d) / 4f);               // full inside 10 m, gone past 14 m
+            group.alpha = Hidden ? 0f : Mathf.Clamp01((14f - d) / 4f);   // full inside 10 m, gone past 14 m
         }
 
         static void Line(Transform parent, string text, int size, Color color, Vector2 min, Vector2 max, Font font)

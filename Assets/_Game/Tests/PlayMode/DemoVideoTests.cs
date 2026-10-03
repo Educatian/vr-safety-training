@@ -622,5 +622,20 @@ namespace Jobsite.PlayTests
             FirstPersonTablet.FullView = false;
             Assert.That(d.OwnWordsTalk.HasValue, Is.True, "toolbox talk scored");
         }
+    
+        [UnityTest, Timeout(3600000)]
+        public IEnumerator P_Prologue()
+        {
+            ArcadeMode.Exit();
+            EpisodeDirector.Selected = null; EpisodeDirector.SkipIntro = false; EpisodeDirector.ForcePrologue = true;
+            yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
+            yield return null;
+            var eps = UnityEngine.Object.FindFirstObjectByType<EpisodeDirector>();
+            cam = eps.CinematicCamera; cam.targetTexture = rt;
+            Seg("p_prologue");
+            for (var i = 0; i < Fps * 120 && eps.Current == EpisodeDirector.State.Intro; i++) { yield return null; Grab(); }
+            yield return Film(1.5f);   // the menu comes up
+            Close();
+        }
     }
 }

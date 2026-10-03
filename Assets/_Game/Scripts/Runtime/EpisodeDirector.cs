@@ -15,6 +15,10 @@ namespace Jobsite.Runtime
     {
         public static Episode Selected;          // null = show the episode menu
         public static bool SkipIntro;            // tests / "replay without intro"
+        public static bool ForcePrologue;        // play the game's opening on the next menu (menu button, capture tests)
+        // First visit plays the opening; automated runs never do unless they ask for it.
+        static bool PrologueDue => ForcePrologue || !Application.isBatchMode && PlayerPrefs.GetInt(Prologue.SeenKey, 0) == 0;
+        private bool inPrologue;
 
         public enum State { Menu, Intro, Playing }
         public State Current { get; private set; } = State.Playing;
@@ -38,6 +42,7 @@ namespace Jobsite.Runtime
         private void Awake()
         {
             font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            NameTag.Hidden = false;   // a cinematic cut short by a scene load must not leave the labels off
             var phases = FindFirstObjectByType<SitePhaseController>();
             if (Selected != null && phases != null) phases.SetDay(DayOf(Selected));
         }
@@ -51,6 +56,7 @@ namespace Jobsite.Runtime
             {
                 // A shared result link (…/?daily) drops the visitor straight into today's Hazard Hunt.
                 if (ArcadeMode.TryStartFromUrl()) return;
+                if (PrologueDue) { StartCoroutine(PlayPrologue()); return; }
                 ShowMenu(); return;
             }
             if (!SkipIntro && Selected.Shots.Count > 0) StartCoroutine(Intro(Selected));
@@ -109,6 +115,9 @@ namespace Jobsite.Runtime
             Text(root, "Completion codes go to your course. Detailed play data (no names) is shared only if you opt in. AI chat asks first. Esc = settings.", 18, new Color(.7f, .75f, .75f),
                 new Vector2(0.06f, 0.02f), new Vector2(0.66f, 0.06f), TextAnchor.MiddleLeft);
             ResearchToggle(root);
+            var intro = Panel(root, "WatchIntro", new Vector2(0.8f, 0.795f), new Vector2(0.94f, 0.84f), new Color(.15f, .18f, .19f, .95f));
+            Text(intro, "WATCH INTRO", 20, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+            intro.gameObject.AddComponent<Button>().onClick.AddListener(() => { ForcePrologue = true; SceneManager.LoadScene(SceneManager.GetActiveScene().path); });
             ArcadeStrip(root);
             body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.6f), new Color(0, 0, 0, 0));
             ShowTab(OpenTab);
@@ -324,6 +333,7 @@ namespace Jobsite.Runtime
         private IEnumerator Intro(Episode ep)
         {
             Current = State.Intro;
+            NameTag.Hidden = true;
             Rig(true);
             Panel(canvas.transform, "LetterboxTop", new Vector2(0, 0.88f), Vector2.one, Color.black);
             Panel(canvas.transform, "LetterboxBottom", Vector2.zero, new Vector2(1, 0.12f), Color.black);
@@ -378,6 +388,7 @@ namespace Jobsite.Runtime
         {
             StopAllCoroutines();
             EndVoice();
+            NameTag.Hidden = false;
             Rig(false);
             Current = State.Playing;
             var shift = FindFirstObjectByType<ShiftDirector>();
@@ -385,17 +396,153 @@ namespace Jobsite.Runtime
         }
 
         public void Skip() => skip = true;
+        private void Finish() { if (inPrologue) EndPrologue(); else EndIntro(); }
+
+        // ---------- game opening (prologue): place -> crew -> you -> the rule -> the pressure -> the loop -> title ----------
+        private IEnumerator PlayPrologue()
+        {
+            inPrologue = true; ForcePrologue = false;
+            Current = State.Intro;
+            Rig(true);
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            Panel(canvas.transform, "LetterboxTop", new Vector2(0, 0.88f), Vector2.one, Color.black);
+            Panel(canvas.transform, "LetterboxBottom", Vector2.zero, new Vector2(1, 0.12f), Color.black);
+            captionText = Text(canvas.transform, "", 34, Color.white, new Vector2(0.12f, 0.015f), new Vector2(0.88f, 0.115f), TextAnchor.MiddleCenter);
+            speakerText = null;
+            Text(canvas.transform, MobileControls.Active ? "Tap · skip" : "Space or click · skip", 20, new Color(1, 1, 1, .45f), new Vector2(0.85f, 0.89f), new Vector2(0.98f, 0.99f), TextAnchor.MiddleRight);
+            var fadeIn = Panel(canvas.transform, "FadeIn", Vector2.zero, Vector2.one, Color.black).gameObject.AddComponent<CanvasGroup>();
+            StartCoroutine(WatchSkip());
+
+            var site = new Vector3(42f, 0f, 32f);
+            var spawnGo = GameObject.Find("PlayerSpawn");
+            var spawn = spawnGo != null ? spawnGo.transform.position : (player != null ? player.transform.position : new Vector3(10f, 0f, 10f));
+            var toSite = site - spawn; toSite.y = 0; toSite = toSite.sqrMagnitude > 1f ? toSite.normalized : Vector3.forward;
+            var crew = FindObjectsByType<CrewMember>(FindObjectsSortMode.None).Where(c => c.isActiveAndEnabled && !string.IsNullOrEmpty(c.DisplayName)).ToList();
+            var ray = crew.FirstOrDefault(c => c.DisplayName.StartsWith("Ray"));
+            // Montage: whoever is on site today (named crew first, then workers), three faces, never Ray (his beat comes later).
+            var people = FindObjectsByType<CrewGestures>(FindObjectsSortMode.None).Where(g => g.isActiveAndEnabled && g.transform.position.y > -0.5f
+                    && (ray == null || g.gameObject != ray.gameObject)).Select(g => g.transform)
+                .OrderBy(t => t.GetComponent<CrewMember>() != null ? 0 : 1).ThenBy(t => Vector3.Distance(t.position, site)).Take(3).ToList();
+            Transform machine = FindObjectsByType<ExcavatorRig>(FindObjectsSortMode.None).Select(r => r.transform).FirstOrDefault()
+                ?? FindObjectsByType<CraneRig>(FindObjectsSortMode.None).Select(r => r.transform).FirstOrDefault();
+            NameTag.Hidden = true;   // name tags would fill the close-ups
+
+            for (var i = 0; i < Prologue.Beats.Count && !skip; i++)
+            {
+                var beat = Prologue.Beats[i];
+                var clip = Resources.Load<AudioClip>($"Audio/VO/vo_prologue_{i + 1}");
+                var dur = clip != null ? clip.length + 0.6f : beat.Line.Seconds;
+                Say(beat.Line); PrologueVoice(clip);
+                RectTransform title = null; CanvasGroup titleFade = null;
+                if (beat.Shot == Prologue.ShotKind.Title)
+                {
+                    title = Panel(canvas.transform, "PrologueTitle", Vector2.zero, Vector2.one, new Color(0.02f, 0.03f, 0.04f, 1f));
+                    title.SetSiblingIndex(2);   // under the letterbox, captions and skip label
+                    Text(title, "COMPETENT PERSON", 120, Accent, new Vector2(0.05f, 0.48f), new Vector2(0.95f, 0.66f), TextAnchor.MiddleCenter);
+                    Text(title, "A serious game about seeing hazards before they hurt someone", 34, Color.white, new Vector2(0.05f, 0.4f), new Vector2(0.95f, 0.48f), TextAnchor.MiddleCenter);
+                    Text(title, Credits.Studio + "  ·  " + Credits.Home, 22, new Color(.7f, .75f, .75f), new Vector2(0.05f, 0.2f), new Vector2(0.95f, 0.26f), TextAnchor.MiddleCenter);
+                    titleFade = title.gameObject.AddComponent<CanvasGroup>(); titleFade.alpha = 0f;
+                }
+                for (var t = 0f; t < dur && !skip; t += Time.deltaTime)
+                {
+                    var u = Mathf.Clamp01(t / dur);
+                    if (i == 0 && fadeIn != null) fadeIn.alpha = 1f - Mathf.Clamp01(t / 1.2f);
+                    if (titleFade != null) titleFade.alpha = Mathf.Clamp01(t / 1f);
+                    PrologueCamera(beat.Shot, GameSettings.ReduceMotion ? 0.5f : u, site, spawn, toSite, people, ray, machine);
+                    yield return null;
+                }
+                if (fadeIn != null) { Destroy(fadeIn.gameObject); fadeIn = null; }
+                if (title != null && !skip) yield return Wait(1.2f);
+            }
+            EndPrologue();
+        }
+
+        // Where the camera is for each kind of shot (u = 0..1 through the line).
+        private void PrologueCamera(Prologue.ShotKind kind, float u, Vector3 site, Vector3 spawn, Vector3 toSite, System.Collections.Generic.List<Transform> montage, CrewMember ray, Transform machine)
+        {
+            var s = Mathf.SmoothStep(0f, 1f, u);
+            Vector3 from, to, look;
+            switch (kind)
+            {
+                case Prologue.ShotKind.Crew when montage.Count > 0:
+                {
+                    var k = Mathf.Min(montage.Count - 1, Mathf.FloorToInt(u * montage.Count));
+                    var local = u * montage.Count - k;
+                    CloseUp(montage[k], local, 2.6f, 1.9f, k % 2 == 0 ? 0.55f : -0.55f);
+                    return;
+                }
+                case Prologue.ShotKind.Foreman when ray != null:
+                    CloseUp(ray.transform, u, 3.2f, 2.2f, -0.6f);
+                    return;
+                case Prologue.ShotKind.Gate:
+                    from = spawn - toSite * 4.5f + Vector3.up * 2.4f; to = spawn - toSite * 1.5f + Vector3.up * 1.8f; look = spawn + toSite * 12f + Vector3.up * 1.2f;
+                    break;
+                case Prologue.ShotKind.Machine:
+                {
+                    // The working iron if it is on site today, else the site itself, circling at crane-cab height.
+                    var c = machine != null ? machine.position + Vector3.up * 2f : site + Vector3.up * 1f;
+                    var r = machine != null ? 14f : 34f; var h = machine != null ? 3.5f : 12f;
+                    var a0 = Mathf.Atan2((site - c).z, (site - c).x) + 2.2f;
+                    var a = a0 + s * 0.6f;
+                    cine.transform.position = c + new Vector3(Mathf.Cos(a) * r, h, Mathf.Sin(a) * r);
+                    cine.transform.rotation = Quaternion.LookRotation(c - cine.transform.position);
+                    return;
+                }
+                case Prologue.ShotKind.Walk:
+                    // Your eyes at the gate: a slow scan across the site you are about to walk (no travel through props).
+                    from = to = spawn + Vector3.up * 1.65f;
+                    look = from + Quaternion.AngleAxis(Mathf.Lerp(-35f, 35f, s), Vector3.up) * toSite * 20f - Vector3.up * 1.2f;
+                    break;
+                case Prologue.ShotKind.Title:
+                    from = site + new Vector3(30f, 30f, -30f); to = site + new Vector3(26f, 28f, -26f); look = site;
+                    break;
+                default:   // aerial: a slow descent toward the site
+                    from = site + new Vector3(63f, 40f, -52f); to = site + new Vector3(36f, 24f, -30f); look = site + Vector3.up * 2f;
+                    break;
+            }
+            cine.transform.position = Vector3.Lerp(from, to, s);
+            cine.transform.rotation = Quaternion.LookRotation(look - cine.transform.position);
+        }
+
+        // A slow push in on a person's face, from a little off their shoulder.
+        private void CloseUp(Transform who, float u, float d0, float d1, float side)
+        {
+            var head = who.position + Vector3.up * 1.62f;
+            var d = Mathf.Lerp(d0, d1, Mathf.SmoothStep(0f, 1f, u));
+            cine.transform.position = head + who.forward * d + who.right * side + Vector3.up * 0.05f;
+            cine.transform.rotation = Quaternion.LookRotation(head - cine.transform.position);
+        }
+
+        private static void PrologueVoice(AudioClip clip)
+        {
+            if (voice == null) { voice = new GameObject("Voice").AddComponent<AudioSource>(); voice.spatialBlend = 0; }
+            voice.Stop();
+            if (clip == null) return;
+            voice.volume = GameSettings.VoiceVolume; voice.clip = clip; voice.Play();
+        }
+
+        private void EndPrologue()
+        {
+            StopAllCoroutines();
+            EndVoice();
+            inPrologue = false; skip = false;
+            PlayerPrefs.SetInt(Prologue.SeenKey, 1); PlayerPrefs.Save();
+            if (canvas != null) foreach (Transform c in canvas.transform) Destroy(c.gameObject);
+            NameTag.Hidden = false;
+            captionText = null; speakerText = null; Caption = ""; Speaker = "";
+            ShowMenu();
+        }
 
         private IEnumerator WatchSkip()
         {
             while (Current == State.Intro)
             {
                 var k = Keyboard.current;
-                if (k != null && (k.spaceKey.wasPressedThisFrame || k.enterKey.wasPressedThisFrame || k.escapeKey.wasPressedThisFrame)) { skip = true; EndIntro(); yield break; }
+                if (k != null && (k.spaceKey.wasPressedThisFrame || k.enterKey.wasPressedThisFrame || k.escapeKey.wasPressedThisFrame)) { skip = true; Finish(); yield break; }
                 // Mouse and touch players had no way to skip (the label was plain text).
                 if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame
-                    || Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) { skip = true; EndIntro(); yield break; }
-                if (skip) { EndIntro(); yield break; }
+                    || Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) { skip = true; Finish(); yield break; }
+                if (skip) { Finish(); yield break; }
                 yield return null;
             }
         }
