@@ -145,5 +145,28 @@ namespace Jobsite.PlayTests
             yield return new WaitForSeconds(0.3f);
             Assert.That(d.Session.Clock, Is.EqualTo(c0), "the shift clock waits for check-in");
         }
+    
+        [UnityTest]
+        public IEnumerator Menu_Credits_ShowsTheLabAndUniversityLogos()
+        {
+            ArcadeMode.Exit();
+            EpisodeDirector.Selected = null; ShiftDirector.SampleHazards = false; EpisodeDirector.SkipIntro = false;
+            EpisodeDirector.OpenTab = EpisodeDirector.Tab.Credits;
+            yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
+            yield return null; yield return null;
+            Assert.That(EpisodeDirector.OpenTab, Is.EqualTo(EpisodeDirector.Tab.Episodes), "the next menu opens on episodes again");
+            var logos = Object.FindObjectsByType<RawImage>(FindObjectsSortMode.None).Where(r => r.name.StartsWith("Logo_")).Select(r => r.name).ToList();
+            Assert.That(logos, Does.Contain("Logo_addie_lab"));
+            Assert.That(logos, Does.Contain("Logo_ua_coe"));
+            var texts = Object.FindObjectsByType<Text>(FindObjectsSortMode.None).Select(t => t.text).ToList();
+            Assert.That(texts.Any(t => t.Contains("DEVELOPMENT CREDITS")), Is.True);
+            Assert.That(texts.Any(t => t.Contains("Jewoong Moon")), Is.True);
+            yield return new WaitForSeconds(0.3f);
+            var cam = Object.FindFirstObjectByType<EpisodeDirector>().CinematicCamera;
+            var rt = new RenderTexture(1600, 900, 24); cam.targetTexture = rt; Canvas.ForceUpdateCanvases(); cam.Render(); RenderTexture.active = rt;
+            var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0); tex.Apply();
+            System.IO.Directory.CreateDirectory("Captures/t_arcade"); System.IO.File.WriteAllBytes("Captures/t_arcade/03_credits.png", tex.EncodeToPNG());
+            RenderTexture.active = null; cam.targetTexture = null; Object.Destroy(rt); Object.Destroy(tex);
+        }
     }
 }

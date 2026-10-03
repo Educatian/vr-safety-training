@@ -78,7 +78,8 @@ namespace Jobsite.Runtime
         public Camera CinematicCamera => cine;
 
         // ---------- episode select / gear locker / crew ----------
-        public enum Tab { Episodes, Gear, Crew }
+        public enum Tab { Episodes, Gear, Crew, Credits }
+        public static Tab OpenTab = Tab.Episodes;   // the tab the next menu opens on (credits after the capstone)
         private RectTransform body;
         private Text profile;
         private Career career;
@@ -94,11 +95,11 @@ namespace Jobsite.Runtime
             Text(root, "COMPETENT PERSON", 64, Accent, new Vector2(0.06f, 0.85f), new Vector2(0.6f, 0.95f), TextAnchor.MiddleLeft);
             Text(root, "One week on the Loblolly Creek Lift Station, Autauga County, Alabama.", 28, Color.white, new Vector2(0.06f, 0.79f), new Vector2(0.7f, 0.85f), TextAnchor.MiddleLeft);
             profile = Text(root, "", 26, Color.white, new Vector2(0.6f, 0.85f), new Vector2(0.94f, 0.95f), TextAnchor.MiddleRight);
-            var tabs = new[] { (Tab.Episodes, "EPISODES"), (Tab.Gear, "GEAR LOCKER"), (Tab.Crew, "CREW") };
+            var tabs = new[] { (Tab.Episodes, "EPISODES"), (Tab.Gear, "GEAR LOCKER"), (Tab.Crew, "CREW"), (Tab.Credits, "CREDITS") };
             for (var i = 0; i < tabs.Length; i++)
             {
                 var (tab, label) = tabs[i];
-                var b = Panel(root, "Tab" + label, new Vector2(0.06f + i * 0.13f, 0.72f), new Vector2(0.18f + i * 0.13f, 0.775f), new Color(.15f, .18f, .19f, .95f));
+                var b = Panel(root, "Tab" + label, new Vector2(0.06f + i * 0.115f, 0.72f), new Vector2(0.165f + i * 0.115f, 0.775f), new Color(.15f, .18f, .19f, .95f));
                 Text(b, label, 24, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
                 b.gameObject.AddComponent<Button>().onClick.AddListener(() => ShowTab(tab));
             }
@@ -110,7 +111,8 @@ namespace Jobsite.Runtime
             ResearchToggle(root);
             ArcadeStrip(root);
             body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.6f), new Color(0, 0, 0, 0));
-            ShowTab(Tab.Episodes);
+            ShowTab(OpenTab);
+            OpenTab = Tab.Episodes;
             StartCoroutine(Orbit());
         }
 
@@ -142,7 +144,45 @@ namespace Jobsite.Runtime
             profile.text = $"Level {career.Level} · {Career.Rank(career.Level)}\n{career.Points} Safety Points · {career.LifetimeXp} XP";
             if (tab == Tab.Episodes) EpisodeCards();
             else if (tab == Tab.Gear) GearCards();
-            else CrewCards();
+            else if (tab == Tab.Crew) CrewCards();
+            else CreditsPage();
+        }
+
+        // Development credits: who made it, the learning design, the assets, and the lab and university logos on a
+        // white card (both logos are drawn for a light background).
+        private void CreditsPage()
+        {
+            Text(body, "DEVELOPMENT CREDITS", 30, Accent, new Vector2(0, 0.91f), new Vector2(0.6f, 1f), TextAnchor.MiddleLeft);
+            Text(body, $"Competent Person · build {Application.version}", 18, new Color(.7f, .75f, .75f), new Vector2(0.6f, 0.91f), new Vector2(1f, 1f), TextAnchor.MiddleRight);
+            var n = Credits.Sections.Length;
+            for (var i = 0; i < n; i++)
+            {
+                var sec = Credits.Sections[i];
+                float x0 = i * 1f / n, x1 = x0 + 1f / n - 0.012f;
+                var card = Panel(body, "Credits" + i, new Vector2(x0, 0.36f), new Vector2(x1, 0.89f), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Text(card, sec.Title, 22, Accent, new Vector2(0.06f, 0.84f), new Vector2(0.94f, 0.97f), TextAnchor.MiddleLeft);
+                var lines = Text(card, string.Join("\n", sec.Lines), 19, new Color(.88f, .9f, .9f), new Vector2(0.06f, 0.04f), new Vector2(0.94f, 0.84f), TextAnchor.UpperLeft);
+                lines.lineSpacing = 1.05f;
+            }
+            var logos = Panel(body, "Logos", new Vector2(0, 0.03f), new Vector2(1, 0.31f), Color.white);   // pure white: the logo files are flattened on white
+            Logo(logos, "Credits/addie_lab", new Vector2(0.04f, 0.1f), new Vector2(0.45f, 0.9f));
+            Panel(logos, "Rule", new Vector2(0.495f, 0.2f), new Vector2(0.498f, 0.8f), new Color(0.75f, 0.75f, 0.75f, 1f));
+            Logo(logos, "Credits/ua_coe", new Vector2(0.54f, 0.1f), new Vector2(0.96f, 0.9f));
+            Text(body, Credits.Footer, 16, new Color(.6f, .66f, .66f), new Vector2(0, 0.31f), new Vector2(1, 0.355f), TextAnchor.MiddleLeft);
+        }
+
+        // A logo fitted inside a box with its own aspect ratio (never stretched).
+        private static void Logo(RectTransform parent, string resource, Vector2 min, Vector2 max)
+        {
+            var tex = Resources.Load<Texture2D>(resource);
+            if (tex == null) return;
+            var box = new GameObject("LogoBox", typeof(RectTransform)).GetComponent<RectTransform>();
+            box.SetParent(parent, false); Stretch(box, min, max);
+            var img = new GameObject("Logo_" + tex.name, typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter)).GetComponent<RawImage>();
+            img.transform.SetParent(box, false); Stretch(img.rectTransform, Vector2.zero, Vector2.one);
+            img.texture = tex; img.raycastTarget = false;
+            var fit = img.GetComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent; fit.aspectRatio = (float)tex.width / tex.height;
         }
 
         private void GearCards()

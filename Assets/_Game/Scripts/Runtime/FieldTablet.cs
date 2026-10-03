@@ -469,6 +469,7 @@ namespace Jobsite.Runtime
                 Label("Completion code: " + (director.CompletionCode ?? "sending..."), 26, Color.white);
                 Label("Give this code to your instructor. Training record only: not an OSHA 10/30 card or a competent-person designation.", 17, Ink);
                 Button("Episode select", EpisodeDirector.BackToMenu, null, true);
+                if (director.Episode.Number == 5) Button("Development credits", () => { EpisodeDirector.OpenTab = EpisodeDirector.Tab.Credits; EpisodeDirector.BackToMenu(); });
                 return;
             }
             ToolboxTalkWriter();

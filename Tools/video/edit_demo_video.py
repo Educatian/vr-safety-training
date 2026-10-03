@@ -14,7 +14,7 @@ import json, os, re, subprocess, sys, wave
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
 CAP = os.path.join(ROOT, "Captures", "demo")
-OUT = os.path.join(CAP, "out")
+OUT = os.path.join(CAP, os.environ.get("DEMO_OUT", "out"))
 FONT_DIR = os.path.join(ROOT, "Assets", "_Game", "Resources", "Fonts")
 FONT = os.path.join(FONT_DIR, "BarlowCondensed-SemiBold.ttf")
 AMB = os.path.join(ROOT, "Assets", "_Game", "Resources", "Audio", "ambience.wav")

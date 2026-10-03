@@ -64,7 +64,9 @@ namespace Jobsite.PlayTests
 
         static void PullOverlays()
         {
-            var view = cam;
+            // Overlays belong to the player's view (or the menu camera), never to a free orbit/dolly camera.
+            var player = UnityEngine.Object.FindFirstObjectByType<SitePlayer>();
+            var view = player != null && player.View != null ? player.View : cam;
             foreach (var c in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
                 if (c.isRootCanvas && c.renderMode == RenderMode.ScreenSpaceOverlay)
                 { c.renderMode = RenderMode.ScreenSpaceCamera; c.worldCamera = view; c.planeDistance = view.nearClipPlane + 0.02f; }
@@ -350,7 +352,7 @@ namespace Jobsite.PlayTests
             var beams = GameObject.Find("SuspendedBeams");
             var mid = beams != null && crane != null ? (beams.transform.position + crane.Slew.position) * 0.5f + Vector3.up * 2.5f : center;
             Seg("12_outro");
-            yield return Orbit(mid, 19f, 6.5f, 205f, 240f, 13f, 46f);
+            yield return Orbit(mid, 19f, 6.5f, 70f, 105f, 13f, 46f);
             Close();
         }
 
