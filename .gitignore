@@ -24,3 +24,12 @@
 *.pdb
 *.mdb
 sysinfo.txt
+
+# Raw Tripo exports (60-80 MB each); cleaned FBX live under Assets/_Game/Art/Models/TR-3D
+Tools/tripo/out/
+
+# Local secrets (OpenRouter key for editor/desktop NPC chat; web builds use a proxy)
+.env
+
+# CI runner project for the engine-free tests (ci/coretests)
+!ci/**/*.csproj

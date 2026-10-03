@@ -1,0 +1,13 @@
+{
+    "name": "Jobsite.Runtime",
+    "rootNamespace": "Jobsite.Runtime",
+    "references": [
+        "Jobsite.Core",
+        "Unity.InputSystem",
+        "Unity.ugui",
+        "SafetyTraining.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
+    ],
+    "autoReferenced": true
+}

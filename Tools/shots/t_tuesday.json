@@ -1,0 +1,8 @@
+{ "scene": "Assets/_Game/Scenes/Jobsite.unity", "outDir": "Captures/t_tuesday",
+  "shots": [
+    { "name": "01_trench_edge", "pos": [64.4, 1.7, 20], "lookAt": [66, -1.2, 28], "fov": 70, "day": "Tue" },
+    { "name": "02_excavator_swing", "pos": [56, 1.7, 34], "lookAt": [62, 1.5, 30], "fov": 70, "day": "Tue" },
+    { "name": "03_dry_cutting_dust", "pos": [54.5, 1.7, 12], "lookAt": [58.5, 1, 15], "fov": 65, "day": "Tue" },
+    { "name": "04_spoil_edge_ladder", "pos": [68.5, 1.7, 40], "lookAt": [66, -0.5, 36], "fov": 70, "day": "Tue" },
+    { "name": "05_aerial_tuesday", "pos": [40, 22, 5], "lookAt": [63, 0, 30], "fov": 60, "day": "Tue" }
+  ] }

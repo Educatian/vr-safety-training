@@ -1,0 +1,7 @@
+{ "scene": "Assets/_Game/Scenes/Jobsite.unity", "outDir": "Captures/t_wednesday",
+  "shots": [
+    { "name": "01_deck_open_hole", "pos": [38, 5.97, 29], "lookAt": [42, 4.3, 31], "fov": 70, "day": "Wed" },
+    { "name": "02_missing_midrail", "pos": [44, 5.97, 34.5], "lookAt": [47, 4.9, 37.9], "fov": 70, "day": "Wed" },
+    { "name": "03_short_ladder", "pos": [28.5, 2.2, 34.5], "lookAt": [33.5, 3.2, 32], "fov": 70, "day": "Wed" },
+    { "name": "04_covered_hole_tiedoff", "pos": [45, 5.97, 31], "lookAt": [50, 4.6, 33], "fov": 70, "day": "Wed" }
+  ] }

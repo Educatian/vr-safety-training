@@ -1,0 +1,235 @@
+{
+  "version": "ecd-v1.4",
+  "competentThreshold": 0.7,
+  "wDetect": 0.35,
+  "wTag": 0.15,
+  "wRisk": 0.15,
+  "wControl": 0.25,
+  "wEscalation": 0.1,
+  "cuedOrHintedFactor": 0.5,
+  "riskDeviationSpan": 8.0,
+  "controlGapQuality": [
+    1.0,
+    0.5,
+    0.25
+  ],
+  "controlScoreStep": 0.4,
+  "detectHintedFactor": 0.5,
+  "detectLateFactor": 0.75,
+  "detectEarlyWindow": 0.5,
+  "speakAssertive": 1.0,
+  "speakAggressive": 0.5,
+  "speakPassive": 0.0,
+  "observables": [
+    {
+      "key": "hierarchy_order",
+      "ksa": "KHierarchy",
+      "cfr": "1926.20(b)",
+      "evidence": "orders the hierarchy of controls at the gate"
+    },
+    {
+      "key": "quiz",
+      "ksa": "KStandard",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "answers the toolbox quiz on the day's standards"
+    },
+    {
+      "key": "measure",
+      "ksa": "SInspect",
+      "cfr": "",
+      "evidence": "measures with a field instrument before judging"
+    },
+    {
+      "key": "confirm_compliant",
+      "ksa": "SDiscriminate",
+      "cfr": "",
+      "evidence": "confirms a compliant look-alike instead of reporting it"
+    },
+    {
+      "key": "lookalike_reported",
+      "ksa": "SDiscriminate",
+      "cfr": "",
+      "evidence": "reports a compliant look-alike (false alarm)"
+    },
+    {
+      "key": "lookalike_trust",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "false alarm costs crew trust"
+    },
+    {
+      "key": "recognize",
+      "ksa": "SRecognize",
+      "cfr": "",
+      "evidence": "photographs and reports a real hazard"
+    },
+    {
+      "key": "missed",
+      "ksa": "SRecognize",
+      "cfr": "",
+      "evidence": "hazard still latent at the end of the shift"
+    },
+    {
+      "key": "energy",
+      "ksa": "KEnergy",
+      "cfr": "",
+      "evidence": "names the energy source"
+    },
+    {
+      "key": "risk",
+      "ksa": "SAssess",
+      "cfr": "",
+      "evidence": "rates probability x severity"
+    },
+    {
+      "key": "detect_time",
+      "ksa": "AProactive",
+      "cfr": "",
+      "evidence": "finds it early, before exposure grows"
+    },
+    {
+      "key": "incident",
+      "ksa": "AProactive",
+      "cfr": "",
+      "evidence": "hazard turned into a near miss / recordable"
+    },
+    {
+      "key": "control_choose",
+      "ksa": "SControl",
+      "cfr": "",
+      "evidence": "chooses a control level (vs. best feasible)"
+    },
+    {
+      "key": "install_wrong_kit",
+      "ksa": "SControl",
+      "cfr": "",
+      "evidence": "brings a kit that doesn't meet the standard"
+    },
+    {
+      "key": "install_misplaced",
+      "ksa": "SInstall",
+      "cfr": "",
+      "evidence": "sets the control down away from the exposure"
+    },
+    {
+      "key": "install_success",
+      "ksa": "SInstall",
+      "cfr": "",
+      "evidence": "installs / removes and verifies the control"
+    },
+    {
+      "key": "stop_work",
+      "ksa": "AIntervene",
+      "cfr": "",
+      "evidence": "radios stop-work with a named reason"
+    },
+    {
+      "key": "weather_decision",
+      "ksa": "AIntervene",
+      "cfr": "",
+      "evidence": "changes the plan when conditions change"
+    },
+    {
+      "key": "speakup_choice",
+      "ksa": "SCommunicate",
+      "cfr": "",
+      "evidence": "holds the stop under the foreman's pushback"
+    },
+    {
+      "key": "toolbox_talk",
+      "ksa": "SCommunicate",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "orders tomorrow's toolbox talk by risk"
+    },
+    {
+      "key": "why_choice",
+      "ksa": "KHierarchy",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "explains why the top risk leads the talk"
+    },
+    {
+      "key": "mission",
+      "ksa": "AThorough",
+      "cfr": "",
+      "evidence": "completes the inspection routine"
+    },
+    {
+      "key": "crew_self_report",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "crew trust high enough that a worker self-reports"
+    },
+    {
+      "key": "instrument_match",
+      "ksa": "KEnergy",
+      "cfr": "",
+      "evidence": "picks an instrument that reads the hazard's energy"
+    },
+    {
+      "key": "measured_first",
+      "ksa": "AThorough",
+      "cfr": "",
+      "evidence": "measures before making the call when an instrument can read it"
+    },
+    {
+      "key": "crew_request_done",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "answers a crew member's request during the shift"
+    },
+    {
+      "key": "crew_request_missed",
+      "ksa": "ACare",
+      "cfr": "",
+      "evidence": "a crew request still open at the whistle"
+    },
+    {
+      "key": "inspect_close",
+      "ksa": "SInspect",
+      "cfr": "",
+      "evidence": "inspects an item up close: finds the defect, or calls a sound item sound"
+    },
+    {
+      "key": "interview_clue",
+      "ksa": "AThorough",
+      "cfr": "",
+      "evidence": "asks the crew the question that surfaces what the site doesn't show"
+    },
+    {
+      "key": "talk_own_words",
+      "ksa": "SCommunicate",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "briefs the crew in own words: hazard, consequence, control, rule, action"
+    },
+    {
+      "key": "coaching",
+      "ksa": "SCommunicate",
+      "cfr": "",
+      "evidence": "coaches a worker out of an unsafe act: asks, explains why, agrees the fix"
+    },
+    {
+      "key": "inspection_log",
+      "ksa": "AThorough",
+      "cfr": "1926.651(k)(1)",
+      "evidence": "writes the daily excavation inspection: soil, water, protective system, hazards, actions"
+    },
+    {
+      "key": "talk_top_risk",
+      "ksa": "SAssess",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "leads tomorrow's toolbox talk with the highest-risk finding"
+    },
+    {
+      "key": "incident_rca",
+      "ksa": "SControl",
+      "cfr": "",
+      "evidence": "reviews a near miss past the person: the condition, why the site allowed it, a fix at the right level"
+    },
+    {
+      "key": "reference_lookup",
+      "ksa": "KStandard",
+      "cfr": "",
+      "evidence": "checks the field reference (standard, trigger, requirement) during the shift (process data, unscored)"
+    }
+  ]
+}

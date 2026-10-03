@@ -1,0 +1,209 @@
+{
+ "_note": "Real-world target size in metres (length along X, i.e. the longest horizontal axis). 'basis' = where the number comes from; typical product sizes need an SME check before the study (PropBible).",
+ "portable_toilet": {
+  "length_m": 1.19,
+  "height_m": 2.29,
+  "basis": "typical US standard unit ~43-44 in W x 47 in D x 89-90 in H (UNVERIFIED - SME check)"
+ },
+ "generator": {
+  "length_m": 0.69,
+  "height_m": 0.69,
+  "basis": "typical 7,500 W class with wheel kit ~27 x 26 x 27 in (UNVERIFIED - SME check)"
+ },
+ "rolloff_dumpster": {
+  "length_m": 6.71,
+  "height_m": 1.83,
+  "basis": "30-yd roll-off commonly ~22 ft L x 7.5 ft W x 6 ft H (UNVERIFIED - SME check)"
+ },
+ "office_trailer": {
+  "length_m": 12.19,
+  "height_m": 3.4,
+  "basis": "10 x 40 ft mobile office box length 40 ft; height incl. chassis/jacks authored ~3.4 m (UNVERIFIED - SME check)"
+ },
+ "fire_extinguisher_abc20": {
+  "fit": "height",
+  "height_m": 0.62,
+  "tris": 1500,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "gfci_spider_box": {
+  "length_m": 0.55,
+  "tris": 3000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "temp_power_pole": {
+  "fit": "height",
+  "height_m": 3.0,
+  "tris": 3000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "water_cooler_10gal": {
+  "fit": "height",
+  "height_m": 1.15,
+  "tris": 3000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "harness_lanyard": {
+  "fit": "height",
+  "height_m": 1.5,
+  "tris": 1500,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "srl_roof_anchor": {
+  "fit": "height",
+  "height_m": 0.6,
+  "tris": 1500,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "tool_bag": {
+  "length_m": 0.45,
+  "tris": 1500,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "cutoff_saw_wet": {
+  "length_m": 0.8,
+  "tris": 1500,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "traffic_cone_28in": {
+  "fit": "height",
+  "height_m": 0.711,
+  "tris": 1500,
+  "basis": "28 in cone (MUTCD cone height class)",
+  "tex": 512
+ },
+ "barricade_type3": {
+  "length_m": 2.44,
+  "tris": 3000,
+  "basis": "8 ft Type III barricade",
+  "tex": 512
+ },
+ "hoist_bucket": {
+  "fit": "height",
+  "height_m": 2.2,
+  "tris": 3000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 512
+ },
+ "excavator_20t": {
+  "length_m": 9.5,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "dump_truck_tandem": {
+  "length_m": 9.1,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "boom_lift_60ft": {
+  "length_m": 8.9,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "boom_truck_crane": {
+  "length_m": 10.5,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "rt_mobile_crane": {
+  "length_m": 12.0,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "vibratory_roller": {
+  "length_m": 5.8,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "skid_steer": {
+  "length_m": 3.4,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "backhoe_loader": {
+  "length_m": 7.2,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "mixer_truck": {
+  "length_m": 10.0,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "concrete_pump_truck": {
+  "length_m": 11.5,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "telehandler": {
+  "length_m": 6.5,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "wheel_loader": {
+  "length_m": 8.0,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "water_truck": {
+  "length_m": 9.0,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "flatbed_boom_truck": {
+  "length_m": 9.5,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "crew_pickup": {
+  "length_m": 6.2,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "scissor_lift": {
+  "length_m": 2.5,
+  "tris": 12000,
+  "basis": "typical product size (UNVERIFIED - SME check)",
+  "tex": 1024,
+  "lod1_ratio": 0.4
+ },
+ "_web_budget": "Web target (Unity WebGL/WebGPU): vehicles 12k tris + LOD1 ~5k, 1024 tex; props 3k / small 1.5k, 512 tex."
+}

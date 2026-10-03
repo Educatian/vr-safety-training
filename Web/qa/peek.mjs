@@ -1,0 +1,12 @@
+import { launchGpu } from "file:///C:/Users/jewoo/Desktop/_projects/CyberPlay_Lab/qa/gpu_browser.mjs";
+const { chromium } = await import("file:///C:/Users/jewoo/Desktop/_projects/CyberPlay_Lab/games/04_password_forge/node_modules/playwright/index.mjs");
+const b = await launchGpu(chromium); const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
+const msgs = [];
+p.on("console", (m) => { const t = m.text(); if (!/memorysetup/.test(t)) msgs.push(`[${m.type()}] ${t.slice(0, 300)}`); });
+p.on("pageerror", (e) => msgs.push("[pageerror] " + e.message));
+await p.goto("" + (process.argv[3] || "https://competent-person.pages.dev/?v=" + Date.now()), { waitUntil: "load" });
+await p.waitForTimeout(Number(process.argv[2] || 30000));
+await p.screenshot({ path: "Captures/web/peek.png" });
+console.log(await p.evaluate(() => document.getElementById("msg")?.textContent + " | start visible: " + (getComputedStyle(document.getElementById("start") || document.body).display)));
+msgs.filter((m) => /error|warn|fail|not supported|Could/i.test(m)).slice(0, 25).forEach((m) => console.log(m));
+await b.close();

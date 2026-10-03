@@ -1,0 +1,14 @@
+{
+  "name": "Jobsite.PlayTests",
+  "rootNamespace": "Jobsite.PlayTests",
+  "references": [
+    "Jobsite.Core",
+    "Jobsite.Runtime",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false
+}

@@ -50,17 +50,38 @@ namespace SafetyTraining.Runtime
                 }
             };
 
-            using var webRequest = new UnityWebRequest(config.Endpoint, UnityWebRequest.kHttpVerbPOST);
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Browser builds never hold the key: route through the server-side proxy.
+            var url = config.WebProxyEndpoint;
+            if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("No web proxy configured.");
+#else
+            var url = config.Endpoint;
+#endif
+            using var webRequest = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
             webRequest.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload)));
             webRequest.downloadHandler = new DownloadHandlerBuffer();
             webRequest.timeout = config.TimeoutSeconds;
             webRequest.SetRequestHeader("Content-Type", "application/json");
 
+#if !UNITY_WEBGL || UNITY_EDITOR
             var apiKey = string.IsNullOrWhiteSpace(config.ApiKeyEnvironmentVariable)
                 ? string.Empty
                 : Environment.GetEnvironmentVariable(config.ApiKeyEnvironmentVariable);
+            if (string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(config.ApiKeyFile))
+            {
+                var path = Environment.ExpandEnvironmentVariables(config.ApiKeyFile);
+                if (System.IO.File.Exists(path))
+                    foreach (var line in System.IO.File.ReadAllLines(path)) // .env style KEY=VALUE, or a bare key
+                    {
+                        var l = line.Trim();
+                        if (l.StartsWith(config.ApiKeyEnvironmentVariable + "=")) { apiKey = l.Substring(config.ApiKeyEnvironmentVariable.Length + 1).Trim(); break; }
+                        if (l.StartsWith("sk-")) { apiKey = l; break; }
+                    }
+            }
             if (!string.IsNullOrWhiteSpace(apiKey))
                 webRequest.SetRequestHeader("Authorization", $"Bearer {apiKey}");
+            webRequest.SetRequestHeader("X-Title", "Competent Person safety training");
+#endif
 
             var operation = webRequest.SendWebRequest();
             while (!operation.isDone)

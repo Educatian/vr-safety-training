@@ -1,0 +1,137 @@
+{
+ "SM_BackhoeLoader": {
+  "base": "tripo_image_36010f6f-415d-43eb-a995-2351c44a0e4e_0",
+  "mr": "tripo_image_36010f6f-415d-43eb-a995-2351c44a0e4e_1",
+  "normal": "tripo_image_36010f6f-415d-43eb-a995-2351c44a0e4e_2"
+ },
+ "SM_BarricadeType3": {
+  "base": "tripo_image_0b3754e9-6df7-457f-8261-2345c50d5a6a_0",
+  "mr": "tripo_image_0b3754e9-6df7-457f-8261-2345c50d5a6a_1",
+  "normal": "tripo_image_0b3754e9-6df7-457f-8261-2345c50d5a6a_2"
+ },
+ "SM_BoomLift60ft": {
+  "base": "tripo_image_b477b7a7-4b0f-49c6-bdff-9861adecebe8_0",
+  "mr": "tripo_image_b477b7a7-4b0f-49c6-bdff-9861adecebe8_1",
+  "normal": "tripo_image_b477b7a7-4b0f-49c6-bdff-9861adecebe8_2"
+ },
+ "SM_BoomTruckCrane": {
+  "base": "tripo_image_85fd0895-839a-4a22-a103-81b548ad36ee_0",
+  "mr": "tripo_image_85fd0895-839a-4a22-a103-81b548ad36ee_1",
+  "normal": "tripo_image_85fd0895-839a-4a22-a103-81b548ad36ee_2"
+ },
+ "SM_ConcretePumpTruck": {
+  "base": "tripo_image_3a410887-6713-46e1-9097-3f0f59e6568b_0",
+  "mr": "tripo_image_3a410887-6713-46e1-9097-3f0f59e6568b_1",
+  "normal": "tripo_image_3a410887-6713-46e1-9097-3f0f59e6568b_2"
+ },
+ "SM_CrewPickup": {
+  "base": "tripo_image_7858df54-bda3-4ac3-8f28-f316255abffc_0",
+  "mr": "tripo_image_7858df54-bda3-4ac3-8f28-f316255abffc_1",
+  "normal": "tripo_image_7858df54-bda3-4ac3-8f28-f316255abffc_2"
+ },
+ "SM_CutoffSawWet": {
+  "base": "tripo_image_e363d307-a85f-4904-b6e1-5a0a6d233e05_0",
+  "mr": "tripo_image_e363d307-a85f-4904-b6e1-5a0a6d233e05_1",
+  "normal": "tripo_image_e363d307-a85f-4904-b6e1-5a0a6d233e05_2"
+ },
+ "SM_DumpTruckTandem": {
+  "base": "tripo_image_fc7808de-210e-48ee-acc8-23d70d62b28a_0",
+  "mr": "tripo_image_fc7808de-210e-48ee-acc8-23d70d62b28a_1",
+  "normal": "tripo_image_fc7808de-210e-48ee-acc8-23d70d62b28a_2"
+ },
+ "SM_Excavator20t": {
+  "base": "tripo_image_133f11b0-867b-4fc0-9cb9-b55633ed320e_0",
+  "mr": "tripo_image_133f11b0-867b-4fc0-9cb9-b55633ed320e_1",
+  "normal": "tripo_image_133f11b0-867b-4fc0-9cb9-b55633ed320e_2"
+ },
+ "SM_FireExtinguisherAbc20": {
+  "base": "tripo_image_75d271c0-2dc6-4e47-85b2-579ffb147c22_0",
+  "mr": "tripo_image_75d271c0-2dc6-4e47-85b2-579ffb147c22_1",
+  "normal": "tripo_image_75d271c0-2dc6-4e47-85b2-579ffb147c22_2"
+ },
+ "SM_FlatbedBoomTruck": {
+  "base": "tripo_image_6dd72b25-2e4f-4cc7-b61a-86e187278d9b_0",
+  "mr": "tripo_image_6dd72b25-2e4f-4cc7-b61a-86e187278d9b_1",
+  "normal": "tripo_image_6dd72b25-2e4f-4cc7-b61a-86e187278d9b_2"
+ },
+ "SM_GfciSpiderBox": {
+  "base": "tripo_image_28dab9b9-645a-48b8-b017-fb0ae3eda0ed_0",
+  "mr": "tripo_image_28dab9b9-645a-48b8-b017-fb0ae3eda0ed_1",
+  "normal": "tripo_image_28dab9b9-645a-48b8-b017-fb0ae3eda0ed_2"
+ },
+ "SM_HarnessLanyard": {
+  "base": "tripo_image_ceb803d4-4a9d-475e-be14-2f3fb968a90b_0",
+  "mr": "tripo_image_ceb803d4-4a9d-475e-be14-2f3fb968a90b_1",
+  "normal": "tripo_image_ceb803d4-4a9d-475e-be14-2f3fb968a90b_2"
+ },
+ "SM_HoistBucket": {
+  "base": "tripo_image_f87ad044-025d-45c8-8669-8f0ca7f8b886_0",
+  "mr": "tripo_image_f87ad044-025d-45c8-8669-8f0ca7f8b886_1",
+  "normal": "tripo_image_f87ad044-025d-45c8-8669-8f0ca7f8b886_2"
+ },
+ "SM_MixerTruck": {
+  "base": "tripo_image_130c6eff-1745-460e-b2a7-d936d4ad680d_0",
+  "mr": "tripo_image_130c6eff-1745-460e-b2a7-d936d4ad680d_1",
+  "normal": "tripo_image_130c6eff-1745-460e-b2a7-d936d4ad680d_2"
+ },
+ "SM_RtMobileCrane": {
+  "base": "tripo_image_daf19743-cbb9-4fd7-9d1c-8b60e55fbfdc_0",
+  "mr": "tripo_image_daf19743-cbb9-4fd7-9d1c-8b60e55fbfdc_1",
+  "normal": "tripo_image_daf19743-cbb9-4fd7-9d1c-8b60e55fbfdc_2"
+ },
+ "SM_ScissorLift": {
+  "base": "tripo_image_533a6f54-9928-4aed-bddd-e06a2499ec74_0",
+  "mr": "tripo_image_533a6f54-9928-4aed-bddd-e06a2499ec74_1",
+  "normal": "tripo_image_533a6f54-9928-4aed-bddd-e06a2499ec74_2"
+ },
+ "SM_SkidSteer": {
+  "base": "tripo_image_7efc7eab-41d4-48cb-8b2e-7a202a2110ec_0",
+  "mr": "tripo_image_7efc7eab-41d4-48cb-8b2e-7a202a2110ec_1",
+  "normal": "tripo_image_7efc7eab-41d4-48cb-8b2e-7a202a2110ec_2"
+ },
+ "SM_SrlRoofAnchor": {
+  "base": "tripo_image_ef79db53-fe49-4765-bfc1-5d1f55f98dc8_0",
+  "mr": "tripo_image_ef79db53-fe49-4765-bfc1-5d1f55f98dc8_1",
+  "normal": "tripo_image_ef79db53-fe49-4765-bfc1-5d1f55f98dc8_2"
+ },
+ "SM_Telehandler": {
+  "base": "tripo_image_962e8c17-0197-42dd-825a-8db482a23224_0",
+  "mr": "tripo_image_962e8c17-0197-42dd-825a-8db482a23224_1",
+  "normal": "tripo_image_962e8c17-0197-42dd-825a-8db482a23224_2"
+ },
+ "SM_TempPowerPole": {
+  "base": "tripo_image_149a8e95-aace-4073-8a43-67fc5153d904_0",
+  "mr": "tripo_image_149a8e95-aace-4073-8a43-67fc5153d904_1",
+  "normal": "tripo_image_149a8e95-aace-4073-8a43-67fc5153d904_2"
+ },
+ "SM_ToolBag": {
+  "base": "tripo_image_17458685-fee0-4dd3-a8af-af08529f3499_0",
+  "mr": "tripo_image_17458685-fee0-4dd3-a8af-af08529f3499_1",
+  "normal": "tripo_image_17458685-fee0-4dd3-a8af-af08529f3499_2"
+ },
+ "SM_TrafficCone28in": {
+  "base": "tripo_image_4ca29b31-47b6-491f-90d1-e222e254ff79_0",
+  "mr": "tripo_image_4ca29b31-47b6-491f-90d1-e222e254ff79_1",
+  "normal": "tripo_image_4ca29b31-47b6-491f-90d1-e222e254ff79_2"
+ },
+ "SM_VibratoryRoller": {
+  "base": "tripo_image_4b4bac7e-ff82-4a5b-93bc-d03d0a9c0083_0",
+  "mr": "tripo_image_4b4bac7e-ff82-4a5b-93bc-d03d0a9c0083_1",
+  "normal": "tripo_image_4b4bac7e-ff82-4a5b-93bc-d03d0a9c0083_2"
+ },
+ "SM_WaterCooler10gal": {
+  "base": "tripo_image_21401693-2b6d-4ad1-8949-6e8fbf446f67_0",
+  "mr": "tripo_image_21401693-2b6d-4ad1-8949-6e8fbf446f67_1",
+  "normal": "tripo_image_21401693-2b6d-4ad1-8949-6e8fbf446f67_2"
+ },
+ "SM_WaterTruck": {
+  "base": "tripo_image_233dddc4-4335-4306-9d75-d4c4272c2b1d_0",
+  "mr": "tripo_image_233dddc4-4335-4306-9d75-d4c4272c2b1d_1",
+  "normal": "tripo_image_233dddc4-4335-4306-9d75-d4c4272c2b1d_2"
+ },
+ "SM_WheelLoader": {
+  "base": "tripo_image_e534a96d-e172-44c9-968a-d0e4e65e9a4e_0",
+  "mr": "tripo_image_e534a96d-e172-44c9-968a-d0e4e65e9a4e_1",
+  "normal": "tripo_image_e534a96d-e172-44c9-968a-d0e4e65e9a4e_2"
+ }
+}

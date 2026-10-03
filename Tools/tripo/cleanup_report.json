@@ -1,0 +1,98 @@
+[
+ {
+  "name": "SM_FireExtinguisherAbc20",
+  "size_m": [
+   0.28,
+   0.18,
+   0.61
+  ],
+  "tris_in": 1965136,
+  "tris": 14007,
+  "bbox_growth": 1.001,
+  "mb": 6.1
+ },
+ {
+  "name": "SM_GfciSpiderBox",
+  "size_m": [
+   0.55,
+   0.38,
+   0.42
+  ],
+  "tris_in": 1905958,
+  "tris": 47953,
+  "bbox_growth": 1.007,
+  "mb": 9.9
+ },
+ {
+  "name": "SM_WaterCooler10gal",
+  "size_m": [
+   0.61,
+   0.56,
+   1.16
+  ],
+  "tris_in": 1989102,
+  "tris": 31503,
+  "bbox_growth": 1.006,
+  "mb": 5.6
+ },
+ {
+  "name": "SM_HarnessLanyard",
+  "size_m": [
+   1.02,
+   0.59,
+   1.5
+  ],
+  "tris_in": 1881845,
+  "tris": 20489,
+  "bbox_growth": 1.003,
+  "mb": 8.5
+ },
+ {
+  "name": "SM_SrlRoofAnchor",
+  "size_m": [
+   0.3,
+   0.17,
+   0.6
+  ],
+  "tris_in": 1960440,
+  "tris": 11158,
+  "bbox_growth": 1.003,
+  "mb": 7.1
+ },
+ {
+  "name": "SM_ToolBag",
+  "size_m": [
+   0.45,
+   0.24,
+   0.36
+  ],
+  "tris_in": 1945286,
+  "tris": 49780,
+  "bbox_growth": 1.002,
+  "mb": 12.3
+ },
+ {
+  "name": "SM_CutoffSawWet",
+  "size_m": [
+   0.8,
+   0.23,
+   0.35
+  ],
+  "tris_in": 1935564,
+  "tris": 25875,
+  "bbox_growth": 1.002,
+  "mb": 7.4
+ },
+ {
+  "name": "SM_TrafficCone28in",
+  "size_m": [
+   0.38,
+   0.36,
+   0.71
+  ],
+  "tris_in": 1892706,
+  "tris": 8826,
+  "bbox_growth": 1.007,
+  "mb": 7.1
+ }
+]

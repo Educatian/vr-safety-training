@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "a32eaed9e80aba7f9b44f850f9a6dd35c644252b",
+  "unityVersion": "6000.3.25f1",
+  "pipeline": "URP 17.3.0",
+  "status": "T2.1 source preparation only; not generated, imported, installed or certified",
+  "props": [
+    {
+      "id": "guardrail-clean",
+      "assetPath": "Assets/_Game/Art/Models/B-PROC/SM_Guardrail_clean.fbx",
+      "expectedSizeMeters": {
+        "x": 2,
+        "y": 1.0668,
+        "z": 0.18
+      },
+      "sizeToleranceMeters": 0.005,
+      "maxTriangles": 40000,
+      "maxMaterials": 4,
+      "variant": "clean",
+      "representation": "training geometry only",
+      "geometry": {
+        "topEdgeMeters": 1.0668,
+        "midRailCenterMeters": 0.5334,
+        "toeBoardTopMeters": 0.0889,
+        "toeBoardGapMeters": 0.005
+      },
+      "evidence": [
+        {
+          "url": "https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.502",
+          "section": "1926.502(b)(1), (b)(2)(i), (j)(3)",
+          "scope": "source-grounded geometric targets, not proof of strength, anchorage or complete compliance"
+        }
+      ],
+      "authoredAssumptions": [
+        "2 m overall width",
+        "0.18 m plate depth",
+        "0.05 m tube exterior",
+        "visual clamps, plate and bolt geometry; fastening unverified"
+      ],
+      "strengthVerified": false,
+      "anchorageVerified": false,
+      "scenarioBound": false,
+      "generatedWith": [],
+      "reviewStatus": "pending Blender generation and Unity validation"
+    },
+    {
+      "id": "guardrail-service_worn",
+      "assetPath": "Assets/_Game/Art/Models/B-PROC/SM_Guardrail_service_worn.fbx",
+      "expectedSizeMeters": {
+        "x": 2,
+        "y": 1.0668,
+        "z": 0.18
+      },
+      "sizeToleranceMeters": 0.005,
+      "maxTriangles": 40000,
+      "maxMaterials": 4,
+      "variant": "service_worn",
+      "representation": "training geometry only",
+      "geometry": {
+        "topEdgeMeters": 1.0668,
+        "midRailCenterMeters": 0.5334,
+        "toeBoardTopMeters": 0.0889,
+        "toeBoardGapMeters": 0.005
+      },
+      "evidence": [
+        {
+          "url": "https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.502",
+          "section": "1926.502(b)(1), (b)(2)(i), (j)(3)",
+          "scope": "source-grounded geometric targets, not proof of strength, anchorage or complete compliance"
+        }
+      ],
+      "authoredAssumptions": [
+        "2 m overall width",
+        "0.18 m plate depth",
+        "0.05 m tube exterior",
+        "visual clamps, plate and bolt geometry; fastening unverified"
+      ],
+      "strengthVerified": false,
+      "anchorageVerified": false,
+      "scenarioBound": false,
+      "generatedWith": [],
+      "reviewStatus": "pending Blender generation and Unity validation"
+    },
+    {
+      "id": "guardrail-missing_midrail",
+      "assetPath": "Assets/_Game/Art/Models/B-PROC/SM_Guardrail_missing_midrail.fbx",
+      "expectedSizeMeters": {
+        "x": 2,
+        "y": 1.0668,
+        "z": 0.18
+      },
+      "sizeToleranceMeters": 0.005,
+      "maxTriangles": 40000,
+      "maxMaterials": 4,
+      "variant": "missing_midrail",
+      "representation": "training geometry only",
+      "geometry": {
+        "topEdgeMeters": 1.0668,
+        "midRailCenterMeters": 0.5334,
+        "toeBoardTopMeters": 0.0889,
+        "toeBoardGapMeters": 0.005
+      },
+      "evidence": [
+        {
+          "url": "https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.502",
+          "section": "1926.502(b)(1), (b)(2)(i), (j)(3)",
+          "scope": "source-grounded geometric targets, not proof of strength, anchorage or complete compliance"
+        }
+      ],
+      "authoredAssumptions": [
+        "2 m overall width",
+        "0.18 m plate depth",
+        "0.05 m tube exterior",
+        "visual clamps, plate and bolt geometry; fastening unverified"
+      ],
+      "strengthVerified": false,
+      "anchorageVerified": false,
+      "scenarioBound": false,
+      "generatedWith": [],
+      "reviewStatus": "pending Blender generation and Unity validation"
+    },
+    {
+      "id": "guardrail-missing_midrail_worn",
+      "assetPath": "Assets/_Game/Art/Models/B-PROC/SM_Guardrail_missing_midrail_worn.fbx",
+      "expectedSizeMeters": {
+        "x": 2,
+        "y": 1.0668,
+        "z": 0.18
+      },
+      "sizeToleranceMeters": 0.005,
+      "maxTriangles": 40000,
+      "maxMaterials": 4,
+      "variant": "missing_midrail_worn",
+      "representation": "training geometry only",
+      "geometry": {
+        "topEdgeMeters": 1.0668,
+        "midRailCenterMeters": 0.5334,
+        "toeBoardTopMeters": 0.0889,
+        "toeBoardGapMeters": 0.005
+      },
+      "evidence": [
+        {
+          "url": "https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.502",
+          "section": "1926.502(b)(1), (b)(2)(i), (j)(3)",
+          "scope": "source-grounded geometric targets, not proof of strength, anchorage or complete compliance"
+        }
+      ],
+      "authoredAssumptions": [
+        "2 m overall width",
+        "0.18 m plate depth",
+        "0.05 m tube exterior",
+        "visual clamps, plate and bolt geometry; fastening unverified"
+      ],
+      "strengthVerified": false,
+      "anchorageVerified": false,
+      "scenarioBound": false,
+      "generatedWith": [],
+      "reviewStatus": "pending Blender generation and Unity validation"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+# Tasks — v2 revamp
+
+Each task ends green: compile, errors-only console, test or screenshot, then commit `[T#] ...`.
+
+## M0 — Foundation
+- [x] T0.1 Upgrade the project to Unity 6000.3.25f1. Resolve API updater changes and get the existing EditMode tests green.
+- [x] T0.2 Add URP with PC and XR renderer assets. Convert materials (Rocketbox and Poly Haven) and fix pink shaders.
+- [ ] T0.3 Install the MCP for Unity bridge (stdio 6400) and verify `unity status` returns ready.
+- [x] T0.4 Add a project `CLAUDE.md` from the template and commit.
+
+## M1 — Core + greybox
+- [x] T1.1 `Jobsite.Core`: add `EnergySource`, `ControlLevel`, `HazardDefinition`, the **hazard state machine** (Latent/Reported/Controlled/Lapsed/Stopped/Incident, with seeded lapse and trigger timers), the **DaySession** meters (Safety record, Schedule, Crew trust) and **CP mastery** per area (C1–C6). EditMode tests cover every GDD §5.3 transition, the §6 abuse cases, PPE lapse, the stop-work rule that never costs CP rating, and HII.
+- [ ] T1.2 Add ScriptableObjects: `DayDefinition` (phase, foreground area, hazard pools, live-event timeline, lapse/trigger windows) and `HazardDefinition` (expert P×S key, feasible control levels, CFR, explanation). Author Mon–Fri plus Week 2. Add a seeded sampler.
+- [x] T1.3a HF-LAYOUT: top-down site plan and 5 zone mood boards (gate + A–D), with sightlines, hazard hiding spots and look-alike placement. User signs off before greybox.
+- [~] T1.3 (greybox v1 built from layout JSON: Alabama site, pump station + 4-storey Bldg B; phase switching pending) Greybox `Assets/_Game/Scenes/Jobsite.unity` with **per-day site phase states** (Mon mobilization → Fri pour), switched by `SitePhaseController`. Walkable in XR and desktop.
+- [ ] T1.4 Port the placement mechanic to `ControlTaskInteractable`, then add the tie-off and two-hand variants.
+- [ ] T1.5 **Tablet** (diegetic): photo capture (cone and occlusion validity), energy-wheel tag, risk-matrix card, Fix/Assign/Stop with the resource board, and a "why?" 3-option. Radio stop-work. 12 words per card at most.
+- [ ] T1.8 Monday: trailer orientation (2D) and the profile pick (Guided shadow day vs. Field solo), with Dolores's cues fading through Wednesday.
+- [ ] T1.9 Crew: Dolores (mentor), Ray (foreman pressure), Marisol (ES), Tyler and Earl, plus background workers; speak-up dialogue with assertiveness choices; live-event timeline (truck backing, crane pick, swing radius).
+- [ ] T1.10 End of day: daily report, incident review (path replay, missed hazards by energy, near-miss clip slot, Dolores's expert ghost walk), **toolbox-talk writer** (pick and order 3 findings plus the why), and the Friday mastery gate.
+- [ ] T1.8 Gate-trailer pre-briefing (2D slides/video) and learner profile (years on site + 3-item pretest) → Guided or Field mode. In Guided mode, signaling cues fade over the session.
+- [ ] T1.9 Foreman pressure NPC and schedule clock; dynamic late-session events (truck backing, swing load).
+- [ ] T1.6 Extend the logger with the GDD §6 events, BORIS proxy codes and session meta (profile, language, input mode, config seed). Head-gaze dwell goes through `IGazeSource`.
+- [ ] T1.7 Delete the v1 generators, generated assets and the old scene. Tests stay green.
+
+## M2 — Asset wave 1: falls + trench (compliance geometry)
+- [x] T2.1 B-PROC `Tools/blender/guardrail.py`: parametric guardrail with a 42″ top rail, 21″ midrail and 3.5″ toeboard, plus posts and clamps.
+- [ ] T2.2 B-PROC: hole cover (plywood with a "HOLE" stencil and cleats), extension ladder (rungs, rails, feet, 3 ft extension), and frame scaffold (base plates, mudsills, planks, guardrails).
+- [ ] T2.3 B-PROC: aluminium trench box with spreaders, a trench-cut ground mesh with a spoil pile, and a sloped bench.
+- [ ] T2.3b Tripo prop wrapper `Tools/tripo/tripo_prop.py`: image→model with no rig. Reuses the charpipe key, ledger and budget cap, and has a dry-run plan mode.
+- [ ] T2.4 TR-3D: harness + lanyard, roof anchor + SRL, and a tool bag.
+- [ ] T2.5 B-LIB: lumber stacks, sheathing, nail guns, and a roof membrane texture. Poly Haven soil, gravel and concrete PBR.
+- [ ] T2.6 HF-IMG: signage and decal set 1 (excavation danger, hard hat area, competent-person tag, "HOLE" stencil, mud and tire decals).
+
+## M3 — Asset wave 2: struck-by + electrical + life
+- [ ] T3.1 B-LIB: excavator, dump truck, mobile crane and skid steer. Clean up in Blender, add LODs, and separate the pivots (boom, bucket, bed) for animation.
+- [ ] T3.2 B-PROC: barricade and cone set, cord ramp, line-proximity marker flags, and a trench pump with discharge hose.
+- [ ] T3.2b Cross-cutting props: concrete saw (dry vs. wet kit), leaking hydraulic hose, air-hose whip check, and a water/shade station (B-LIB or TR-3D).
+- [ ] T3.3 TR-3D: generator, GFCI spider box, temp panel, porta-john and site trailer.
+- [ ] T3.4 HF-AUD: ambience beds for 4 zones plus about 15 one-shots, mixed with `JobsiteAmbience`.
+- [ ] T3.5 Workers: Rocketbox in `WorkerLoop` idle work animations (8–12 NPCs), and equipment idle animation.
+- [ ] T3.6 HF-CINE: gate orientation, 4 zone intros, 4 near-miss consequence clips (no gore) and the AAR outro, wired through `VideoPlayer` (in-world TV or 2D overlay). EN/ES VO through `generate_audio`.
+
+## M4 — Look + feel
+- [ ] T4.1 Lighting: HDRI, sun, work lights, reflection probes, and a URP post-process volume.
+- [ ] T4.2 Decal pass and dirt/wear material variants. Run the look-alike parity check (GDD §4 readability guard).
+- [ ] T4.3 Coach: grounded fact sets per `HazardDefinition`. Immediate elaborated feedback (why + CFR + consequence); a repeated error triggers a worked-example replay; explain-back pause at each zone end; after-action review (path replay, missed hazards by energy, expert replay).
+- [ ] T4.5 EN/ES localization (UI + coach voice). Session modes: single zone (toolbox talk), full shift, transfer shift (novel configurations), and 4-week booster.
+- [ ] T4.4 Performance pass: LODs, static batching, occlusion. Target 90 fps.
+
+## M5 — QA + ship
+- [ ] T5.1 Gauntlet critic loop, 3 rounds max, until no high-severity defects remain.
+- [ ] T5.2 PlayMode smoke test: complete every zone in desktop mode through scripted input.
+- [ ] T5.3 Windows build, README and docs images refreshed, then PR `revamp/v2 → main`.
+
+## Status notes
+- 2026-09-28 Codex checkpoint: PropBible (5 props, OSHA-cited), guardrail B-PROC recipe + spec JSON (metadata tests 50/50), Tripo prop wrapper (dry-run default; shared cap 6,500), Monday desktop slice runtime scripts (ShiftDirector, FieldTablet, SiteCondition, SitePlayer; no scene yet).
+
+## M2b — Game systems added 2026-09-28 (user)
+- [ ] G1 Progression: XP from DaySession evidence, 4 levels, badges, level-gated unlocks (GDD §14).
+- [ ] G2 Hint economy: tokens, 3-tier hints, `hinted` evidence flag at half XP and 0.5 mastery.
+- [ ] G3 NPC behaviour state machine (Working/Walking/Reacting/Lapsing/SpeakingUp) plus named crew.
+- [ ] G4 OSHA feedback: HazardDefinition CFR fields, citation chip + Standard panel, debrief grouped by subpart (GDD §15).
+- [ ] G5 Topic pools beyond Focus Four: silica dust (with particle VFX), ground fault/leakage, noise, heat, HazCom, fire, tools, materials, vehicles, cranes, confined space (GDD §16).
+- [ ] G6 Vehicles: door open → enter → drive (WheelColliders) → exit; pre-use walk-around (GDD §17).
+- [ ] G7 Rigged crane (outriggers/slew/luff/telescope/hoist/pendulum load) + signal-person radial; excavator/backhoe/telehandler/lift/roller rigs via Tools/blender/rig_vehicle.py.
+- [ ] A1 Tripo Studio batch (27 models, 2026-09-28; web credits 3,200 → 1,715): download GLBs, Blender cleanup and scale, rig where listed.
+

@@ -1,0 +1,629 @@
+using System.Collections;
+using System.Linq;
+using Jobsite.Core;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+namespace Jobsite.Runtime
+{
+    // Topic episodes (GDD §18): episode select -> title card + narrated flythrough (skippable) -> the day's shift.
+    // Picking an episode reloads the one site scene with that day's phase; the week is the story arc.
+    [DefaultExecutionOrder(-500)]
+    public sealed class EpisodeDirector : MonoBehaviour
+    {
+        public static Episode Selected;          // null = show the episode menu
+        public static bool SkipIntro;            // tests / "replay without intro"
+        public static bool ForcePrologue;        // play the game's opening on the next load (menu replay, capture tests)
+        // First visit plays the opening; automated runs never do unless they ask for it.
+        // The opening is the first mission's cold open: it plays when Episode 1 (Monday) starts, then hands over to the
+        // episode's own intro. Automated runs skip it unless a test asks for it.
+        static bool PrologueDue(Episode ep) => ForcePrologue || ep != null && ep.Number == 1 && !Application.isBatchMode;
+        private bool inPrologue;
+        public bool InPrologue => inPrologue;
+
+        public enum State { Menu, Intro, Playing }
+        public State Current { get; private set; } = State.Playing;
+        public string Caption { get; private set; } = "";
+        public string Speaker { get; private set; } = "";
+
+        private Camera cine;
+        private Canvas canvas;
+        private Font font;
+        private Text captionText, speakerText;
+        private RectTransform titleCard;
+        private SitePlayer player;
+        private GameObject tabletCanvas;
+        private bool skip;
+
+        static readonly Color Accent = new Color(1f, .78f, .1f);
+
+        public static WorkDay DayOf(Episode e) => (WorkDay)(1 << e.DayIndex);
+        public static string Key(Episode e) => "episode_best_xp_" + e.Number;
+
+        private void Awake()
+        {
+            font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            NameTag.Hidden = false;   // a cinematic cut short by a scene load must not leave the labels off
+            var phases = FindFirstObjectByType<SitePhaseController>();
+            if (Selected != null && phases != null) phases.SetDay(DayOf(Selected));
+        }
+
+        private void Start()
+        {
+            player = FindFirstObjectByType<SitePlayer>();
+            var tablet = FindFirstObjectByType<FieldTablet>();
+            tabletCanvas = tablet != null ? tablet.GetComponentInParent<Canvas>(true)?.rootCanvas.gameObject : null;
+            if (Selected == null)
+            {
+                // A shared result link (…/?daily) drops the visitor straight into today's Hazard Hunt.
+                if (ArcadeMode.TryStartFromUrl()) return;
+                if (ForcePrologue) { StartCoroutine(PlayPrologue()); return; }   // WATCH INTRO from the menu
+                ShowMenu(); return;
+            }
+            if (!SkipIntro && PrologueDue(Selected)) { StartCoroutine(PlayPrologue()); return; }
+            if (!SkipIntro && Selected.Shots.Count > 0) StartCoroutine(Intro(Selected));
+        }
+
+        // ---------- shared cinematic rig ----------
+        private void Rig(bool on)
+        {
+            if (on && cine == null)
+            {
+                cine = new GameObject("CinematicCamera", typeof(Camera), typeof(AudioListener)).GetComponent<Camera>();
+                cine.fieldOfView = 38; cine.nearClipPlane = 0.1f; cine.depth = 10; cine.tag = "MainCamera";
+                UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(cine).renderPostProcessing = true;
+                var go = new GameObject("CinematicCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+                canvas = go.GetComponent<Canvas>();
+                canvas.renderMode = Application.isEditor ? RenderMode.ScreenSpaceCamera : RenderMode.ScreenSpaceOverlay; canvas.worldCamera = cine; canvas.planeDistance = 0.3f;
+                var scaler = go.GetComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; scaler.referenceResolution = new Vector2(1920, 1080) / GameSettings.TextScale; scaler.matchWidthOrHeight = 1;
+            }
+            if (cine != null) { cine.gameObject.SetActive(on); canvas.gameObject.SetActive(on); }
+            if (player != null) { player.enabled = !on; player.View.enabled = !on; var l = player.View.GetComponent<AudioListener>(); if (l) l.enabled = !on; }
+            if (tabletCanvas != null) tabletCanvas.SetActive(!on);
+        }
+
+        public Camera CinematicCamera => cine;
+
+        // ---------- episode select / gear locker / crew ----------
+        public enum Tab { Episodes, Gear, Crew, Credits }
+        public static Tab OpenTab = Tab.Episodes;   // the tab the next menu opens on (credits after the capstone)
+        private RectTransform body;
+        private Text profile;
+        private Career career;
+
+        private void ShowMenu()
+        {
+            Current = State.Menu;
+            Rig(true);
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            career = CareerStore.Load();
+            var root = canvas.transform;
+            Panel(root, "Shade", Vector2.zero, Vector2.one, new Color(0.03f, 0.04f, 0.05f, 0.6f));
+            Text(root, "COMPETENT PERSON", 64, Accent, new Vector2(0.06f, 0.85f), new Vector2(0.6f, 0.95f), TextAnchor.MiddleLeft);
+            Text(root, "One week on the Loblolly Creek Lift Station, Autauga County, Alabama.", 28, Color.white, new Vector2(0.06f, 0.79f), new Vector2(0.7f, 0.85f), TextAnchor.MiddleLeft);
+            profile = Text(root, "", 26, Color.white, new Vector2(0.6f, 0.85f), new Vector2(0.94f, 0.95f), TextAnchor.MiddleRight);
+            var tabs = new[] { (Tab.Episodes, "EPISODES"), (Tab.Gear, "GEAR LOCKER"), (Tab.Crew, "CREW"), (Tab.Credits, "CREDITS") };
+            for (var i = 0; i < tabs.Length; i++)
+            {
+                var (tab, label) = tabs[i];
+                var b = Panel(root, "Tab" + label, new Vector2(0.06f + i * 0.115f, 0.72f), new Vector2(0.165f + i * 0.115f, 0.775f), new Color(.15f, .18f, .19f, .95f));
+                Text(b, label, 24, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+                b.gameObject.AddComponent<Button>().onClick.AddListener(() => ShowTab(tab));
+            }
+            // Roster sign-in: pseudonymous codes from the instructor. Blank = practice (nothing reaches a class report).
+            Field(root, "CLASS CODE", GameSettings.ClassCode, v => GameSettings.ClassCode = v, new Vector2(0.56f, 0.72f), new Vector2(0.74f, 0.775f));
+            Field(root, "STUDENT ID", GameSettings.LearnerId, v => GameSettings.LearnerId = v, new Vector2(0.76f, 0.72f), new Vector2(0.94f, 0.775f));
+            Text(root, "Completion codes go to your course. Detailed play data (no names) is shared only if you opt in. AI chat asks first. Esc = settings.", 18, new Color(.7f, .75f, .75f),
+                new Vector2(0.06f, 0.02f), new Vector2(0.66f, 0.06f), TextAnchor.MiddleLeft);
+            ResearchToggle(root);
+            var intro = Panel(root, "WatchIntro", new Vector2(0.8f, 0.795f), new Vector2(0.94f, 0.84f), new Color(.15f, .18f, .19f, .95f));
+            Text(intro, "WATCH INTRO", 20, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+            intro.gameObject.AddComponent<Button>().onClick.AddListener(() => { ForcePrologue = true; SceneManager.LoadScene(SceneManager.GetActiveScene().path); });
+            ArcadeStrip(root);
+            body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.6f), new Color(0, 0, 0, 0));
+            ShowTab(OpenTab);
+            OpenTab = Tab.Episodes;
+            StartCoroutine(Orbit());
+        }
+
+        // Hazard Hunt entry (public build): one click into a 3-minute round of today's site, or a practice round.
+        private void ArcadeStrip(Transform root)
+        {
+            var now = System.DateTime.UtcNow;
+            var n = DailySite.Number(now);
+            var ep = ArcadeMode.TodaysEpisode(now);
+            var play = Panel(root, "PlayDaily", new Vector2(0.06f, 0.615f), new Vector2(0.52f, 0.705f), Accent);
+            Text(play, "PLAY NOW · HAZARD HUNT", 38, new Color(.08f, .08f, .08f), new Vector2(0.04f, 0.42f), new Vector2(0.98f, 1f), TextAnchor.MiddleLeft);
+            Text(play, $"Daily Site #{n} · {ep.Title} · find the hazards in {ShareCard.Time(ArcadeRules.RealSeconds)}", 22, new Color(.12f, .12f, .12f), new Vector2(0.04f, 0.05f), new Vector2(0.98f, 0.45f), TextAnchor.MiddleLeft);
+            play.gameObject.AddComponent<Button>().onClick.AddListener(() => ArcadeMode.StartDaily());
+            GamepadSupport.SelectFirst(play);
+            var practice = Panel(root, "PlayPractice", new Vector2(0.53f, 0.615f), new Vector2(0.7f, 0.705f), new Color(.15f, .18f, .19f, .95f));
+            Text(practice, "PRACTICE ROUND", 26, Color.white, new Vector2(0, 0.4f), Vector2.one, TextAnchor.MiddleCenter);
+            Text(practice, "random site, not a record", 17, new Color(.7f, .75f, .75f), new Vector2(0, 0.05f), new Vector2(1, 0.45f), TextAnchor.MiddleCenter);
+            practice.gameObject.AddComponent<Button>().onClick.AddListener(() => ArcadeMode.StartPractice());
+            var first = ArcadeMode.FirstScore(n);
+            var info = first >= 0
+                ? $"Today: {first:N0} pts (first try) · best {ArcadeMode.BestScore(n):N0}\nStreak {ArcadeMode.Streak} day{(ArcadeMode.Streak == 1 ? "" : "s")} · the course below is the full 5-day story"
+                : "New: spot the hazards before someone gets hurt, then share your grid.\nThe course below is the full 5-day story.";
+            Text(root, info, 19, new Color(.85f, .88f, .88f), new Vector2(0.715f, 0.615f), new Vector2(0.94f, 0.705f), TextAnchor.MiddleLeft);
+        }
+
+        public void ShowTab(Tab tab)
+        {
+            foreach (Transform c in body) Destroy(c.gameObject);
+            profile.text = $"Level {career.Level} · {Career.Rank(career.Level)}\n{career.Points} Safety Points · {career.LifetimeXp} XP";
+            if (tab == Tab.Episodes) EpisodeCards();
+            else if (tab == Tab.Gear) GearCards();
+            else if (tab == Tab.Crew) CrewCards();
+            else CreditsPage();
+        }
+
+        // Development credits: who made it, the learning design, the assets, and the lab and university logos on a
+        // white card (both logos are drawn for a light background).
+        private void CreditsPage()
+        {
+            Text(body, "DEVELOPMENT CREDITS", 30, Accent, new Vector2(0, 0.91f), new Vector2(0.6f, 1f), TextAnchor.MiddleLeft);
+            Text(body, $"Competent Person · build {Application.version}", 18, new Color(.7f, .75f, .75f), new Vector2(0.6f, 0.91f), new Vector2(1f, 1f), TextAnchor.MiddleRight);
+            var n = Credits.Sections.Length;
+            for (var i = 0; i < n; i++)
+            {
+                var sec = Credits.Sections[i];
+                float x0 = i * 1f / n, x1 = x0 + 1f / n - 0.012f;
+                var card = Panel(body, "Credits" + i, new Vector2(x0, 0.36f), new Vector2(x1, 0.89f), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Text(card, sec.Title, 22, Accent, new Vector2(0.06f, 0.84f), new Vector2(0.94f, 0.97f), TextAnchor.MiddleLeft);
+                var lines = Text(card, string.Join("\n", sec.Lines), 19, new Color(.88f, .9f, .9f), new Vector2(0.06f, 0.04f), new Vector2(0.94f, 0.84f), TextAnchor.UpperLeft);
+                lines.lineSpacing = 1.05f;
+            }
+            var logos = Panel(body, "Logos", new Vector2(0, 0.03f), new Vector2(1, 0.31f), Color.white);   // pure white: the logo files are flattened on white
+            Logo(logos, "Credits/addie_lab", new Vector2(0.04f, 0.1f), new Vector2(0.45f, 0.9f));
+            Panel(logos, "Rule", new Vector2(0.495f, 0.2f), new Vector2(0.498f, 0.8f), new Color(0.75f, 0.75f, 0.75f, 1f));
+            Logo(logos, "Credits/ua_coe", new Vector2(0.54f, 0.1f), new Vector2(0.96f, 0.9f));
+            Text(body, Credits.Footer, 16, new Color(.6f, .66f, .66f), new Vector2(0, 0.31f), new Vector2(1, 0.355f), TextAnchor.MiddleLeft);
+        }
+
+        // A logo fitted inside a box with its own aspect ratio (never stretched).
+        private static void Logo(RectTransform parent, string resource, Vector2 min, Vector2 max)
+        {
+            var tex = Resources.Load<Texture2D>(resource);
+            if (tex == null) return;
+            var box = new GameObject("LogoBox", typeof(RectTransform)).GetComponent<RectTransform>();
+            box.SetParent(parent, false); Stretch(box, min, max);
+            var img = new GameObject("Logo_" + tex.name, typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter)).GetComponent<RawImage>();
+            img.transform.SetParent(box, false); Stretch(img.rectTransform, Vector2.zero, Vector2.one);
+            img.texture = tex; img.raycastTarget = false;
+            var fit = img.GetComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent; fit.aspectRatio = (float)tex.width / tex.height;
+        }
+
+        private void GearCards()
+        {
+            Text(body, "Real instruments a competent person carries. They give you readings, not protection: you still make the call.", 24, new Color(.85f, .88f, .88f), new Vector2(0, 0.92f), new Vector2(1, 1), TextAnchor.MiddleLeft);
+            var n = GearCatalog.All.Count;
+            for (var i = 0; i < n; i++)
+            {
+                var g = GearCatalog.All[i];
+                float x0 = i * 1f / n, x1 = x0 + 1f / n - 0.012f;
+                var card = Panel(body, g.Id.ToString(), new Vector2(x0, 0), new Vector2(x1, 0.9f), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Art(card, "Gear/" + g.Id, new Vector2(0.1f, 0.58f), new Vector2(0.9f, 0.97f), new Rect(0, 0, 1, 1), true);
+                Text(card, g.Name, 30, Color.white, new Vector2(0.06f, 0.46f), new Vector2(0.94f, 0.57f), TextAnchor.MiddleLeft);
+                Text(card, g.Effect, 21, new Color(.55f, .85f, 1f), new Vector2(0.06f, 0.28f), new Vector2(0.94f, 0.46f), TextAnchor.UpperLeft);
+                Text(card, g.RealWorld, 16, new Color(.6f, .66f, .66f), new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.28f), TextAnchor.UpperLeft);
+                var owned = career.Has(g.Id);
+                var locked = career.Level < g.MinLevel;
+                var can = !owned && !locked && career.Points >= g.Cost;
+                var label = owned ? "OWNED" : locked ? $"NEEDS LEVEL {g.MinLevel}" : $"BUY · {g.Cost} SP";
+                var button = Panel(card, "Buy", new Vector2(0.06f, 0.03f), new Vector2(0.94f, 0.12f), can ? Accent : new Color(.25f, .27f, .28f));
+                Text(button, label, 22, can ? new Color(.08f, .08f, .08f) : new Color(.7f, .7f, .7f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+                if (can) button.gameObject.AddComponent<Button>().onClick.AddListener(() => Buy(g.Id));
+            }
+        }
+
+        public BuyResult Buy(GearId id)
+        {
+            var result = career.Buy(id);
+            if (result == BuyResult.Bought) CareerStore.Save(career);
+            ShowTab(Tab.Gear);
+            return result;
+        }
+
+        private void CrewCards()
+        {
+            Text(body, Cast.Player, 22, new Color(.85f, .88f, .88f), new Vector2(0, 0.88f), new Vector2(1, 1), TextAnchor.MiddleLeft);
+            const int cols = 4;
+            for (var i = 0; i < Cast.All.Count; i++)
+            {
+                var c = Cast.All[i];
+                float x0 = i % cols * 1f / cols, x1 = x0 + 1f / cols - 0.01f, y1 = 0.86f - i / cols * 0.44f, y0 = y1 - 0.42f;
+                var card = Panel(body, c.Id, new Vector2(x0, y0), new Vector2(x1, y1), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Art(card, "Cast/" + c.Id, new Vector2(0.02f, 0.05f), new Vector2(0.3f, 0.95f), new Rect(0.2f, 0, 0.6f, 1), true);
+                Text(card, c.Name, 26, Color.white, new Vector2(0.33f, 0.8f), new Vector2(0.98f, 0.97f), TextAnchor.MiddleLeft);
+                Text(card, $"{c.Age} · {c.Role}", 18, Accent, new Vector2(0.33f, 0.66f), new Vector2(0.98f, 0.8f), TextAnchor.UpperLeft);
+                Text(card, c.Backstory, 15, new Color(.82f, .85f, .85f), new Vector2(0.33f, 0.16f), new Vector2(0.98f, 0.66f), TextAnchor.UpperLeft);
+                Text(card, "Wants " + c.Want, 15, new Color(.55f, .85f, 1f), new Vector2(0.33f, 0.02f), new Vector2(0.98f, 0.16f), TextAnchor.UpperLeft);
+            }
+        }
+
+        private void Field(Transform parent, string placeholder, string value, System.Action<string> save, Vector2 min, Vector2 max)
+        {
+            var box = Panel(parent, placeholder, min, max, new Color(.1f, .12f, .13f, .95f));
+            var text = Text(box, "", 24, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleLeft);
+            text.rectTransform.offsetMin = new Vector2(14, 0);
+            text.supportRichText = false;
+            var hint = Text(box, placeholder, 22, new Color(1, 1, 1, .4f), Vector2.zero, Vector2.one, TextAnchor.MiddleLeft);
+            hint.rectTransform.offsetMin = new Vector2(14, 0);
+            var field = box.gameObject.AddComponent<InputField>();
+            field.textComponent = text; field.placeholder = hint; field.characterLimit = 24; field.text = Telemetry.RosterCode(value);
+            // Roster codes only: no spaces or names can be typed (the server refuses them too).
+            field.onValidateInput += (t, i, c) => char.IsLetterOrDigit(c) && c < 128 || c == '-' || c == '_' ? c : '\0';
+            field.onEndEdit.AddListener(v => { save(Telemetry.RosterCode(v)); PlayerPrefs.Save(); });
+        }
+
+        private static void Art(RectTransform parent, string resource, Vector2 min, Vector2 max, Rect uv, bool lit)
+        {
+            var tex = Resources.Load<Texture2D>(resource);
+            if (tex == null) return;
+            var img = new GameObject("Art", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+            img.transform.SetParent(parent, false); Stretch(img.rectTransform, min, max);
+            img.texture = tex; img.uvRect = uv; img.color = lit ? Color.white : new Color(.35f, .35f, .35f);
+        }
+
+        private void EpisodeCards()
+        {
+            var n = Episodes.All.Count;
+            for (var i = 0; i < n; i++)
+            {
+                var ep = Episodes.All[i];
+                float x0 = i * 1f / n, x1 = x0 + 1f / n - 0.012f;
+                var card = Panel(body, "EP" + ep.Number, new Vector2(x0, 0), new Vector2(x1, 1), new Color(0.07f, 0.09f, 0.1f, 0.92f));
+                Art(card, "Episodes/EP" + ep.Number, new Vector2(0, 0.52f), Vector2.one, new Rect(0.2f, 0, 0.6f, 1), ep.Playable);
+                Text(card, $"EPISODE {ep.Number}", 22, Accent, new Vector2(0.06f, 0.43f), new Vector2(0.94f, 0.5f), TextAnchor.MiddleLeft);
+                Text(card, ep.Title, 38, Color.white, new Vector2(0.06f, 0.34f), new Vector2(0.94f, 0.44f), TextAnchor.MiddleLeft);
+                Text(card, ep.Topic, 22, new Color(.8f, .84f, .84f), new Vector2(0.06f, 0.22f), new Vector2(0.94f, 0.34f), TextAnchor.UpperLeft);
+                Text(card, "29 CFR " + string.Join(" · ", ep.Standards), 16, new Color(.6f, .66f, .66f), new Vector2(0.06f, 0.13f), new Vector2(0.94f, 0.22f), TextAnchor.UpperLeft);
+                var best = PlayerPrefs.GetInt(Key(ep), -1);
+                // Mastery gate (GDD §5.2): the capstone opens once every prior area is at "competent".
+                var gated = ep.Number == 5 && !MasteryStore.CapstoneOpen;
+                var open = ep.Playable && !gated;
+                if (gated)
+                    Text(card, "Needs competent in: " + string.Join(", ", MasteryStore.CapstoneMissing().Select(a => $"{MasteryGate.AreaName(a)} ({MasteryGate.Practice(a)})")),
+                        16, Accent, new Vector2(0.06f, 0.115f), new Vector2(0.94f, 0.2f), TextAnchor.UpperLeft);
+                var label = !ep.Playable ? "IN PRODUCTION" : gated ? "LOCKED · MASTERY GATE" : best >= 0 ? $"REPLAY · BEST {best} XP" : "START";
+                var button = Panel(card, "Play", new Vector2(0.06f, 0.03f), new Vector2(0.94f, 0.11f), open ? Accent : new Color(.25f, .27f, .28f));
+                Text(button, label, 22, open ? new Color(.08f, .08f, .08f) : new Color(.6f, .6f, .6f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+                if (open) button.gameObject.AddComponent<Button>().onClick.AddListener(() => { ArcadeMode.Exit(); Play(ep); });
+            }
+        }
+
+        // Research participation toggle (IRB): off until the learner opts in; the choice is logged with a version.
+        private void ResearchToggle(Transform root)
+        {
+            var box = Panel(root, "ResearchToggle", new Vector2(0.68f, 0.015f), new Vector2(0.94f, 0.065f), new Color(.1f, .12f, .13f, .95f));
+            var label = Text(box, "", 18, Color.white, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
+            void Show() => label.text = GameSettings.ResearchConsent == 1 ? "RESEARCH DATA: SHARING · tap to stop" : "RESEARCH DATA: OFF · tap to opt in";
+            Show();
+            box.gameObject.AddComponent<Button>().onClick.AddListener(() =>
+            {
+                GameSettings.ResearchConsent = GameSettings.ResearchConsent == 1 ? 0 : 1; PlayerPrefs.Save(); Show();
+            });
+        }
+
+        private IEnumerator Orbit()
+        {
+            for (var t = 0f; Current == State.Menu; t += Time.unscaledDeltaTime)
+            {
+                var a = 0.35f + t * 0.03f;
+                cine.transform.position = new Vector3(45 + Mathf.Cos(a) * 55, 26, 30 + Mathf.Sin(a) * 45);
+                cine.transform.LookAt(new Vector3(42, 0, 30));
+                yield return null;
+            }
+        }
+
+        public static void Play(Episode ep)
+        {
+            Selected = ep;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().path);
+        }
+
+        public static void BackToMenu()
+        {
+            Selected = null; SkipIntro = false; ArcadeMode.Exit();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().path);
+        }
+
+        // ---------- intro: title card -> narrated shots -> hand over to the player ----------
+        private IEnumerator Intro(Episode ep)
+        {
+            Current = State.Intro;
+            NameTag.Hidden = true;
+            Rig(true);
+            Panel(canvas.transform, "LetterboxTop", new Vector2(0, 0.88f), Vector2.one, Color.black);
+            Panel(canvas.transform, "LetterboxBottom", Vector2.zero, new Vector2(1, 0.12f), Color.black);
+            speakerText = Text(canvas.transform, "", 30, Accent, new Vector2(0.15f, 0.125f), new Vector2(0.85f, 0.17f), TextAnchor.LowerCenter);
+            captionText = Text(canvas.transform, "", 34, Color.white, new Vector2(0.12f, 0.015f), new Vector2(0.88f, 0.115f), TextAnchor.MiddleCenter);
+            Text(canvas.transform, MobileControls.Active ? "Tap · skip" : "Space or click · skip", 20, new Color(1, 1, 1, .45f), new Vector2(0.85f, 0.89f), new Vector2(0.98f, 0.99f), TextAnchor.MiddleRight);
+            StartCoroutine(WatchSkip());
+
+            // Title card over the Higgsfield key art.
+            titleCard = Panel(canvas.transform, "TitleCard", Vector2.zero, Vector2.one, Color.black);
+            var art = Resources.Load<Texture2D>("Episodes/EP" + ep.Number);
+            if (art != null)
+            {
+                var img = new GameObject("Art", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+                img.transform.SetParent(titleCard, false); Stretch(img.rectTransform, new Vector2(0, 0.12f), new Vector2(1, 0.88f));
+                img.texture = art; img.uvRect = new Rect(0, 0.06f, 1, 0.88f);
+            }
+            Panel(titleCard, "Scrim", Vector2.zero, new Vector2(0.55f, 1), new Color(0, 0, 0, 0.45f));
+            Text(titleCard, $"EPISODE {ep.Number}", 34, Accent, new Vector2(0.06f, 0.56f), new Vector2(0.6f, 0.64f), TextAnchor.LowerLeft);
+            Text(titleCard, ep.Title.ToUpperInvariant(), 110, Color.white, new Vector2(0.06f, 0.4f), new Vector2(0.7f, 0.57f), TextAnchor.MiddleLeft);
+            Text(titleCard, ep.Topic, 32, new Color(.85f, .88f, .88f), new Vector2(0.06f, 0.33f), new Vector2(0.7f, 0.4f), TextAnchor.UpperLeft);
+            titleCard.SetAsFirstSibling(); // letterbox + captions stay on top
+            var fade = titleCard.gameObject.AddComponent<CanvasGroup>();
+            Say(ep.ColdOpen[0]);
+            cine.transform.position = Vec(ep.Shots[0].From); cine.transform.LookAt(Vec(ep.Shots[0].LookAt));
+            yield return Wait(ep.ColdOpen[0].Seconds);
+            for (var t = 0f; t < 1f && !skip; t += Time.deltaTime) { fade.alpha = 1 - t; yield return null; }
+            titleCard.gameObject.SetActive(false);
+
+            // Remaining lines play over the camera shots; the line index advances on its own clock.
+            var line = 1; var lineClock = 0f;
+            if (ep.ColdOpen.Count > 1) { Say(ep.ColdOpen[line]); Voice(ep, "open", line); }
+            foreach (var shot in ep.Shots)
+            {
+                for (var t = 0f; t < shot.Seconds && !skip; t += Time.deltaTime)
+                {
+                    // Reduce motion: hold each shot's framing instead of dollying (a cut between shots, no camera travel).
+                    var k = GameSettings.ReduceMotion ? 0.5f : Mathf.SmoothStep(0, 1, t / shot.Seconds);
+                    cine.transform.position = Vector3.Lerp(Vec(shot.From), Vec(shot.To), k);
+                    cine.transform.rotation = Quaternion.LookRotation(Vec(shot.LookAt) - cine.transform.position);
+                    lineClock += Time.deltaTime;
+                    if (line + 1 < ep.ColdOpen.Count && lineClock >= Seconds(ep, "open", line)) { line++; lineClock = 0; Say(ep.ColdOpen[line]); Voice(ep, "open", line); }
+                    yield return null;
+                }
+            }
+            // Let the last line finish if the shots ran short.
+            while (!skip && line < ep.ColdOpen.Count && lineClock < Seconds(ep, "open", line)) { lineClock += Time.deltaTime; yield return null; }
+            EndIntro();
+        }
+
+        private void EndIntro()
+        {
+            StopAllCoroutines();
+            EndVoice();
+            NameTag.Hidden = false;
+            Rig(false);
+            Current = State.Playing;
+            var shift = FindFirstObjectByType<ShiftDirector>();
+            if (shift != null) shift.Say($"Episode {Selected.Number} · {Selected.Title}. Sign in at the gate and put on your PPE.");
+        }
+
+        public void Skip() => skip = true;
+        private void Finish() { if (inPrologue) EndPrologue(); else EndIntro(); }
+
+        // ---------- game opening (prologue): place -> crew -> you -> the rule -> the pressure -> the loop -> title ----------
+        private IEnumerator PlayPrologue()
+        {
+            inPrologue = true; ForcePrologue = false;
+            Current = State.Intro;
+            Rig(true);
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            Panel(canvas.transform, "LetterboxTop", new Vector2(0, 0.88f), Vector2.one, Color.black);
+            Panel(canvas.transform, "LetterboxBottom", Vector2.zero, new Vector2(1, 0.12f), Color.black);
+            captionText = Text(canvas.transform, "", 34, Color.white, new Vector2(0.12f, 0.015f), new Vector2(0.88f, 0.115f), TextAnchor.MiddleCenter);
+            speakerText = null;
+            Text(canvas.transform, MobileControls.Active ? "Tap · skip" : "Space or click · skip", 20, new Color(1, 1, 1, .45f), new Vector2(0.85f, 0.89f), new Vector2(0.98f, 0.99f), TextAnchor.MiddleRight);
+            var fadeIn = Panel(canvas.transform, "FadeIn", Vector2.zero, Vector2.one, Color.black).gameObject.AddComponent<CanvasGroup>();
+            StartCoroutine(WatchSkip());
+
+            var site = new Vector3(42f, 0f, 32f);
+            var spawnGo = GameObject.Find("PlayerSpawn");
+            var spawn = spawnGo != null ? spawnGo.transform.position : (player != null ? player.transform.position : new Vector3(10f, 0f, 10f));
+            var toSite = site - spawn; toSite.y = 0; toSite = toSite.sqrMagnitude > 1f ? toSite.normalized : Vector3.forward;
+            var crew = FindObjectsByType<CrewMember>(FindObjectsSortMode.None).Where(c => c.isActiveAndEnabled && !string.IsNullOrEmpty(c.DisplayName)).ToList();
+            var ray = crew.FirstOrDefault(c => c.DisplayName.StartsWith("Ray"));
+            // Montage: whoever is on site today (named crew first, then workers), three faces, never Ray (his beat comes later).
+            var people = FindObjectsByType<CrewGestures>(FindObjectsSortMode.None).Where(g => g.isActiveAndEnabled && g.transform.position.y > -0.5f
+                    && (ray == null || g.gameObject != ray.gameObject)).Select(g => g.transform)
+                .OrderBy(t => t.GetComponent<CrewMember>() != null ? 0 : 1).ThenBy(t => Vector3.Distance(t.position, site)).Take(3).ToList();
+            Transform machine = FindObjectsByType<ExcavatorRig>(FindObjectsSortMode.None).Select(r => r.transform).FirstOrDefault()
+                ?? FindObjectsByType<CraneRig>(FindObjectsSortMode.None).Select(r => r.transform).FirstOrDefault();
+            NameTag.Hidden = true;   // name tags would fill the close-ups
+
+            for (var i = 0; i < Prologue.Beats.Count && !skip; i++)
+            {
+                var beat = Prologue.Beats[i];
+                var clip = Resources.Load<AudioClip>($"Audio/VO/vo_prologue_{i + 1}");
+                var dur = clip != null ? clip.length + 0.6f : beat.Line.Seconds;
+                Say(beat.Line); PrologueVoice(clip);
+                RectTransform title = null; CanvasGroup titleFade = null;
+                if (beat.Shot == Prologue.ShotKind.Title)
+                {
+                    title = Panel(canvas.transform, "PrologueTitle", Vector2.zero, Vector2.one, new Color(0.02f, 0.03f, 0.04f, 1f));
+                    title.SetSiblingIndex(2);   // under the letterbox, captions and skip label
+                    Text(title, "COMPETENT PERSON", 120, Accent, new Vector2(0.05f, 0.48f), new Vector2(0.95f, 0.66f), TextAnchor.MiddleCenter);
+                    Text(title, "A serious game about seeing hazards before they hurt someone", 34, Color.white, new Vector2(0.05f, 0.4f), new Vector2(0.95f, 0.48f), TextAnchor.MiddleCenter);
+                    Text(title, Credits.Studio + "  ·  " + Credits.Home, 22, new Color(.7f, .75f, .75f), new Vector2(0.05f, 0.2f), new Vector2(0.95f, 0.26f), TextAnchor.MiddleCenter);
+                    titleFade = title.gameObject.AddComponent<CanvasGroup>(); titleFade.alpha = 0f;
+                }
+                for (var t = 0f; t < dur && !skip; t += Time.deltaTime)
+                {
+                    var u = Mathf.Clamp01(t / dur);
+                    if (i == 0 && fadeIn != null) fadeIn.alpha = 1f - Mathf.Clamp01(t / 1.2f);
+                    if (titleFade != null) titleFade.alpha = Mathf.Clamp01(t / 1f);
+                    PrologueCamera(beat.Shot, GameSettings.ReduceMotion ? 0.5f : u, site, spawn, toSite, people, ray, machine);
+                    yield return null;
+                }
+                if (fadeIn != null) { Destroy(fadeIn.gameObject); fadeIn = null; }
+                if (title != null && !skip) yield return Wait(1.2f);
+            }
+            EndPrologue();
+        }
+
+        // Where the camera is for each kind of shot (u = 0..1 through the line).
+        private void PrologueCamera(Prologue.ShotKind kind, float u, Vector3 site, Vector3 spawn, Vector3 toSite, System.Collections.Generic.List<Transform> montage, CrewMember ray, Transform machine)
+        {
+            var s = Mathf.SmoothStep(0f, 1f, u);
+            Vector3 from, to, look;
+            switch (kind)
+            {
+                case Prologue.ShotKind.Crew when montage.Count > 0:
+                {
+                    var k = Mathf.Min(montage.Count - 1, Mathf.FloorToInt(u * montage.Count));
+                    var local = u * montage.Count - k;
+                    CloseUp(montage[k], local, 2.6f, 1.9f, k % 2 == 0 ? 0.55f : -0.55f);
+                    return;
+                }
+                case Prologue.ShotKind.Foreman when ray != null:
+                    CloseUp(ray.transform, u, 3.2f, 2.2f, -0.6f);
+                    return;
+                case Prologue.ShotKind.Gate:
+                    from = spawn - toSite * 4.5f + Vector3.up * 2.4f; to = spawn - toSite * 1.5f + Vector3.up * 1.8f; look = spawn + toSite * 12f + Vector3.up * 1.2f;
+                    break;
+                case Prologue.ShotKind.Machine:
+                {
+                    // The working iron if it is on site today, else the site itself, circling at crane-cab height.
+                    var c = machine != null ? machine.position + Vector3.up * 2f : site + Vector3.up * 1f;
+                    var r = machine != null ? 14f : 34f; var h = machine != null ? 3.5f : 12f;
+                    var a0 = Mathf.Atan2((site - c).z, (site - c).x) + 2.2f;
+                    var a = a0 + s * 0.6f;
+                    cine.transform.position = c + new Vector3(Mathf.Cos(a) * r, h, Mathf.Sin(a) * r);
+                    cine.transform.rotation = Quaternion.LookRotation(c - cine.transform.position);
+                    return;
+                }
+                case Prologue.ShotKind.Walk:
+                    // Your eyes at the gate: a slow scan across the site you are about to walk (no travel through props).
+                    from = to = spawn + Vector3.up * 1.65f;
+                    look = from + Quaternion.AngleAxis(Mathf.Lerp(-35f, 35f, s), Vector3.up) * toSite * 20f - Vector3.up * 1.2f;
+                    break;
+                case Prologue.ShotKind.Title:
+                    from = site + new Vector3(30f, 30f, -30f); to = site + new Vector3(26f, 28f, -26f); look = site;
+                    break;
+                default:   // aerial: a slow descent toward the site
+                    from = site + new Vector3(63f, 40f, -52f); to = site + new Vector3(36f, 24f, -30f); look = site + Vector3.up * 2f;
+                    break;
+            }
+            cine.transform.position = Vector3.Lerp(from, to, s);
+            cine.transform.rotation = Quaternion.LookRotation(look - cine.transform.position);
+        }
+
+        // A slow push in on a person's face, from a little off their shoulder.
+        private void CloseUp(Transform who, float u, float d0, float d1, float side)
+        {
+            var head = who.position + Vector3.up * 1.62f;
+            var d = Mathf.Lerp(d0, d1, Mathf.SmoothStep(0f, 1f, u));
+            cine.transform.position = head + who.forward * d + who.right * side + Vector3.up * 0.05f;
+            cine.transform.rotation = Quaternion.LookRotation(head - cine.transform.position);
+        }
+
+        private static void PrologueVoice(AudioClip clip)
+        {
+            if (voice == null) { voice = new GameObject("Voice").AddComponent<AudioSource>(); voice.spatialBlend = 0; }
+            voice.Stop();
+            if (clip == null) return;
+            voice.volume = GameSettings.VoiceVolume; voice.clip = clip; voice.Play();
+        }
+
+        private void EndPrologue()
+        {
+            StopAllCoroutines();
+            EndVoice();
+            inPrologue = false; skip = false;
+            PlayerPrefs.SetInt(Prologue.SeenKey, 1); PlayerPrefs.Save();
+            if (canvas != null) foreach (Transform c in canvas.transform) Destroy(c.gameObject);
+            NameTag.Hidden = false;
+            captionText = null; speakerText = null; Caption = ""; Speaker = "";
+            // Before a mission: straight into the episode's title card and cold open. From the menu replay: back to the menu.
+            if (Selected == null) ShowMenu();
+            else if (Selected.Shots.Count > 0) StartCoroutine(MissionIntro());
+            else EndIntro();
+        }
+
+        // One frame later, so the press that skipped the opening does not also skip the episode's title card.
+        private IEnumerator MissionIntro() { yield return null; yield return Intro(Selected); }
+
+        private IEnumerator WatchSkip()
+        {
+            while (Current == State.Intro)
+            {
+                var k = Keyboard.current;
+                if (k != null && (k.spaceKey.wasPressedThisFrame || k.enterKey.wasPressedThisFrame || k.escapeKey.wasPressedThisFrame)) { skip = true; Finish(); yield break; }
+                // Mouse and touch players had no way to skip (the label was plain text).
+                if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame
+                    || Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) { skip = true; Finish(); yield break; }
+                if (skip) { Finish(); yield break; }
+                yield return null;
+            }
+        }
+
+        private IEnumerator Wait(float seconds) { for (var t = 0f; t < seconds && !skip; t += Time.deltaTime) yield return null; }
+
+        // Voice-over (Higgsfield TTS, Resources/Audio/VO/vo_ep{n}_{open|epi}_{i}); captions stay on screen either way.
+        static AudioClip VoClip(Episode ep, string kind, int i) => Resources.Load<AudioClip>($"Audio/VO/vo_ep{ep.Number}_{kind}_{i}");
+        static float Seconds(Episode ep, string kind, int i)
+        {
+            var lines = kind == "open" ? ep.ColdOpen : ep.Epilogue;
+            var clip = VoClip(ep, kind, i);
+            return Mathf.Max(lines[i].Seconds, clip != null ? clip.length + 0.5f : 0);
+        }
+        private static AudioSource voice;
+        static void Voice(Episode ep, string kind, int i)
+        {
+            var clip = VoClip(ep, kind, i);
+            if (clip == null) return;
+            if (voice == null) { voice = new GameObject("Voice").AddComponent<AudioSource>(); voice.spatialBlend = 0; }
+            voice.Stop(); voice.volume = GameSettings.VoiceVolume; voice.clip = clip; voice.Play();
+        }
+
+        private void EndVoice() { if (voice != null) voice.Stop(); }
+
+        private void Say(Line line)
+        {
+            Caption = line.Text; Speaker = line.Speaker;
+            if (captionText != null) captionText.text = line.Text;
+            if (speakerText != null) speakerText.text = line.Speaker.ToUpperInvariant();
+        }
+
+        // Epilogue after the closing debrief: plays as radio lines on the tablet notice.
+        public static IEnumerator Epilogue(ShiftDirector shift)
+        {
+            if (Selected == null) yield break;
+            // Story follows play: found-gated lines, and a clean-vs-rough branch for how the shift actually went.
+            var clean = ShiftVerdict.Clean(shift.Session, shift.Conditions.Select(c => c.Spec));
+            for (var i = 0; i < Selected.Epilogue.Count; i++)
+            {
+                var line = Selected.Epilogue[i];
+                if (line.IfFound != null && (!shift.Conditions.Any(c => c.Id == line.IfFound) || !shift.Session.GetEvidence(line.IfFound).Detected)) continue;
+                if (!ShiftVerdict.Plays(line.Gate, clean)) continue;
+                shift.Say((line.Speaker.Length > 0 ? line.Speaker + ": " : "") + line.Text);
+                Voice(Selected, "epi", i);
+                yield return new WaitForSeconds(Seconds(Selected, "epi", i));
+            }
+        }
+
+        static Vector3 Vec(float[] v) => new Vector3(v[0], v[1], v[2]);
+
+        static void Stretch(RectTransform rt, Vector2 min, Vector2 max) { rt.anchorMin = min; rt.anchorMax = max; rt.offsetMin = rt.offsetMax = Vector2.zero; }
+
+        static RectTransform Panel(Transform parent, string name, Vector2 min, Vector2 max, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform; Stretch(rt, min, max);
+            go.GetComponent<Image>().color = color;
+            return rt;
+        }
+
+        private Text Text(Transform parent, string value, int size, Color color, Vector2 min, Vector2 max, TextAnchor anchor)
+        {
+            var go = new GameObject("Text", typeof(RectTransform), typeof(Text), typeof(Shadow));
+            go.transform.SetParent(parent, false);
+            Stretch((RectTransform)go.transform, min, max);
+            var t = go.GetComponent<Text>();
+            t.text = value; t.font = font; t.fontSize = size; t.color = color; t.alignment = anchor; t.raycastTarget = false;
+            t.horizontalOverflow = HorizontalWrapMode.Wrap; t.verticalOverflow = VerticalWrapMode.Overflow;
+            return t;
+        }
+    }
+}

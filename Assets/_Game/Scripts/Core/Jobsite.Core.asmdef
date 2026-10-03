@@ -1,0 +1,6 @@
+{
+  "name": "Jobsite.Core",
+  "rootNamespace": "Jobsite.Core",
+  "noEngineReferences": true,
+  "autoReferenced": true
+}

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- CI runner for the engine-free code: Core + EditMode tests compiled with a tiny NUnit-compatible shim, so the
+       job needs no Unity licence and no NuGet packages. See .github/workflows/ci.yml for the commands. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <StartupObject>Runner</StartupObject>
+    <NoWarn>CS0162;CS0168;CS0219</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="NUnitShim.cs" />
+    <Compile Include="../../Assets/_Game/Scripts/Core/**/*.cs" />
+    <Compile Include="../../Assets/_Game/Tests/EditMode/**/*.cs" />
+  </ItemGroup>
+</Project>

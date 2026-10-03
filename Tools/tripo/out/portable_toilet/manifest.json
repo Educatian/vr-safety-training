@@ -1,0 +1,13 @@
+{
+ "api": "v3",
+ "source": "C:\\Users\\jewoo\\GameDev\\vr-safety-training\\Tools\\tripo\\refs\\portable_toilet.png",
+ "rig": "none",
+ "spec": "tripo",
+ "tasks": {},
+ "files": {},
+ "credits_total": 0,
+ "errors": [],
+ "created": "2026-09-28 15:17:29",
+ "game": "vr-safety-training",
+ "character": "portable_toilet"
+}

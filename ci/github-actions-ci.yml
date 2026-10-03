@@ -1,0 +1,42 @@
+# Move this file to .github/workflows/ci.yml to enable GitHub Actions (remote tools cannot write .github/).
+# Continuous integration for what can run without a Unity licence (quality review area 13).
+# Unity EditMode/PlayMode tests and the WebGL build still run in the local pipeline (Logs/claude/run.bat);
+# this catches engine-free regressions on every push and pull request.
+name: ci
+on:
+  push:
+    branches: [ main, "revamp/**" ]
+  pull_request:
+
+jobs:
+  core:
+    name: Core + EditMode logic tests (.NET 8, NUnit shim)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Tests
+        run: dotnet run -c Release --project ci/coretests
+      - name: Coverage matrix is current
+        run: dotnet run -c Release --project ci/coretests -- --check-coverage docs/CoverageMatrix.csv
+
+  web:
+    name: Web API self-test (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"   # detects ES-module syntax in the Pages Functions without "type": "module"
+      - name: Syntax check of Pages Functions
+        run: for f in Web/functions/api/*.js; do node --check "$f"; done
+      - name: Ingest + withdrawal against a mock D1
+        run: node Web/qa/api_events_withdraw.test.mjs
+      - name: Hazard Hunt leaderboard against a mock D1
+        run: node Web/qa/api_scores.test.mjs

@@ -1,70 +1,39 @@
-# VR Safety Training Explorer
+# Competent Person
 
-Unity 6 + OpenXR prototype for exploring multiple safety-training sites and talking with Microsoft Rocketbox NPCs. The experience contains five workplace zones in one continuous campus:
+A serious game about construction safety. Over one week on a municipal lift-station job in Alabama, you are the new **OSHA competent person**. Each day you walk a changing site, find hazards that nobody has highlighted, and rate the risk. Then you pick and install controls, stop work when you have to, hold the line when the foreman pushes back, and brief the crew for tomorrow.
 
-![Chemical hands-on safety training with PPE and mission HUD](docs/images/chemical-hands-on-ppe.png)
+Built in Unity 6000.3.25f1 (URP). It is played in a web browser (WebGL) or as a desktop build. The design source of truth is `docs/GDD.md`.
 
-## Training mechanics at a glance
+## What the learner does (and what is scored)
+| Verb | In game | Evidence |
+|---|---|---|
+| Recognize | Photograph any surface. The tablet shows only a neutral name until you report, so nothing gives the answer away. | HII, time to detect. Cued or hinted finds count half. |
+| Classify, assess | Energy-wheel tag and a probability x severity card | Tag accuracy and deviation from the expert key, with immediate feedback |
+| Discriminate | Report it, or log it "checked · compliant" (feedback on compliant calls comes in the debrief) | Precision, correct compliant confirmations |
+| Inspect | Measure with a laser, GFCI tester, penetrometer or dust monitor (costs shift time). Readings are raw values, never a verdict. | Measured before the call |
+| Control | Eliminate, engineer (pick the right kit, carry it, install it), assign, or PPE. Weak controls lapse later in the shift. | Chosen vs. best feasible control, lapses, install attempts |
+| Escalate | Radio stop-work. Ray pushes back and you answer passively, assertively or aggressively. | Stop held or not, speak-up style, schedule slip |
+| Reflect | Tomorrow's toolbox talk: pick three findings, order them, and answer the why | Selection and order vs. the risk key, why item |
 
-![Safety-training mechanics workflow](docs/images/mechanics-workflow.svg)
+Around the core loop: near-miss stop-down cards ("what almost happened", no gore), a debrief grouped by outcome with the OSHA citation, per-area CP mastery, and a Friday capstone that unlocks only at competent mastery. The capstone ending branches on how the shift actually went.
 
-The assessment engine owns hazards, action order, completion, and scoring. The NPC coach provides grounded, role-aware explanations and natural chat interaction without changing the deterministic training outcome.
+## Run it
+- **Web:** https://competent-person.pages.dev/. The build and deploy steps are in `docs/Deploy.md`.
+- **Editor:** open the project in Unity 6000.3.25f1 and play `Assets/_Game/Scenes/Jobsite.unity`.
+- **Controls:** WASD to move, drag the mouse to look, E to photograph or interact, Tab for the tablet (F or its corner button for full view), M for the map, Esc for settings. On a phone or tablet, use the touch controls.
 
-## In-game documentation captures
+## Playtests
+See `docs/PlaytestGuide.md` for the session script, the facilitator settings (research opt-in, unlock all episodes, visual cues) and what to observe.
 
-| Training hub | Electrical safety coach |
-| --- | --- |
-| ![Five-module training hub](docs/images/training-hub.png) | ![Electrical coach dialogue and protected cable-crossing task](docs/images/electrical-coach-dialogue.png) |
+## Tests
+- EditMode (`Assets/_Game/Tests/EditMode`) covers the deterministic engine: hazard state machine, scoring, exploits, toolbox talk, speak-up, mastery gate and story verdict.
+- PlayMode (`Assets/_Game/Tests/PlayMode`) plays every episode end to end and saves screenshots under `Captures/`. PlayMode tests always run muted.
 
-- Construction: fall protection and blocked-access hazards
-- Warehouse: spill and vehicle-route hazards
-- Fire response: extinguisher access and evacuation hazards
-- Chemical processing: solvent storage, labeling, and eyewash access
-- Electrical maintenance: energized-panel lockout and protected cable crossings
+## Design and evidence
+- `docs/GDD.md`: design, evidence base, and the learning-mechanic ↔ game-mechanic map.
+- `docs/DesignReview_2026-09-29.md`: the serious-game review and what has been fixed since.
+- `docs/GapAudit_2026-09-28.md`: the earlier shippability audit.
 
-Each site contains two real hazards and two controlled look-alikes. Nothing is labeled or colored as a hazard before inspection. A correct identification earns 100 points; the first selection of a safe condition costs 25 points; repeats do not change the score. The deterministic training engine owns completion and scoring. The language model only produces grounded NPC coaching, so a model response cannot change the correct answer or score.
+Training record only. This game does not issue an OSHA 10/30 card or a competent-person designation.
 
-Five bright route lanes and portal pads move the learner across a continuous walkable ground plane; each site can also be entered directly through its portal. A startup grounding guard prevents the XR rig from dropping before locomotion is initialized. Each Rocketbox coach cycles through inspection guidance, progress-aware hints, control explanations, and a score-neutral debrief. Inspection events are written as JSONL under Unity's persistent data folder without learner identity or raw conversation text.
-
-## Run the completed prototype
-
-Run `Builds/Windows/VR-Safety-Training.exe`, or open this folder with Unity `6000.0.75f1` and play `Assets/SafetyTraining/Scenes/SafetyTrainingExplorer.unity`. The generated scene already contains the XR Origin, controller interaction, three sites, HUD, portals, hazards, and Rocketbox coaches. `Safety Training > Build Prototype Scene` regenerates it.
-
-The scene supports WASD movement, right-mouse look, and mouse selection as a desktop fallback. In VR, inspection targets, coaches, and site portals use `XRSimpleInteractable` selection. Green and amber colors appear only after a learner makes a selection. The HUD uses a compact dark field-ops panel with site header, score, and wrapped feedback text.
-
-## Construction practical
-
-Construction Site is the hands-on lead scenario. Students complete a deliberately ordered five-step control loop by grabbing marked props with an XR controller (or clicking them in desktop fallback): pick up the PPE kit, set the exclusion barricade, install the guardrail kit, move the material cart to staging, and complete the final walkdown with the clipboard. Out-of-order actions produce an immediate HUD sequence cue; completed actions turn green and award a 20-point practical bonus. The sequence is repeat-safe and ends with a coach debrief prompt.
-
-The construction pass uses authored multi-part model assemblies rather than single placeholder blocks: scaffold uprights/crossbars/decks/base jacks, PPE case contents and latch, barricade feet/posts/striping, rail-kit base plates/uprights, cart handle/wheels, and clipboard clip.
-
-The site is also dressed with downloaded Poly Haven CC0 assets: a hand truck, sectioned ladder, cement bag, drill, and industrial barrel. Source attribution and local files are tracked under `Assets/ThirdParty/PolyHaven/`.
-
-Rocketbox coaches now run an idle behavior loop: subtle body sway/weight shift for generic rigs, timed field-pointing and explanation gestures where humanoid bones are available, head motion during conversation, and a separate talking pose so chat interaction does not snap the NPC back to the default pose.
-
-Environment lighting uses a warm directional sun with soft shadows, site work lights, tri-light ambient color, linear distance fog, a procedural sky, and one baked reflection probe per workplace. The baked probes avoid the GPU/headless instability of realtime cubemap updates while preserving stable VR performance.
-
-Click any Rocketbox coach to open the live chat panel. Students can type a question and press Enter/Send; the coach answers through the configured OpenAI-compatible endpoint, with a grounded offline fallback when the endpoint is unavailable. Conversation context is retained for the active coach, while authored safety facts and deterministic scoring remain authoritative.
-
-## Validation
-
-- Core scoring smoke test: passed
-- Unity EditMode suite: 11/11 passed
-- OpenXR Project Validation: 0 issues out of 16 checks
-- Independent visual QA: two reviewers passed the 13-frame construction-focused set under `Captures/construction-hands-on-v1`
-- Windows standalone build: succeeded at `Builds/Windows/VR-Safety-Training.exe`
-
-## LLM endpoint
-
-`LlmEndpointConfig` defaults to a local OpenAI-compatible endpoint:
-
-- URL: `http://localhost:11434/v1/chat/completions`
-- Model: `hermes3:8b`
-
-For a hosted provider, change the endpoint and model in the NPC inspector. Store the API key in an operating-system environment variable and set only its variable name in Unity. Do not put secrets in scenes, assets, or source control. If the endpoint is unavailable, NPCs use a deterministic offline response.
-
-NPC replies are grounded in authored site facts, limited to concise complete sentences, and paginated when necessary. The deterministic training engine remains the only authority for hazards, scoring, progress, and completion.
-
-## Rocketbox attribution
-
-The selected character files under `Assets/ThirdParty/MicrosoftRocketbox` come from the Microsoft Rocketbox Avatar Library and retain its MIT license file. Research use should cite Gonzalez-Franco et al. (2020), *The Rocketbox library and the utility of freely available rigged avatars*.
+Microsoft Rocketbox avatars are MIT licensed. Cite Gonzalez-Franco et al. (2020).

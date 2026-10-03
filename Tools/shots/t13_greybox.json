@@ -1,0 +1,11 @@
+{
+  "scene": "Assets/_Game/Scenes/Jobsite.unity",
+  "outDir": "Captures/t13_greybox",
+  "shots": [
+    { "name": "01_aerial_overview", "pos": [-18, 42, -28], "lookAt": [45, 0, 32], "fov": 55 },
+    { "name": "02_gate_eye_level", "pos": [12, 1.7, -2.5], "lookAt": [18, 1.2, 25], "fov": 70 },
+    { "name": "03_trench_edge_eye_level", "pos": [63.8, 1.7, 14], "lookAt": [66, -0.8, 30], "fov": 70 },
+    { "name": "04_deck_eye_level", "pos": [37, 5.9, 29], "lookAt": [50, 4.8, 38], "fov": 70 },
+    { "name": "05_yard_power_line", "pos": [30, 1.7, 46], "lookAt": [50, 5, 68], "fov": 70 }
+  ]
+}
