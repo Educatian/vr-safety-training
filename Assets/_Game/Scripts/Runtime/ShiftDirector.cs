@@ -386,6 +386,7 @@ namespace Jobsite.Runtime
             AudioDirector.Play("shutter"); tablet.Flash();
             SiteFx.Pulse(Ground(target), new Color(.55f, .9f, 1f, .9f));
             Log("photo", target.Id, "valid-frame");
+            photographed.Add(target.Id);
             tablet.Refresh(); Ping();
         }
 
@@ -596,6 +597,12 @@ namespace Jobsite.Runtime
                 Log("install_success", selected.Id, "Elimination", Ecd("install_success"), 1f);
                 SiteFx.Check(selected.PhotoBounds.center + Vector3.up * selected.PhotoBounds.extents.y);
                 CrewGestures.ReactNear(selected.transform.position, 12f, CrewGestures.Situation.ControlInstalled, selected.PhotoBounds.center);
+            }
+            else if (result == ControlOutcome.Assigned && level != ControlLevel.Ppe && CoachingRubric.Applies(selected.Id))
+            {
+                // A reminder only works if it lands: coach the worker (scored), then it holds or fades accordingly.
+                PendingCoaching = selected.Id;
+                Say(CoachingRubric.Worker.TryGetValue(selected.Id, out var w) ? w : "Worker: What's up?");
             }
             else if (result == ControlOutcome.Assigned) Say("Temporary control assigned. Check it again later.");
             else if (result == ControlOutcome.NotFeasible) Say("That control is not feasible here. Choose another.");
@@ -825,6 +832,82 @@ namespace Jobsite.Runtime
             }
         }
 
+        // ---------- conversation as evidence: interviews, coaching, own-words briefing, inspection log ----------
+        private readonly HashSet<string> askedClues = new HashSet<string>();
+        private readonly HashSet<string> photographed = new HashSet<string>();
+        public readonly List<string> Leads = new List<string>();
+        public IReadOnlyCollection<string> Photographed => photographed;
+        public bool AskedClue(string id) => askedClues.Contains(id);
+
+        private void RevealClue(CrewMember crew, Clue clue)
+        {
+            askedClues.Add(clue.Id);
+            var c = conditions.FirstOrDefault(x => x != null && x.Id == clue.HazardId);
+            var live = c != null && c.IsHazard && Session.GetState(c.Id) != HazardState.Controlled;
+            crew.Reply(live ? clue.Line : clue.AllClear, Session?.Affect);
+            Log("interview_clue", clue.Id, live ? "lead:" + clue.HazardId : "all-clear", Ecd("interview_clue"), 1f);
+            if (!live) return;
+            Leads.Add(clue.Lead);
+            SiteFx.Toast("NEW LEAD · " + clue.Lead);
+            Xp += 20;
+        }
+
+        public string PendingCoaching { get; private set; }
+        public SpokenResult? LastCoaching { get; private set; }
+        public void SubmitCoaching(string text)
+        {
+            if (PendingCoaching == null) return;
+            var id = PendingCoaching; PendingCoaching = null;
+            var c = conditions.FirstOrDefault(x => x.Id == id);
+            var r = CoachingRubric.Score(text);
+            LastCoaching = r;
+            Session.ScaleLapse(id, CoachingRubric.LapseFactor(r.Score));
+            Session.Affect.Nudge(CrewAffect.Crew, r.Score >= 0.7f ? 0.12f : r.Score < 0.3f ? -0.12f : 0f, r.Score < 0.3f ? 0.1f : 0f);
+            Log("coaching", id, r.Flags, Ecd("coaching"), r.Score, c != null ? c.Cfr : "");
+            LastKsa = Feedback(Jobsite.Core.Ksa.SCommunicate, c != null ? c.Cfr : "", r.Feedback);
+            var who = CoachingRubric.Worker.TryGetValue(id, out var w) ? w.Split(':')[0] : "Worker";
+            Say(r.Score >= 0.7f ? who + ": Yeah, fair. Moving now." : r.Score >= 0.4f ? who + ": Okay, okay." : who + ": ...Whatever you say, boss.");
+            if (c != null) CrewGestures.ReactNear(c.transform.position, 10f, r.Score >= 0.7f ? CrewGestures.Situation.Acknowledge : CrewGestures.Situation.Puzzled, c.PhotoBounds.center);
+            tablet.Refresh();
+        }
+        public void SkipCoaching()
+        {
+            if (PendingCoaching == null) return;
+            Log("coaching", PendingCoaching, "skipped", Ecd("coaching"), 0f);
+            PendingCoaching = null; Say("Temporary control assigned. Check it again later."); tablet.Refresh();
+        }
+
+        public SpokenResult? OwnWordsTalk { get; private set; }
+        public void BriefInOwnWords(string text)
+        {
+            if (!Finished || EpisodeComplete || OwnWordsTalk != null || string.IsNullOrWhiteSpace(text)) return;
+            var top = Findings.OrderByDescending(c => ToolboxTalk.Risk(c.Spec)).FirstOrDefault();
+            var r = BriefingRubric.Score(text, top != null ? top.DisplayName : "", top != null ? top.Spec.Energy : EnergySource.Gravity);
+            OwnWordsTalk = r;
+            Session.Affect.Nudge(CrewAffect.Crew, 0.1f * r.Score, 0f);
+            Xp += Mathf.RoundToInt(40 * r.Score);
+            Log("talk_own_words", top != null ? top.Id : "day", r.Flags, Ecd("talk_own_words"), r.Score, "1926.21(b)(2)");
+            tablet.Refresh();
+        }
+
+        public SpokenResult? InspectionLogResult { get; private set; }
+        public bool InspectionLogAvailable => !ArcadeMode.Active && Episode.Number == 2 && Current == Phase.Shift;
+        public void SubmitInspectionLog(string soil, bool water, string system, ICollection<string> listed, string actions)
+        {
+            if (!InspectionLogAvailable || InspectionLogResult != null) return;
+            var seen = conditions.Where(c => c != null && photographed.Contains(c.Id)).ToList();
+            var real = seen.Where(c => c.IsHazard && Session.GetState(c.Id) != HazardState.Controlled).Select(c => c.Id).ToList();
+            var alike = seen.Where(c => !c.IsHazard).Select(c => c.Id).ToList();
+            var r = InspectionLog.Score(soil, water, system, listed, real, alike, actions);
+            InspectionLogResult = r;
+            Xp += Mathf.RoundToInt(60 * r.Score);
+            SpendShiftTime(20f);
+            Log("inspection_log", "tue-log", r.Flags, Ecd("inspection_log"), r.Score, "1926.651(k)(1)");
+            LastKsa = Feedback(Jobsite.Core.Ksa.AThorough, "1926.651(k)(1)", r.Feedback);
+            Say("Inspection logged and signed. Dolores will read it.");
+            tablet.Refresh();
+        }
+
         // ---------- Hazard Hunt (arcade) ----------
         public const int ArcadeHints = 2;
         private bool allFoundAnnounced;
@@ -837,7 +920,7 @@ namespace Jobsite.Runtime
 
         public ArcadeRules.Result ScoreArcade(bool final = false) =>
             ArcadeRules.Score(conditions.Where(c => c != null && c.IsHazard).Select(c => new ArcadeRules.Hazard(c.Spec, Session.GetEvidence(c.Id), Session.GetState(c.Id))),
-                Session.FalseReports, Session.ConfirmedCompliant, ShiftLength, final ? ArcadeRealLeft : 0f);
+                Session.FalseReports, Session.ConfirmedCompliant, ShiftLength, final ? ArcadeRealLeft : 0f, Leads.Count);
 
         private void BeginArcade()
         {
@@ -1025,6 +1108,9 @@ namespace Jobsite.Runtime
             if (TalkingTo == null || string.IsNullOrWhiteSpace(text)) return;
             Log("coach_query", TalkingTo.DisplayName, "len=" + text.Length); // PII-free: length only, never the text
             var crew = TalkingTo;
+            // The right question surfaces what the site doesn't show (authored fact, no model call needed).
+            var clue = CrewInterview.Match(Episode.Number, crew.DisplayName, text, askedClues);
+            if (clue != null) { crew.Reply("You: " + text.Trim(), null); RevealClue(crew, clue); tablet.Refresh(); return; }
             tablet.Refresh();
             await crew.Ask(text, selected != null ? selected.Cfr + " " + selected.RequirementPlain : "");
             Log("chat_reply", crew.DisplayName, "verdict=" + crew.LastVerdict + " ms=" + crew.LastLatencyMs + " len=" + crew.LastReplyLength);

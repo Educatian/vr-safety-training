@@ -251,6 +251,16 @@ namespace Jobsite.Core
             return true;
         }
 
+        // How long an assigned (administrative / PPE) control holds, scaled from now: coaching that sticks makes it
+        // permanent (+inf), a lecture halves what's left. Controls that never lapse are unaffected.
+        public float LapseTime(string id) => entries.TryGetValue(id, out var e) ? e.LapseAt : float.NaN;
+
+        public void ScaleLapse(string id, float factor)
+        {
+            if (!entries.TryGetValue(id, out var e) || e.State != HazardState.Controlled || float.IsPositiveInfinity(e.LapseAt)) return;
+            e.LapseAt = float.IsPositiveInfinity(factor) ? float.PositiveInfinity : Clock + Math.Max(1f, (e.LapseAt - Clock) * factor);
+        }
+
         public void CancelInstall(string id)
         {
             if (entries.TryGetValue(id, out var e) && e.State == HazardState.Installing)

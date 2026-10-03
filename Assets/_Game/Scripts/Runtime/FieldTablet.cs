@@ -23,7 +23,11 @@ namespace Jobsite.Runtime
         private bool confirmEarlyEnd;       // "Finish shift" before the whistle asks once
         private string chatDraft = "";      // unsent crew-chat text, kept across page rebuilds
         private CrewMember chatCrew;
-        private string speakDraft = "";     // free-text answer to the foreman, kept across page rebuilds
+        private string speakDraft = "";
+        private string coachDraft = "", briefDraft = "", logActions = "";
+        // Daily excavation inspection log form (EP2 course): open flag and field choices.
+        private bool logOpen; private int logSoil, logSystem; private bool logWater;
+        private readonly System.Collections.Generic.HashSet<string> logListed = new System.Collections.Generic.HashSet<string>();     // free-text answer to the foreman, kept across page rebuilds
         private string shareStatus = "";    // after "Share result": copied / share sheet / copy by hand
         // Daily board (Leaderboard): fetched once per results page, posted at most once per round.
         private Leaderboard.Board board; private bool boardRequested, boardPosted, boardBusy;
@@ -81,6 +85,8 @@ namespace Jobsite.Runtime
             if (director.PendingWeather != null) { WeatherAlert(director.PendingWeather); return; }
             if (director.PendingIncident != null) { IncidentCard(director.PendingIncident); return; }
             if (director.PendingSpeakUp != null && director.Current == ShiftDirector.Phase.Shift) { SpeakUpCard(); return; }
+            if (director.PendingCoaching != null && director.Current == ShiftDirector.Phase.Shift) { CoachingCard(); return; }
+            if (logOpen && director.InspectionLogAvailable && director.InspectionLogResult == null) { InspectionLogForm(); return; }
             if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
             if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
             if (director.Finished) { if (director.ArcadeResult != null) ArcadeClosing(); else Closing(); return; }
@@ -91,6 +97,7 @@ namespace Jobsite.Runtime
                 Label($"Found {live.Found}/{live.Total} · {live.Score:N0} pts · {ShareCard.Time(director.ArcadeRealLeft)} left", 24, Color.white);
                 Label("Report real hazards (energy + risk), confirm look-alikes as compliant. False alarms cost 50.", 18, Ink);
                 foreach (var r in director.OpenRequests) Label($"CREW REQUEST · {r.Step.Text}  ({r.Npc})", 19, new Color(.55f, .85f, 1f));
+                Leads();
                 if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
                 Button($"Hint from Dolores · {director.Hints.Tokens} left (half points on that find)", director.UseHint);
                 Button("Return to site", director.ToggleTablet);
@@ -104,7 +111,13 @@ namespace Jobsite.Runtime
                 Label(ShiftLine(), 18, Ink);
                 MissionCard();
                 foreach (var r in director.OpenRequests) Label($"CREW REQUEST · {r.Step.Text}  ({r.Npc})", 19, new Color(.55f, .85f, 1f));
+                Leads();
                 if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
+                if (director.InspectionLogAvailable)
+                {
+                    if (director.InspectionLogResult == null) Button("Daily excavation inspection log (1926.651(k), 20 s)", () => { logOpen = true; Refresh(); });
+                    else Label("Inspection log signed.", 18, Ink);
+                }
                 Button($"Hint from Dolores · {director.Hints.Tokens} left (half XP on that find)", director.UseHint);
                 Button("Return to site", director.ToggleTablet);
                 FinishShiftButton();
@@ -331,6 +344,52 @@ namespace Jobsite.Runtime
             }
         }
 
+        private void Leads()
+        {
+            if (director.Leads.Count == 0) return;
+            Label("LEADS FROM THE CREW", 19, Accent);
+            foreach (var l in director.Leads) Label("· " + l, 18, new Color(.55f, .85f, 1f));
+        }
+
+        // Coach the worker (behavioural hazard + reminder): ask, explain why, agree the fix.
+        private void CoachingCard()
+        {
+            var id = director.PendingCoaching;
+            Label("COACH THE WORKER", 28, Accent);
+            Label(CoachingRubric.Worker.TryGetValue(id, out var w) ? w : "Worker: What's up?", 22, Color.white);
+            Label("What do you say? A reminder only holds if it lands.", 18, Ink);
+            var samples = CoachingRubric.Samples(id).OrderBy(sx => (sx.GetHashCode() ^ director.Seed) & 0xffff).ToList();
+            foreach (var sample in samples) { var t = sample; Button(t, () => director.SubmitCoaching(t)); }
+            Label("…or in your own words:", 18, Ink);
+            var input = InputBox("Hey, got a second?…");
+            input.characterLimit = 240; input.text = coachDraft; input.onValueChanged.AddListener(v => coachDraft = v);
+            Button("Say it", () => { var t = coachDraft; coachDraft = ""; director.SubmitCoaching(t); }, null, true);
+            input.onSubmit.AddListener(v => { coachDraft = ""; director.SubmitCoaching(v); });
+            Button("Skip (just assign it)", director.SkipCoaching);
+        }
+
+        // Daily excavation inspection (1926.651(k)(1)): soil, water, protective system, hazards, actions.
+        private void InspectionLogForm()
+        {
+            Label("DAILY EXCAVATION INSPECTION", 28, Accent);
+            Label("Competent person, before work and after rain (1926.651(k)(1)).", 17, Ink);
+            Button("Soil classification   " + InspectionLog.Soils[logSoil], () => { logSoil = (logSoil + 1) % InspectionLog.Soils.Length; Refresh(); });
+            Button("Water in or around the trench   " + (logWater ? "Yes" : "No"), () => { logWater = !logWater; Refresh(); });
+            Button("Protective system   " + InspectionLog.Systems[logSystem], () => { logSystem = (logSystem + 1) % InspectionLog.Systems.Length; Refresh(); });
+            Label("Hazards found (from what you photographed):", 18, Ink);
+            var seen = director.Conditions.Where(c => c != null && director.Photographed.Contains(c.Id)).ToList();
+            if (seen.Count == 0) Label("Nothing photographed yet: walk the trench first.", 17, Ink);
+            foreach (var c in seen)
+            {
+                var id = c.Id; var on = logListed.Contains(id);
+                Button((on ? "[x] " : "[ ] ") + (director.Session.Revealed(id) ? c.DisplayName : c.NeutralName), () => { if (!logListed.Remove(id)) logListed.Add(id); Refresh(); }, null, on);
+            }
+            var actions = InputBox("Actions taken / required…");
+            actions.characterLimit = 300; actions.text = logActions; actions.onValueChanged.AddListener(v => logActions = v);
+            Button("Sign and file the log", () => { logOpen = false; director.SubmitInspectionLog(InspectionLog.Soils[logSoil], logWater, InspectionLog.Systems[logSystem], logListed.ToList(), logActions); }, null, true);
+            Button("Back", () => { logOpen = false; Refresh(); });
+        }
+
         // Row of result squares (the font has no emoji): one per real hazard, same order as the share card.
         private void Grid(ArcadeRules.Cell[] cells)
         {
@@ -428,6 +487,16 @@ namespace Jobsite.Runtime
                 if (picks.Count > 0) Button("Clear the order", director.ClearTalk);
             }
             else Label("You reported nothing today. You'll still brief the principle.", 19, Ink);
+            // Say it to the crew in your own words (optional, scored by the briefing rubric).
+            if (director.OwnWordsTalk is SpokenResult said) Label("Your briefing: " + said.Feedback, 18, new Color(.75f, 1f, .7f));
+            else
+            {
+                Label("Say it to the crew in your own words (optional): the hazard, what could happen, the fix, the rule, what to do.", 18, Ink);
+                var talk = InputBox("Morning, everyone. Today…");
+                talk.characterLimit = 400; talk.lineType = InputField.LineType.MultiLineNewline;
+                talk.text = briefDraft; talk.onValueChanged.AddListener(v => briefDraft = v);
+                Button("Brief the crew", () => { var t = briefDraft; briefDraft = ""; director.BriefInOwnWords(t); });
+            }
             var why = director.TalkWhy;
             if (why == null || why.Done) return;
             Label(why.Current.Prompt, 22, Color.white);
@@ -537,6 +606,14 @@ namespace Jobsite.Runtime
             for (var i = System.Math.Max(0, lines.Count - 6); i < lines.Count; i++)
                 Label(lines[i], 19, lines[i].StartsWith("You:") ? Accent : Ink);
             if (crew.Thinking) Label("…", 22, Ink);
+            Label("Ask what you can't see: what changed since yesterday, who checked what, what happened this morning.", 17, Ink);
+            if (GameSettings.AiConsent == 0 || MobileControls.Active)
+            {
+                // Set questions (offline / phones): this person's real leads mixed with questions that go nowhere.
+                var qs = CrewInterview.For(director.Episode.Number).Where(q => crew.DisplayName.StartsWith(q.Npc) && !director.AskedClue(q.Id)).Select(q => q.Prompt)
+                    .Concat(CrewInterview.RedHerrings).OrderBy(q => (q.GetHashCode() ^ director.Seed) & 0xffff).Take(4).ToList();
+                foreach (var q in qs) { var question = q; Button(question, () => director.AskCrew(question)); }
+            }
             var input = InputBox("Ask about this condition…");
             // A reply rebuilds the page; keep what the learner was typing (it used to be wiped mid-sentence).
             if (chatCrew != crew) { chatCrew = crew; chatDraft = ""; }

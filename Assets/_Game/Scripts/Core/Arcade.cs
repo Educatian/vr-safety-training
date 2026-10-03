@@ -16,7 +16,7 @@ namespace Jobsite.Core
     {
         public const float RealSeconds = 180f;
         public const int Find = 100, SpeedMax = 100, Tag = 25, Risk = 25, Control = 50, BestControl = 50, Hold = 25;
-        public const int Confirm = 50, FalseAlarm = -50, Incident = -100, ClearPerSecond = 5;
+        public const int Confirm = 50, FalseAlarm = -50, Incident = -100, ClearPerSecond = 5, Lead = 40;
         public const int RiskTolerance = 2;          // |P - P*| + |S - S*| at or under this earns the rating points
 
         // How much faster than real time the shift clock runs in a round.
@@ -26,7 +26,7 @@ namespace Jobsite.Core
 
         public sealed class Result
         {
-            public int Score, Found, Total, FalseAlarms, Confirmed, Incidents, ClearBonus, MaxScore;
+            public int Score, Found, Total, FalseAlarms, Confirmed, Incidents, ClearBonus, MaxScore, Leads;
             public Cell[] Cells = new Cell[0];
             public string Grade = "D";
             public bool Cleared => Total > 0 && Found == Total;
@@ -40,10 +40,11 @@ namespace Jobsite.Core
 
         // Real hazards only (look-alikes score through confirms and false alarms). Cells are ordered by hazard id so
         // every player of the same daily site gets the same grid layout without the grid naming anything.
-        public static Result Score(IEnumerable<Hazard> hazards, int falseAlarms, int confirmed, float shiftLength, float remainingRealSeconds = 0f)
+        // leads = hazard clues surfaced by asking the crew (CrewInterview): +Lead each, a bonus outside the grade.
+        public static Result Score(IEnumerable<Hazard> hazards, int falseAlarms, int confirmed, float shiftLength, float remainingRealSeconds = 0f, int leads = 0)
         {
             var list = hazards.Where(h => h.Spec != null && h.Spec.IsHazard).OrderBy(h => h.Spec.Id, StringComparer.Ordinal).ToList();
-            var r = new Result { Total = list.Count, FalseAlarms = Math.Max(0, falseAlarms), Confirmed = Math.Max(0, confirmed) };
+            var r = new Result { Total = list.Count, FalseAlarms = Math.Max(0, falseAlarms), Confirmed = Math.Max(0, confirmed), Leads = Math.Max(0, leads) };
             var cells = new List<Cell>();
             var points = 0;
             foreach (var h in list)
@@ -75,7 +76,7 @@ namespace Jobsite.Core
             points += r.Confirmed * Confirm + r.FalseAlarms * FalseAlarm;
             r.MaxScore = list.Count * (Find + SpeedMax + Tag + Risk + Control + BestControl);
             r.ClearBonus = r.Cleared ? (int)Math.Round(Math.Max(0f, remainingRealSeconds) * ClearPerSecond) : 0;
-            r.Score = Math.Max(0, points) + r.ClearBonus;
+            r.Score = Math.Max(0, points) + r.ClearBonus + r.Leads * Lead;
             r.Cells = cells.ToArray();
             r.Grade = Grade(Math.Max(0, points), r.MaxScore, r.FalseAlarms, r.Incidents);
             return r;

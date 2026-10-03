@@ -107,6 +107,15 @@ namespace Jobsite.Runtime
             }
         }
 
+        // An authored line said in this person's voice (interview clues): goes into the transcript and is spoken.
+        public void Reply(string line, Jobsite.Core.CrewAffect affect)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return;
+            transcript.Add(line);
+            LastReplyLength = line.Length; LastVerdict = "authored"; LastLatencyMs = 0; answeredFrame = Time.frameCount;
+            CrewVoice.SpeakLine(line, affect);
+        }
+
         public async Task Ask(string question, string selectedContext)
         {
             transcript.Add("You: " + question);

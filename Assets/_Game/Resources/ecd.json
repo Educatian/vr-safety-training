@@ -1,5 +1,5 @@
 {
-  "version": "ecd-v1.2",
+  "version": "ecd-v1.3",
   "competentThreshold": 0.7,
   "wDetect": 0.35,
   "wTag": 0.15,
@@ -188,6 +188,30 @@
       "ksa": "SInspect",
       "cfr": "",
       "evidence": "inspects an item up close: finds the defect, or calls a sound item sound"
+    },
+    {
+      "key": "interview_clue",
+      "ksa": "AThorough",
+      "cfr": "",
+      "evidence": "asks the crew the question that surfaces what the site doesn't show"
+    },
+    {
+      "key": "talk_own_words",
+      "ksa": "SCommunicate",
+      "cfr": "1926.21(b)(2)",
+      "evidence": "briefs the crew in own words: hazard, consequence, control, rule, action"
+    },
+    {
+      "key": "coaching",
+      "ksa": "SCommunicate",
+      "cfr": "",
+      "evidence": "coaches a worker out of an unsafe act: asks, explains why, agrees the fix"
+    },
+    {
+      "key": "inspection_log",
+      "ksa": "AThorough",
+      "cfr": "1926.651(k)(1)",
+      "evidence": "writes the daily excavation inspection: soil, water, protective system, hazards, actions"
     },
     {
       "key": "talk_top_risk",
