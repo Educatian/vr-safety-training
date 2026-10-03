@@ -47,7 +47,12 @@ namespace Jobsite.Runtime
             player = FindFirstObjectByType<SitePlayer>();
             var tablet = FindFirstObjectByType<FieldTablet>();
             tabletCanvas = tablet != null ? tablet.GetComponentInParent<Canvas>(true)?.rootCanvas.gameObject : null;
-            if (Selected == null) { ShowMenu(); return; }
+            if (Selected == null)
+            {
+                // A shared result link (…/?daily) drops the visitor straight into today's Hazard Hunt.
+                if (ArcadeMode.TryStartFromUrl()) return;
+                ShowMenu(); return;
+            }
             if (!SkipIntro && Selected.Shots.Count > 0) StartCoroutine(Intro(Selected));
         }
 
@@ -103,9 +108,32 @@ namespace Jobsite.Runtime
             Text(root, "Completion codes go to your course. Detailed play data (no names) is shared only if you opt in. AI chat asks first. Esc = settings.", 18, new Color(.7f, .75f, .75f),
                 new Vector2(0.06f, 0.02f), new Vector2(0.66f, 0.06f), TextAnchor.MiddleLeft);
             ResearchToggle(root);
-            body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.7f), new Color(0, 0, 0, 0));
+            ArcadeStrip(root);
+            body = Panel(root, "Body", new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.6f), new Color(0, 0, 0, 0));
             ShowTab(Tab.Episodes);
             StartCoroutine(Orbit());
+        }
+
+        // Hazard Hunt entry (public build): one click into a 3-minute round of today's site, or a practice round.
+        private void ArcadeStrip(Transform root)
+        {
+            var now = System.DateTime.UtcNow;
+            var n = DailySite.Number(now);
+            var ep = ArcadeMode.TodaysEpisode(now);
+            var play = Panel(root, "PlayDaily", new Vector2(0.06f, 0.615f), new Vector2(0.52f, 0.705f), Accent);
+            Text(play, "PLAY NOW · HAZARD HUNT", 38, new Color(.08f, .08f, .08f), new Vector2(0.04f, 0.42f), new Vector2(0.98f, 1f), TextAnchor.MiddleLeft);
+            Text(play, $"Daily Site #{n} · {ep.Title} · find the hazards in {ShareCard.Time(ArcadeRules.RealSeconds)}", 22, new Color(.12f, .12f, .12f), new Vector2(0.04f, 0.05f), new Vector2(0.98f, 0.45f), TextAnchor.MiddleLeft);
+            play.gameObject.AddComponent<Button>().onClick.AddListener(() => ArcadeMode.StartDaily());
+            GamepadSupport.SelectFirst(play);
+            var practice = Panel(root, "PlayPractice", new Vector2(0.53f, 0.615f), new Vector2(0.7f, 0.705f), new Color(.15f, .18f, .19f, .95f));
+            Text(practice, "PRACTICE ROUND", 26, Color.white, new Vector2(0, 0.4f), Vector2.one, TextAnchor.MiddleCenter);
+            Text(practice, "random site, not a record", 17, new Color(.7f, .75f, .75f), new Vector2(0, 0.05f), new Vector2(1, 0.45f), TextAnchor.MiddleCenter);
+            practice.gameObject.AddComponent<Button>().onClick.AddListener(() => ArcadeMode.StartPractice());
+            var first = ArcadeMode.FirstScore(n);
+            var info = first >= 0
+                ? $"Today: {first:N0} pts (first try) · best {ArcadeMode.BestScore(n):N0}\nStreak {ArcadeMode.Streak} day{(ArcadeMode.Streak == 1 ? "" : "s")} · the course below is the full 5-day story"
+                : "New: spot the hazards before someone gets hurt, then share your grid.\nThe course below is the full 5-day story.";
+            Text(root, info, 19, new Color(.85f, .88f, .88f), new Vector2(0.715f, 0.615f), new Vector2(0.94f, 0.705f), TextAnchor.MiddleLeft);
         }
 
         public void ShowTab(Tab tab)
@@ -212,7 +240,7 @@ namespace Jobsite.Runtime
                 var label = !ep.Playable ? "IN PRODUCTION" : gated ? "LOCKED · MASTERY GATE" : best >= 0 ? $"REPLAY · BEST {best} XP" : "START";
                 var button = Panel(card, "Play", new Vector2(0.06f, 0.03f), new Vector2(0.94f, 0.11f), open ? Accent : new Color(.25f, .27f, .28f));
                 Text(button, label, 22, open ? new Color(.08f, .08f, .08f) : new Color(.6f, .6f, .6f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
-                if (open) button.gameObject.AddComponent<Button>().onClick.AddListener(() => Play(ep));
+                if (open) button.gameObject.AddComponent<Button>().onClick.AddListener(() => { ArcadeMode.Exit(); Play(ep); });
             }
         }
 
@@ -248,7 +276,7 @@ namespace Jobsite.Runtime
 
         public static void BackToMenu()
         {
-            Selected = null; SkipIntro = false;
+            Selected = null; SkipIntro = false; ArcadeMode.Exit();
             SceneManager.LoadScene(SceneManager.GetActiveScene().path);
         }
 

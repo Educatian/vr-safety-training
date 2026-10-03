@@ -1,5 +1,5 @@
 {
-  "version": "ecd-v1.1",
+  "version": "ecd-v1.2",
   "competentThreshold": 0.7,
   "wDetect": 0.35,
   "wTag": 0.15,
@@ -182,6 +182,12 @@
       "ksa": "ACare",
       "cfr": "",
       "evidence": "a crew request still open at the whistle"
+    },
+    {
+      "key": "inspect_close",
+      "ksa": "SInspect",
+      "cfr": "",
+      "evidence": "inspects an item up close: finds the defect, or calls a sound item sound"
     },
     {
       "key": "talk_top_risk",

@@ -29,6 +29,7 @@ namespace Jobsite.Runtime
                     case "TrenchBox_WallE": Aluminium(r); break;
                 }
             }
+            PropDetail.Apply(all);   // container, fuel tank, trench box and spreader silhouettes
         }
 
         // Four legs from the ground to the underside of the table top (so it stops floating).

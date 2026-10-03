@@ -16,13 +16,15 @@ namespace Jobsite.Runtime
         public const int Off = 0, Light = 1, Full = 2;
 
         // GameSettings.Guidance: -1 auto (by career level), else fixed.
-        public static int Level(int careerLevel) => GameSettings.Guidance >= 0 ? GameSettings.Guidance
+        // Hazard Hunt rounds are scored against other players: no mission zones, only the hints the player asks for.
+        public static int Level(int careerLevel) => ArcadeMode.Active ? Off : GameSettings.Guidance >= 0 ? GameSettings.Guidance
             : careerLevel <= 1 ? Full : careerLevel == 2 ? Light : Off;
 
         // Auto guidance, then one step by the learner model: best mastery in today's hazard areas (Core.Fading).
         public static int Level(int careerLevel, IEnumerable<CpArea> todaysAreas, out string reason)
         {
-            reason = GameSettings.Guidance >= 0 ? "fixed" : "career";
+            reason = ArcadeMode.Active ? "arcade" : GameSettings.Guidance >= 0 ? "fixed" : "career";
+            if (ArcadeMode.Active) return Off;
             var start = Level(careerLevel);
             if (GameSettings.Guidance >= 0 || todaysAreas == null) return start;
             var best = MasteryStore.Load();

@@ -3,7 +3,8 @@
   "rootNamespace": "Jobsite.PlayTests",
   "references": [
     "Jobsite.Core",
-    "Jobsite.Runtime"
+    "Jobsite.Runtime",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [],
   "optionalUnityReferences": [

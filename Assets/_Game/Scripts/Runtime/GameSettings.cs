@@ -9,7 +9,8 @@ namespace Jobsite.Runtime
         public static float VoiceVolume { get => PlayerPrefs.GetFloat("set_voice", 1f); set => PlayerPrefs.SetFloat("set_voice", value); }
         public static float MouseSensitivity { get => PlayerPrefs.GetFloat("set_mouse", 0.13f); set => PlayerPrefs.SetFloat("set_mouse", value); }
         public static bool InvertY { get => PlayerPrefs.GetInt("set_invert", 0) == 1; set => PlayerPrefs.SetInt("set_invert", value ? 1 : 0); }
-        public static int Quality { get => PlayerPrefs.GetInt("set_quality", 1); set { PlayerPrefs.SetInt("set_quality", value); Apply(); } }     // 0 low, 1 medium, 2 high
+        // First launch on a phone/tablet browser starts on Low (fill-rate and memory); desktops start on Medium.
+        public static int Quality { get => PlayerPrefs.GetInt("set_quality", Application.isMobilePlatform ? 0 : 1); set { PlayerPrefs.SetInt("set_quality", value); Apply(); } }     // 0 low, 1 medium, 2 high
         public static float TextScale { get => PlayerPrefs.GetFloat("set_text", 1f); set => PlayerPrefs.SetFloat("set_text", value); }             // 1, 1.25, 1.5
         public static int Guidance { get => PlayerPrefs.GetInt("set_guidance", -1); set => PlayerPrefs.SetInt("set_guidance", value); }   // -1 auto by level, 0 off, 1 light, 2 full
         public static bool Tutorial { get => PlayerPrefs.GetInt("set_tutorial", 1) == 1; set => PlayerPrefs.SetInt("set_tutorial", value ? 1 : 0); }

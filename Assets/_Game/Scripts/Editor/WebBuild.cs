@@ -120,8 +120,19 @@ namespace Jobsite.Editor
                 foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { "Assets/_Game", "Assets/ThirdParty" }))
                 {
                     var path = AssetDatabase.GUIDToAssetPath(guid);
-                    if (AssetImporter.GetAtPath(path) is ModelImporter mi && mi.meshCompression < ModelImporterMeshCompression.Medium)
-                    { mi.meshCompression = ModelImporterMeshCompression.Medium; mi.SaveAndReimport(); changed++; }
+                    if (!(AssetImporter.GetAtPath(path) is ModelImporter mi)) continue;
+                    var dirty = false;
+                    if (mi.meshCompression < ModelImporterMeshCompression.Medium) { mi.meshCompression = ModelImporterMeshCompression.Medium; dirty = true; }
+                    // Named cast (Tripo): ~1.4 MB FBX each imported to ~13 MB, mostly per-blend-shape normal and tangent
+                    // deltas. Their material is a flat colour map (no normal map), so tangents and blend-shape normals
+                    // buy nothing; the face shapes (blink, jaw, visemes) keep their positions.
+                    if (path.Contains("/TR-3D/NPC/"))
+                    {
+                        if (mi.importBlendShapeNormals != ModelImporterNormals.None) { mi.importBlendShapeNormals = ModelImporterNormals.None; dirty = true; }
+                        if (mi.importTangents != ModelImporterTangents.None) { mi.importTangents = ModelImporterTangents.None; dirty = true; }
+                        if (mi.importAnimation) { mi.importAnimation = false; dirty = true; }
+                    }
+                    if (dirty) { mi.SaveAndReimport(); changed++; }
                 }
             }
             finally { AssetDatabase.StopAssetEditing(); }

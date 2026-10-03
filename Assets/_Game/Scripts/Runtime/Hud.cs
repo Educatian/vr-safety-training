@@ -40,6 +40,7 @@ namespace Jobsite.Runtime
             dot.rectTransform.sizeDelta = new Vector2(8, 8);
             prompt = Label("Prompt", 30, TextAnchor.UpperCenter, new Vector2(0.3f, 0.36f), new Vector2(0.7f, 0.47f));
             steps = Label("Tutorial", 24, TextAnchor.UpperLeft, new Vector2(0.015f, 0.55f), new Vector2(0.3f, 0.97f));
+            arcadeBar = Label("ArcadeBar", 36, TextAnchor.UpperCenter, new Vector2(0.25f, 0.88f), new Vector2(0.75f, 0.985f));
             if (player != null) start = player.transform.position;
 
             tutorial = new List<(string, Func<bool>)>
@@ -128,12 +129,29 @@ namespace Jobsite.Runtime
             dot.color = actionable ? new Color(1f, .78f, .1f) : new Color(1, 1, 1, .75f);
             dot.rectTransform.sizeDelta = Vector2.one * (actionable ? 14 : 8);
 
-            var show = GameSettings.Tutorial && director.Episode.Number == 1 && tutorial != null;
+            ArcadeBar();
+            var show = GameSettings.Tutorial && director.Episode.Number == 1 && tutorial != null && !ArcadeMode.Active;
             var next = show ? tutorial.FindIndex(s => !s.done()) : -1;
             steps.enabled = show && next >= 0;
             if (steps.enabled)
                 steps.text = "FIRST SHIFT\n" + string.Join("\n", tutorial.Select((s, i) => (i < next ? "[x] " : i == next ? "> " : "   ") + s.text).Take(next + 2));
             Beacon(show && next == 5);
+        }
+
+        // Hazard Hunt: time left · live score · found count, top centre (red in the last 30 s).
+        private Text arcadeBar;
+        private float nextBar;
+        public string ArcadeBarText => arcadeBar != null && arcadeBar.enabled ? arcadeBar.text : "";
+        private void ArcadeBar()
+        {
+            var on = ArcadeMode.Active && director.Current == ShiftDirector.Phase.Shift && director.Session != null && !PauseMenu.Paused;
+            arcadeBar.enabled = on;
+            if (!on || Time.unscaledTime < nextBar) return;
+            nextBar = Time.unscaledTime + 0.2f;
+            var live = director.ScoreArcade();
+            var left = director.ArcadeRealLeft;
+            arcadeBar.text = $"{ShareCard.Time(left)}     {live.Score:N0} PTS     FOUND {live.Found}/{live.Total}" + (director.ArcadeAllFound ? "\nALL FOUND · " + (MobileControls.Active ? "TABLET" : "Tab") + ": finish for a time bonus" : "");
+            arcadeBar.color = left <= 30f ? new Color(1f, .45f, .35f) : Color.white;
         }
 
         // Guided first find (worked example, no hint-token cost): a slow-spinning marker over the damaged cord while

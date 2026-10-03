@@ -31,7 +31,7 @@ namespace NUnit.Framework {
     public static Constraint LessThan(object x)=>new Constraint(a=>Convert.ToDouble(a)<Convert.ToDouble(x),"<"+x);
     public static Constraint GreaterThanOrEqualTo(object x)=>new Constraint(a=>Convert.ToDouble(a)>=Convert.ToDouble(x),">="+x);
     public static Constraint LessThanOrEqualTo(object x)=>new Constraint(a=>Convert.ToDouble(a)<=Convert.ToDouble(x),"<="+x);
-    public static class Not { public static Constraint Empty=>new Constraint(a=>((IEnumerable)a).Cast<object>().Any(),"not empty"); public static Constraint Null=>new Constraint(a=>a!=null,"not null"); }
+    public static class Not { public static Constraint Empty=>new Constraint(a=>((IEnumerable)a).Cast<object>().Any(),"not empty"); public static Constraint Null=>new Constraint(a=>a!=null,"not null"); public static Constraint EqualTo(object e)=>new Constraint(a=>!EqualC.Eq(a,e,0),"not equal "+e); }
   }
   public static class Does {
     public static Constraint Contain(object x)=>new Constraint(a=> a is string s ? s.Contains((string)x) : ((IEnumerable)a).Cast<object>().Contains(x),"contain "+x);

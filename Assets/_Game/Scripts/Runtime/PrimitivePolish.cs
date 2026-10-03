@@ -29,22 +29,26 @@ namespace Jobsite.Runtime
             if (!scene.IsValid() || !scene.isLoaded) return;
             foreach (var root in scene.GetRootGameObjects())
                 foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
-                {
-                    var mesh = mf.sharedMesh;
-                    if (mesh == null || mesh.name != "Cube") continue;
-                    var r = mf.GetComponent<MeshRenderer>();
-                    if (r == null || HasTexture(r)) continue;
-                    var s = mf.transform.lossyScale;
-                    var size = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
-                    if (size.x < 1e-4f || size.y < 1e-4f || size.z < 1e-4f) continue;
-                    var b = Mathf.Min(Bevel, 0.18f * Mathf.Min(size.x, Mathf.Min(size.y, size.z)));
-                    if (b < 0.003f) continue;   // wires and thin lines: nothing to gain
-                    var obj = new Vector3(b / size.x, b / size.y, b / size.z);
-                    var key = new Vector3Int(Mathf.RoundToInt(obj.x * 2000), Mathf.RoundToInt(obj.y * 2000), Mathf.RoundToInt(obj.z * 2000));
-                    if (!cache.TryGetValue(key, out var m) || m == null) cache[key] = m = Chamfered(new Vector3(key.x, key.y, key.z) / 2000f, size);
-                    mf.sharedMesh = m;
-                    Polished++;
-                }
+                    if (Polish(mf)) Polished++;
+        }
+
+        // One flat-colour cube -> chamfered box (also used for props built at runtime, e.g. PropDetail).
+        public static bool Polish(MeshFilter mf)
+        {
+            var mesh = mf != null ? mf.sharedMesh : null;
+            if (mesh == null || mesh.name != "Cube") return false;
+            var r = mf.GetComponent<MeshRenderer>();
+            if (r == null || HasTexture(r)) return false;
+            var s = mf.transform.lossyScale;
+            var size = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+            if (size.x < 1e-4f || size.y < 1e-4f || size.z < 1e-4f) return false;
+            var b = Mathf.Min(Bevel, 0.18f * Mathf.Min(size.x, Mathf.Min(size.y, size.z)));
+            if (b < 0.003f) return false;   // wires and thin lines: nothing to gain
+            var obj = new Vector3(b / size.x, b / size.y, b / size.z);
+            var key = new Vector3Int(Mathf.RoundToInt(obj.x * 2000), Mathf.RoundToInt(obj.y * 2000), Mathf.RoundToInt(obj.z * 2000));
+            if (!cache.TryGetValue(key, out var m) || m == null) cache[key] = m = Chamfered(new Vector3(key.x, key.y, key.z) / 2000f, size);
+            mf.sharedMesh = m;
+            return true;
         }
 
         static bool HasTexture(Renderer r)

@@ -74,6 +74,39 @@ namespace Jobsite.Runtime
             pose?.ReturnToIdle();
         }
 
+        // One in-character reaction to something the learner said, steered by a stance the game already decided
+        // (e.g. the speak-up rubric). Guarded like Ask; null when offline/declined/invalid, so the caller keeps its
+        // built-in line. Nothing here changes game state.
+        public async Task<string> React(string learnerLine, string direction, string context)
+        {
+            if (endpoint == null || GameSettings.AiConsent != 1 || string.IsNullOrWhiteSpace(learnerLine)) return null;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var service = new OpenAiCompatibleConversationService(endpoint);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(endpoint.TimeoutSeconds));
+                var reply = await service.ReplyAsync(new ConversationRequest
+                {
+                    siteName = "Loblolly Creek Lift Station (municipal sewer pump station), Autauga County, Alabama",
+                    npcRole = $"{displayName}, {Persona()} Reply in at most 2 short sentences. {direction}",
+                    safetyFacts = facts + " " + context,
+                    progress = "",
+                    transcript = "",
+                    learnerMessage = learnerLine,
+                }, cts.Token);
+                var verdict = Jobsite.Core.ReplyGuard.Check(reply.Text, facts + " " + context);
+                LastVerdict = verdict.Ok ? "llm:" + verdict.Reason : "invalid:" + verdict.Reason;
+                LastLatencyMs = (int)clock.ElapsedMilliseconds;
+                return verdict.Ok ? verdict.Text : null;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[Crew] {displayName} react offline: {e.GetType().Name}");
+                LastVerdict = "offline"; LastLatencyMs = (int)clock.ElapsedMilliseconds;
+                return null;
+            }
+        }
+
         public async Task Ask(string question, string selectedContext)
         {
             transcript.Add("You: " + question);

@@ -51,10 +51,14 @@ namespace Jobsite.Runtime
         {
             if (instance == null) instance = new GameObject("AudioDirector").AddComponent<AudioDirector>();
             var clip = instance.Clip(name);
-            if (clip != null) instance.ui.PlayOneShot(clip, volume);
+            if (clip != null) instance.ui.PlayOneShot(clip, volume * OneShotGain);
             // Sound captions: sound-only cues also appear as text (the clicks are feedback for a visible press, skip them).
             if (GameSettings.SoundCaptions && Captions.TryGetValue(name, out var caption)) instance.ShowCaption(caption);
         }
+
+        // Headroom: the bed, equipment loops and one-shots can overlap; keeping each below full scale stops the sum
+        // from clipping in the browser (heard as crackle). Files are peak-normalised by Tools/audio/declick.py.
+        public const float OneShotGain = 0.8f, LoopGain = 0.75f, BedVolume = 0.28f;
 
         private AudioClip Clip(string name)
         {
@@ -71,7 +75,7 @@ namespace Jobsite.Runtime
         private void Start()
         {
             var bed = gameObject.AddComponent<AudioSource>();
-            bed.clip = Clip("ambience"); bed.loop = true; bed.volume = 0.35f; bed.spatialBlend = 0; bed.Play();
+            bed.clip = Clip("ambience"); bed.loop = true; bed.volume = BedVolume; bed.spatialBlend = 0; bed.Play();
             // Equipment loops sit on the equipment the learner can see this day.
             foreach (var rig in FindObjectsByType<ExcavatorRig>(FindObjectsSortMode.None)) Loop(rig.transform, "engine_loop", 0.9f, 6, 60);
             foreach (var v in FindObjectsByType<VehicleController>(FindObjectsSortMode.None).Where(v => v.name.Contains("Dump"))) Loop(v.transform, "backup_loop", 0.5f, 5, 45);
@@ -85,7 +89,7 @@ namespace Jobsite.Runtime
         private static void Loop(Transform at, string clip, float volume, float min, float max)
         {
             var s = at.gameObject.AddComponent<AudioSource>();
-            s.clip = Resources.Load<AudioClip>("Audio/" + clip); s.loop = true; s.volume = volume;
+            s.clip = Resources.Load<AudioClip>("Audio/" + clip); s.loop = true; s.volume = volume * LoopGain;
             s.spatialBlend = 1; s.rolloffMode = AudioRolloffMode.Linear; s.minDistance = min; s.maxDistance = max;
             s.dopplerLevel = 0; s.time = Random.Range(0f, 1f) * (s.clip != null ? s.clip.length : 0); s.Play();
         }

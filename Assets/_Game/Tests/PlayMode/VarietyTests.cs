@@ -106,5 +106,34 @@ namespace Jobsite.PlayTests
             yield return null;
             Shot(cam, "ep1_view_chamfered");
         }
+
+        [UnityTest]
+        public IEnumerator Props_ReadAsObjects_NotBoxes()
+        {
+            yield return Load(2);
+            yield return null;
+            Assert.That(PropDetail.Built, Is.GreaterThan(60), "container / tank / trench box detail built");
+            var view = Object.FindFirstObjectByType<SitePlayer>().View;
+            var cam = new GameObject("PropCam").AddComponent<Camera>(); cam.CopyFrom(view); cam.enabled = false; cam.fieldOfView = 50f;
+            void Frame(string name, Vector3 target, Vector3 offset)
+            {
+                cam.transform.position = target + offset;
+                cam.transform.rotation = Quaternion.LookRotation(target - cam.transform.position);
+                Shot(cam, name);
+            }
+            var all = Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var conex = all.FirstOrDefault(r => r.name == "conex");
+            if (conex != null) Frame("prop_conex", conex.transform.position, new Vector3(5.5f, 1.2f, -4.5f));
+            var fuel = all.FirstOrDefault(r => r.name == "fuel");
+            if (fuel != null)
+            {
+                Assert.That(fuel.enabled, Is.False, "the fuel box is replaced by the tank");
+                Frame("prop_fuel", fuel.transform.position, new Vector3(3.2f, 1.4f, -3.2f));
+            }
+            var wall = all.FirstOrDefault(r => r.name == "TrenchBox_WallW" && r.gameObject.activeInHierarchy);
+            if (wall != null) Frame("prop_trenchbox", wall.transform.position + new Vector3(0.6f, 0, 0), new Vector3(0.3f, 3.2f, -3.6f));
+            Assert.That(all.Where(r => r.name == "Spreader" && r.gameObject.activeInHierarchy).All(r => !r.enabled), "spreaders drawn as pipes");
+            Object.Destroy(cam.gameObject);
+        }
     }
 }

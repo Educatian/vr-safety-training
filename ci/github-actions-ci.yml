@@ -38,3 +38,5 @@ jobs:
         run: for f in Web/functions/api/*.js; do node --check "$f"; done
       - name: Ingest + withdrawal against a mock D1
         run: node Web/qa/api_events_withdraw.test.mjs
+      - name: Hazard Hunt leaderboard against a mock D1
+        run: node Web/qa/api_scores.test.mjs

@@ -55,6 +55,10 @@ namespace Jobsite.PlayTests
             Capture("03b_carrying_kit_gloved");
             Face(Condition("mon-trailer-ladder").PhotoBounds.center, 3.5f, Vector3.right);
             director.Interact();
+            // Setting the kit down opens the hands-on ladder setup: 3 ft above the landing, base 1:4.
+            Assert.That(director.HandsOn.Current, Is.EqualTo(HandsOn.Mode.Ladder), director.Notice);
+            director.HandsOn.SetLadder(40f, 0.75f); director.HandsOn.SimPrimary();
+            yield return null;
             Assert.That(director.Session.GetState("mon-trailer-ladder"), Is.EqualTo(HazardState.Controlled), director.Notice);
             yield return null;
             Capture("04_ladder_fixed");

@@ -108,6 +108,14 @@ namespace Jobsite.Core
         public static float Score(SpeakUpStyle s) => s == SpeakUpStyle.Assertive ? EvidenceModel.Current.speakAssertive
             : s == SpeakUpStyle.Aggressive ? EvidenceModel.Current.speakAggressive : EvidenceModel.Current.speakPassive;
 
+        // How Ray should react when a model voices him (the stance itself is already decided and scored).
+        public static string Direction(SpeakUpStyle s) => s switch
+        {
+            SpeakUpStyle.Assertive => "You are the foreman. The competent person held the stop firmly and respectfully: grudgingly accept it and ask what they need to get the fix in.",
+            SpeakUpStyle.Aggressive => "You are the foreman. The competent person was hostile: comply with the stop, but make it clear you are annoyed and will remember it.",
+            _ => "You are the foreman. The competent person gave in: take the crew back to work on schedule, a little relieved.",
+        };
+
         public static string Reply(SpeakUpStyle s) => s switch
         {
             SpeakUpStyle.Assertive => "Ray: ...Fine. Tell me what you need and I'll get the guys on it.",

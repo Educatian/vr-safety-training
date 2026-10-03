@@ -23,6 +23,11 @@ namespace Jobsite.Runtime
         private bool confirmEarlyEnd;       // "Finish shift" before the whistle asks once
         private string chatDraft = "";      // unsent crew-chat text, kept across page rebuilds
         private CrewMember chatCrew;
+        private string speakDraft = "";     // free-text answer to the foreman, kept across page rebuilds
+        private string shareStatus = "";    // after "Share result": copied / share sheet / copy by hand
+        // Daily board (Leaderboard): fetched once per results page, posted at most once per round.
+        private Leaderboard.Board board; private bool boardRequested, boardPosted, boardBusy;
+        private string boardStatus = "", handleDraft;
 
         static readonly Color Ink = new Color(.84f, .87f, .86f);
         static readonly Color Accent = new Color(1f, .78f, .1f);
@@ -33,7 +38,13 @@ namespace Jobsite.Runtime
         public void Configure(ShiftDirector shift, RectTransform screen, Text radio, Font face, RectTransform tabletFrame = null, Image photoFlash = null)
         { director = shift; content = screen; radioText = radio; font = face; frame = tabletFrame; flash = photoFlash; }
 
-        private void Update() { if (director != null) radioText.text = director.Notice; }
+        private bool selectPending;
+        private void Update()
+        {
+            if (director != null) radioText.text = director.Notice;
+            // Controller: highlight the first button of a freshly built page (next frame, once the layout exists).
+            if (selectPending) { selectPending = false; if (director != null && director.MenuOpen) GamepadSupport.SelectFirst(content); }
+        }
 
         // Camera-shutter feedback on a valid photo: white flash fading over 0.18 s.
         public void Flash()
@@ -61,7 +72,10 @@ namespace Jobsite.Runtime
             var scroll = content.GetComponentInParent<ScrollRect>();
             if (scroll != null) scroll.verticalNormalizedPosition = 1f;    // each page opens at the top
             if (!director.MenuOpen) { confirmEarlyEnd = false; return; }
-            Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp} · {Career.Rank(director.Career.Level)}", 22, Accent);
+            selectPending = true;
+            if (ArcadeMode.Active)
+                Label($"HAZARD HUNT · {(ArcadeMode.Daily ? "DAILY SITE #" + ArcadeMode.DailyNumber : "PRACTICE")} · {director.Episode.Title.ToUpperInvariant()}", 22, Accent);
+            else Label($"EP{director.Episode.Number} {director.Episode.Title.ToUpperInvariant()} · XP {director.Xp} · {Career.Rank(director.Career.Level)}", 22, Accent);
             var w = director.Weather;
             if (w != null) Label($"SITE WEATHER  {w.Summary} · heat risk {HeatIndex.Risk(w.HeatIndexF)}", 17, new Color(.55f, .85f, 1f));
             if (director.PendingWeather != null) { WeatherAlert(director.PendingWeather); return; }
@@ -69,7 +83,20 @@ namespace Jobsite.Runtime
             if (director.PendingSpeakUp != null && director.Current == ShiftDirector.Phase.Shift) { SpeakUpCard(); return; }
             if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
             if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
-            if (director.Finished) { Closing(); return; }
+            if (director.Finished) { if (director.ArcadeResult != null) ArcadeClosing(); else Closing(); return; }
+            if (director.Selected == null && ArcadeMode.Active)
+            {
+                var live = director.ScoreArcade();
+                Label("HAZARD HUNT", 34, Color.white);
+                Label($"Found {live.Found}/{live.Total} · {live.Score:N0} pts · {ShareCard.Time(director.ArcadeRealLeft)} left", 24, Color.white);
+                Label("Report real hazards (energy + risk), confirm look-alikes as compliant. False alarms cost 50.", 18, Ink);
+                foreach (var r in director.OpenRequests) Label($"CREW REQUEST · {r.Step.Text}  ({r.Npc})", 19, new Color(.55f, .85f, 1f));
+                if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
+                Button($"Hint from Dolores · {director.Hints.Tokens} left (half points on that find)", director.UseHint);
+                Button("Return to site", director.ToggleTablet);
+                FinishShiftButton();
+                return;
+            }
             if (director.Selected == null)
             {
                 Label("SITE WALK", 34, Color.white);
@@ -97,9 +124,12 @@ namespace Jobsite.Runtime
                 else
                 {
                     var g = gear;
-                    Button($"Measure · {item.Name} ({ShiftDirector.MeasureSeconds:0} s)", () => director.Measure(g));
+                    Button($"Measure by hand · {item.Name} ({ShiftDirector.MeasureSeconds:0} s)", () => director.BeginMeasure(g));
                 }
             }
+            if (director.HandsOnNotes.TryGetValue(target.Id, out var handNote)) Label(handNote, 19, new Color(.55f, .85f, 1f));
+            if (HandsOnCatalog.InspectFor(target.Id) != InspectItem.None && !director.Inspected(target))
+                Button($"Pick it up and inspect it ({ShiftDirector.InspectSeconds:0} s)", director.BeginInspect);
             var logged = director.Session.LoggedCompliant(target.Id) && reopened != target.Id;
             if (state == HazardState.Latent && logged)
             {
@@ -165,6 +195,13 @@ namespace Jobsite.Runtime
         private void FinishShiftButton()
         {
             var early = director.Session != null && director.Session.Clock < ShiftDirector.ShiftLength;
+            if (ArcadeMode.Active)
+            {
+                if (director.ArcadeAllFound) { Button($"Finish round · time bonus +{Mathf.RoundToInt(director.ArcadeRealLeft * ArcadeRules.ClearPerSecond)}", () => director.EndShift(), null, true); return; }
+                if (confirmEarlyEnd) { Button("Confirm: end the round now (unfound hazards count as missed)", () => { confirmEarlyEnd = false; director.EndShift(); }, null, true); return; }
+                Button("Finish round", () => { confirmEarlyEnd = true; Refresh(); });
+                return;
+            }
             if (!early || confirmEarlyEnd) { Button(early ? "Confirm: end early (hazards not found count as missed)" : "Finish shift", () => { confirmEarlyEnd = false; director.EndShift(); }, null, early); return; }
             Button("Finish shift", () => { confirmEarlyEnd = true; Refresh(); });
         }
@@ -206,6 +243,117 @@ namespace Jobsite.Runtime
             if (director.RequestsIssued > 0) Label($"Crew requests answered {director.RequestsDone}/{director.RequestsIssued}", 18, director.RequestsDone == director.RequestsIssued ? new Color(.6f, .9f, .6f) : Accent);
             if (director.EndedEarly) Label($"Shift ended early at {s.Clock / 60f:0.0} min: anything not found counts as missed.", 18, Accent);
 
+            DebriefLists();
+            var quiz = director.Quiz;
+            if (quiz != null && !quiz.Done)
+            {
+                Label("Check · " + quiz.Current.Prompt, 22, Accent);
+                for (var i = 0; i < quiz.Current.Options.Length; i++) { var k = i; Button(quiz.Current.Options[i], () => director.AnswerQuiz(k)); }
+                return;
+            }
+            ClosingRest();
+        }
+
+        // Hazard Hunt results: score, grade, the spoiler-free grid, share, then the same debrief as a shift.
+        private void ArcadeClosing()
+        {
+            var r = director.ArcadeResult;
+            Label(ArcadeMode.Daily ? $"DAILY SITE #{ArcadeMode.DailyNumber} · ROUND OVER" : "PRACTICE · ROUND OVER", 30, Color.white);
+            Label($"{r.Score:N0} PTS · GRADE {r.Grade}", 44, Accent);
+            Grid(r.Cells);
+            Label($"{r.Found}/{r.Total} hazards · {r.FalseAlarms} false alarm{(r.FalseAlarms == 1 ? "" : "s")} · {r.Incidents} incident{(r.Incidents == 1 ? "" : "s")} · {ShareCard.Time(director.ArcadeRealUsed)}", 22, Color.white);
+            Label("Green: found early · yellow: late or with a hint · red: it became an incident · grey: missed", 16, Ink);
+            if (r.ClearBonus > 0) Label($"All found · time bonus +{r.ClearBonus}", 20, Good);
+            if (ArcadeMode.Daily)
+                Label(ArcadeMode.Replay ? $"Replay · your first score today stands: {ArcadeMode.FirstScore(ArcadeMode.DailyNumber):N0}"
+                    : $"First attempt recorded · streak {ArcadeMode.Streak} day{(ArcadeMode.Streak == 1 ? "" : "s")}", 19, Ink);
+            Button("Share result", () =>
+            {
+                var how = ShareResult.Share(director.ArcadeShareText);
+                shareStatus = how == 1 ? "Share sheet opened." : how == 2 ? "Copied. Paste it anywhere." : "Couldn't copy here: select the text below.";
+                Refresh();
+            }, null, true);
+            if (shareStatus.Length > 0) Label(shareStatus, 19, Good);
+            if (shareStatus.StartsWith("Couldn't")) Label(director.ArcadeShareText.Replace(ShareCard.Emoji(ArcadeRules.Cell.Early), "G").Replace(ShareCard.Emoji(ArcadeRules.Cell.Late), "Y")
+                .Replace(ShareCard.Emoji(ArcadeRules.Cell.Incident), "R").Replace(ShareCard.Emoji(ArcadeRules.Cell.Missed), "-"), 17, Ink);
+            if (ArcadeMode.Daily) DailyBoard(r);
+            Button("Play again · practice round", () => ArcadeMode.StartPractice(), null, false);
+            if (!ArcadeMode.Daily) Button("Today's daily site", () => ArcadeMode.StartDaily());
+            Button("Course mode · the full 5-day story", EpisodeDirector.BackToMenu);
+            Label("WHAT YOU SAW", 24, Accent);
+            DebriefLists();
+        }
+
+        // Today's board: post a first-try score under a handle, see the top ten. Public, opt-in, not research data.
+        private void DailyBoard(ArcadeRules.Result r)
+        {
+            Label("TODAY'S BOARD", 24, Accent);
+            if (!Leaderboard.Online) { Label("The board is online-only (web build).", 18, Ink); return; }
+            var day = ArcadeMode.DailyNumber;
+            if (!boardRequested)
+            {
+                boardRequested = true; boardStatus = "Loading the board…";
+                StartCoroutine(Leaderboard.Fetch(day, (b, err) => { board = b; boardStatus = err ?? ""; Refresh(); }));
+            }
+            if (ArcadeMode.Replay) Label("Replays don't go on the board: your first try today counts.", 18, Ink);
+            else if (!boardPosted)
+            {
+                Label("Post your score: pick a handle (3-12 letters, digits or _). It's public, so not your real name.", 18, Ink);
+                handleDraft ??= Leaderboard.Handle;
+                var input = InputBox("Handle");
+                input.characterLimit = 12;
+                input.onValidateInput += (t, i, c) => char.IsLetterOrDigit(c) && c < 128 || c == '_' ? c : '\0';
+                input.text = handleDraft; input.caretPosition = handleDraft.Length;
+                input.onValueChanged.AddListener(v => handleDraft = v);
+                Button(boardBusy ? "Posting…" : "Post to today's board", () =>
+                {
+                    if (boardBusy) return;
+                    if (!Leaderboard.HandleOk(handleDraft)) { boardStatus = "Handle: 3-12 letters, digits or _."; Refresh(); return; }
+                    boardBusy = true; Leaderboard.Handle = handleDraft; Refresh();
+                    StartCoroutine(Leaderboard.Submit(day, handleDraft, r, director.ArcadeRealUsed, director.Telemetry != null ? director.Telemetry.SessionId : System.Guid.NewGuid().ToString("N"), ArcadeMode.Replay,
+                        (rank, players, err) =>
+                        {
+                            boardBusy = false;
+                            if (err == null) { boardPosted = true; boardStatus = $"You're #{rank} of {players} on Daily Site #{day}."; boardRequested = false; }
+                            else boardStatus = err;
+                            Refresh();
+                        }));
+                }, null, true);
+            }
+            if (boardStatus.Length > 0) Label(boardStatus, 19, boardPosted ? Good : Ink);
+            if (board?.entries == null || board.entries.Length == 0) { if (board != null) Label("No scores yet today. Be the first.", 18, Ink); return; }
+            Label($"{board.players} player{(board.players == 1 ? "" : "s")} today", 17, Ink);
+            for (var i = 0; i < Mathf.Min(10, board.entries.Length); i++)
+            {
+                var e = board.entries[i];
+                var me = boardPosted && e.handle == Leaderboard.Handle;
+                Label($"{i + 1,2}.  {e.handle}  ·  {e.score:N0}  ·  {e.grade}  ·  {e.found}/{e.total}", 20, me ? Accent : Color.white);
+            }
+        }
+
+        // Row of result squares (the font has no emoji): one per real hazard, same order as the share card.
+        private void Grid(ArcadeRules.Cell[] cells)
+        {
+            var row = new GameObject("Grid", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+            row.transform.SetParent(content, false);
+            row.GetComponent<LayoutElement>().minHeight = 52;
+            var h = row.GetComponent<HorizontalLayoutGroup>();
+            h.spacing = 8; h.childAlignment = TextAnchor.MiddleLeft; h.childControlWidth = h.childControlHeight = false; h.childForceExpandWidth = h.childForceExpandHeight = false;
+            foreach (var c in cells)
+            {
+                var sq = new GameObject("Cell", typeof(RectTransform), typeof(Image), typeof(Outline));
+                sq.transform.SetParent(row.transform, false);
+                ((RectTransform)sq.transform).sizeDelta = new Vector2(44, 44);
+                sq.GetComponent<Image>().color = c == ArcadeRules.Cell.Early ? new Color(.33f, .78f, .36f) : c == ArcadeRules.Cell.Late ? new Color(1f, .8f, .12f)
+                    : c == ArcadeRules.Cell.Incident ? new Color(.9f, .26f, .2f) : new Color(.16f, .17f, .18f);
+                sq.GetComponent<Outline>().effectColor = new Color(1, 1, 1, .25f);
+            }
+        }
+
+        // Hazards grouped by outcome, near misses, and the look-alikes: the learning part of every ending.
+        private void DebriefLists()
+        {
+            var s = director.Session;
             // Hazards grouped by outcome, with the control chosen vs. the best feasible one (GDD §15 item 4).
             foreach (DebriefGroup g in Enum.GetValues(typeof(DebriefGroup)))
             {
@@ -236,13 +384,10 @@ namespace Jobsite.Runtime
                     : s.Revealed(condition.Id) ? "reported as a hazard (false alarm)" : "not checked";
                 Label(condition.DisplayName + " · " + call, 18, call.EndsWith("✓") ? Ink : new Color(.7f, .72f, .72f));
             }
-            var quiz = director.Quiz;
-            if (quiz != null && !quiz.Done)
-            {
-                Label("Check · " + quiz.Current.Prompt, 22, Accent);
-                for (var i = 0; i < quiz.Current.Options.Length; i++) { var k = i; Button(quiz.Current.Options[i], () => director.AnswerQuiz(k)); }
-                return;
-            }
+        }
+
+        private void ClosingRest()
+        {
             if (director.EpisodeComplete)
             {
                 Label($"EPISODE {director.Episode.Number} COMPLETE · {director.Xp} XP", 26, Accent);
@@ -329,6 +474,15 @@ namespace Jobsite.Runtime
             Label(SpeakUp.Pushback(c != null ? c.DisplayName : "job"), 22, Color.white);
             Label("Your answer:", 19, Ink);
             for (var i = 0; i < director.SpeakUpOptions.Count; i++) { var k = i; Button(director.SpeakUpOptions[i].Text, () => director.ChooseSpeakUp(k)); }
+            // Or in your own words: scored by the same rubric as the set answers (the words stay on this device unless
+            // AI chat is allowed, and then only to voice Ray's reply).
+            Label("…or say it in your own words:", 19, Ink);
+            var input = InputBox("Tell Ray what happens next…");
+            input.characterLimit = 240;
+            input.text = speakDraft; input.caretPosition = speakDraft.Length;
+            input.onValueChanged.AddListener(v => speakDraft = v);
+            Button("Say it", () => { var t = speakDraft; speakDraft = ""; director.SpeakUpFreeText(t); });
+            input.onSubmit.AddListener(v => { speakDraft = ""; director.SpeakUpFreeText(v); });
         }
 
         // Field-practice mission: the CP's real checklist for today; steps tick off as you do the work on site.

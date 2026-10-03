@@ -69,6 +69,8 @@ namespace Jobsite.Runtime
             ResetRow();
             Row("Episode select", () => { Show(false); EpisodeDirector.BackToMenu(); });
             Row("Controls: drag mouse = look · WASD · E act · Tab tablet (F full view) · M map · Esc pause", null, 18, new Color(.75f, .8f, .8f));
+            Row("Controller: sticks move/look · A act · Y tablet · B back · LB map · Start pause", null, 18, new Color(.75f, .8f, .8f));
+            GamepadSupport.SelectFirst(panel);
         }
 
         private void Cycle(Func<string> label, Action next)
@@ -127,7 +129,10 @@ namespace Jobsite.Runtime
         private void Update()
         {
             var k = Keyboard.current;
-            if (k == null || !k.escapeKey.wasPressedThisFrame || SitePlayer.Typing) return;
+            var pad = Gamepad.current;
+            var padStart = pad != null && pad.startButton.wasPressedThisFrame;
+            var padBack = pad != null && pad.buttonEast.wasPressedThisFrame && PauseMenu.Paused;
+            if (!(padStart || padBack) && (k == null || !k.escapeKey.wasPressedThisFrame || SitePlayer.Typing)) return;
             if (PauseMenu.Paused) { if (Time.frameCount != PauseMenu.OpenedFrame) PauseMenu.Close(); return; }
             var ed = FindFirstObjectByType<EpisodeDirector>();
             if (ed != null && ed.Current == EpisodeDirector.State.Menu) PauseMenu.Open();

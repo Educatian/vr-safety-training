@@ -40,7 +40,24 @@ namespace Jobsite.Runtime
                 if (MobileControls.TakeTablet()) director.ToggleTablet();
                 if (MobileControls.TakeMap()) FindFirstObjectByType<Minimap>()?.Toggle();
             }
-            if (keys == null || mouse == null) { if (touch) TouchUpdate(); return; }
+            // A hands-on task owns E / F / Q and (when it freezes them) movement or the view; the player can still look/walk.
+            if (HandsOn.Active) { HandsOnControl(keys, mouse); return; }
+            // Controller: Start pause, Y/View tablet, B back, LB site map (GamepadSupport).
+            if (Gamepad.current != null && !Typing)
+            {
+                if (GamepadSupport.Pressed(g => g.startButton)) { PauseMenu.Open(); return; }
+                if (GamepadSupport.Pressed(g => g.buttonNorth) || GamepadSupport.Pressed(g => g.selectButton)) { director.ToggleTablet(); return; }
+                if (GamepadSupport.Pressed(g => g.leftShoulder)) FindFirstObjectByType<Minimap>()?.Toggle();
+                if (GamepadSupport.Pressed(g => g.buttonEast))
+                {
+                    var map = FindFirstObjectByType<Minimap>();
+                    if (map != null && map.Full) map.Close();
+                    else if (director.TalkingTo != null) director.EndTalk();
+                    else if (director.MenuOpen && !director.Finished && director.Current == ShiftDirector.Phase.Shift && !director.Blocking) director.ToggleTablet();
+                    return;
+                }
+            }
+            if (keys == null || mouse == null) { if (touch) TouchUpdate(); else PadOnly(); return; }
             // Esc / Tab close the full site plan first (it covers the view and has no other exit on keyboard).
             if (keys.escapeKey.wasPressedThisFrame && PauseMenu.EscHandledThisFrame) { Release(); return; }
             if (keys.escapeKey.wasPressedThisFrame || keys.tabKey.wasPressedThisFrame)
@@ -64,7 +81,8 @@ namespace Jobsite.Runtime
             if (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)
                 dragging = EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject();
             if (!mouse.leftButton.isPressed && !mouse.rightButton.isPressed) dragging = false;
-            var lookDelta = MobileControls.TakeLook();
+            var lookDelta = MobileControls.TakeLook() + GamepadSupport.Look(Time.deltaTime);
+            if (GamepadSupport.Look(1f).sqrMagnitude > 1f) HasLooked = true;
             if (dragging)
             {
                 var d = mouse.delta.ReadValue();
@@ -74,9 +92,40 @@ namespace Jobsite.Runtime
             Look(lookDelta);
             // Walk 1.4 m/s, Shift to hurry 2.5 m/s (SiteLayout §2 starting values).
             var axis = new Vector2((keys.dKey.isPressed ? 1 : 0) - (keys.aKey.isPressed ? 1 : 0),
-                (keys.wKey.isPressed ? 1 : 0) - (keys.sKey.isPressed ? 1 : 0)) + MobileControls.Move;
-            Walk(axis, keys.leftShiftKey.isPressed);
-            if (keys.eKey.wasPressedThisFrame || MobileControls.TakeAct()) director.Interact();
+                (keys.wKey.isPressed ? 1 : 0) - (keys.sKey.isPressed ? 1 : 0)) + MobileControls.Move + GamepadSupport.Move;
+            Walk(axis, keys.leftShiftKey.isPressed || GamepadSupport.Hurry);
+            if (keys.eKey.wasPressedThisFrame || MobileControls.TakeAct() || GamepadSupport.Pressed(g => g.buttonSouth)) director.Interact();
+        }
+
+        private void HandsOnControl(Keyboard keys, Mouse mouse)
+        {
+            if (keys != null && keys.escapeKey.wasPressedThisFrame && !PauseMenu.EscHandledThisFrame) { PauseMenu.Open(); return; }
+            if (GamepadSupport.Pressed(g => g.startButton)) { PauseMenu.Open(); return; }
+            if (!HandsOn.FreezeLook)
+            {
+                var look = MobileControls.TakeLook() + GamepadSupport.Look(Time.deltaTime);
+                if (mouse != null)
+                {
+                    if (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)
+                        dragging = EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject();
+                    if (!mouse.leftButton.isPressed && !mouse.rightButton.isPressed) dragging = false;
+                    if (dragging) look += mouse.delta.ReadValue() * GameSettings.MouseSensitivity;
+                }
+                Look(look);
+            }
+            if (HandsOn.FreezeMove) return;
+            var axis = GamepadSupport.Move + MobileControls.Move;
+            if (keys != null) axis += new Vector2((keys.dKey.isPressed ? 1 : 0) - (keys.aKey.isPressed ? 1 : 0), (keys.wKey.isPressed ? 1 : 0) - (keys.sKey.isPressed ? 1 : 0));
+            Walk(axis, keys != null && keys.leftShiftKey.isPressed || GamepadSupport.Hurry);
+        }
+
+        // A controller with no keyboard/mouse attached.
+        private void PadOnly()
+        {
+            if (Gamepad.current == null || director.MenuOpen || director.Finished) return;
+            Look(GamepadSupport.Look(Time.deltaTime));
+            Walk(GamepadSupport.Move, GamepadSupport.Hurry);
+            if (GamepadSupport.Pressed(g => g.buttonSouth)) director.Interact();
         }
 
         // Phones/tablets: stick moves, right-side drag looks, ACT interacts (MobileControls).

@@ -15,7 +15,7 @@ namespace Jobsite.Editor
             var s = importer.defaultSampleSettings;
             s.loadType = AudioClipLoadType.CompressedInMemory;
             s.compressionFormat = AudioCompressionFormat.Vorbis;
-            s.quality = 0.45f;
+            s.quality = 0.7f;      // 0.45 smeared noisy sounds (saw, rain, wind) into audible crackle
             importer.defaultSampleSettings = s;
         }
     }
