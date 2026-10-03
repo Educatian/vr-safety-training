@@ -1,5 +1,5 @@
 {
-  "version": "ecd-v1.3",
+  "version": "ecd-v1.4",
   "competentThreshold": 0.7,
   "wDetect": 0.35,
   "wTag": 0.15,
@@ -218,6 +218,18 @@
       "ksa": "SAssess",
       "cfr": "1926.21(b)(2)",
       "evidence": "leads tomorrow's toolbox talk with the highest-risk finding"
+    },
+    {
+      "key": "incident_rca",
+      "ksa": "SControl",
+      "cfr": "",
+      "evidence": "reviews a near miss past the person: the condition, why the site allowed it, a fix at the right level"
+    },
+    {
+      "key": "reference_lookup",
+      "ksa": "KStandard",
+      "cfr": "",
+      "evidence": "checks the field reference (standard, trigger, requirement) during the shift (process data, unscored)"
     }
   ]
 }

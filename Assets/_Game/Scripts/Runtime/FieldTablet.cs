@@ -27,6 +27,7 @@ namespace Jobsite.Runtime
         private string coachDraft = "", briefDraft = "", logActions = "";
         // Daily excavation inspection log form (EP2 course): open flag and field choices.
         private bool logOpen; private int logSoil, logSystem; private bool logWater;
+        private bool referenceOpen; private string incidentDraft = "";
         private readonly System.Collections.Generic.HashSet<string> logListed = new System.Collections.Generic.HashSet<string>();     // free-text answer to the foreman, kept across page rebuilds
         private string shareStatus = "";    // after "Share result": copied / share sheet / copy by hand
         // Daily board (Leaderboard): fetched once per results page, posted at most once per round.
@@ -75,7 +76,7 @@ namespace Jobsite.Runtime
             foreach (Transform child in content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
             var scroll = content.GetComponentInParent<ScrollRect>();
             if (scroll != null) scroll.verticalNormalizedPosition = 1f;    // each page opens at the top
-            if (!director.MenuOpen) { confirmEarlyEnd = false; return; }
+            if (!director.MenuOpen) { confirmEarlyEnd = false; referenceOpen = false; return; }
             selectPending = true;
             if (ArcadeMode.Active)
                 Label($"HAZARD HUNT · {(ArcadeMode.Daily ? "DAILY SITE #" + ArcadeMode.DailyNumber : "PRACTICE")} · {director.Episode.Title.ToUpperInvariant()}", 22, Accent);
@@ -87,6 +88,7 @@ namespace Jobsite.Runtime
             if (director.PendingSpeakUp != null && director.Current == ShiftDirector.Phase.Shift) { SpeakUpCard(); return; }
             if (director.PendingCoaching != null && director.Current == ShiftDirector.Phase.Shift) { CoachingCard(); return; }
             if (logOpen && director.InspectionLogAvailable && director.InspectionLogResult == null) { InspectionLogForm(); return; }
+            if (referenceOpen && director.Current == ShiftDirector.Phase.Shift && !director.Finished) { FieldReference(); return; }
             if (director.TalkingTo != null) { Chat(director.TalkingTo); return; }
             if (director.Current == ShiftDirector.Phase.Briefing) { Briefing(); return; }
             if (director.Finished) { if (director.ArcadeResult != null) ArcadeClosing(); else Closing(); return; }
@@ -100,6 +102,7 @@ namespace Jobsite.Runtime
                 Leads();
                 if (!string.IsNullOrEmpty(director.LastKsa)) Label(director.LastKsa, 19, new Color(.75f, 1f, .7f));
                 Button($"Hint from Dolores · {director.Hints.Tokens} left (half points on that find)", director.UseHint);
+                Button("Field reference · OSHA triggers for this site", OpenReference);
                 Button("Return to site", director.ToggleTablet);
                 FinishShiftButton();
                 return;
@@ -119,6 +122,7 @@ namespace Jobsite.Runtime
                     else Label("Inspection log signed.", 18, Ink);
                 }
                 Button($"Hint from Dolores · {director.Hints.Tokens} left (half XP on that find)", director.UseHint);
+                Button("Field reference · OSHA triggers for this site", OpenReference);
                 Button("Return to site", director.ToggleTablet);
                 FinishShiftButton();
                 return;
@@ -521,6 +525,24 @@ namespace Jobsite.Runtime
             Label("Finds made with a guide marker or a hint count half. Replay without them to show it's yours.", 16, Ink);
         }
 
+        // Field reference: the OSHA triggers for everything on today's site (hazards and compliant look-alikes alike, so the
+        // list never says which is which), one entry per standard. Opening it is logged as process data, not scored.
+        private void OpenReference() { referenceOpen = true; director.NoteReferenceLookup(); Refresh(); }
+
+        private void FieldReference()
+        {
+            Label("FIELD REFERENCE · 29 CFR 1926", 28, Accent);
+            Label("The triggers a competent person checks on this site. Look-alikes share these rules: decide by measuring.", 17, Ink);
+            var entries = director.Conditions.Where(c => c != null && !string.IsNullOrEmpty(c.Cfr))
+                .GroupBy(c => c.Cfr).OrderBy(g => g.Key, System.StringComparer.Ordinal).Select(g => g.First());
+            foreach (var c in entries)
+            {
+                Label(c.Cfr + (string.IsNullOrEmpty(c.Threshold) ? "" : "  ·  " + c.Threshold), 20, Color.white);
+                if (!string.IsNullOrEmpty(c.RequirementPlain)) Label(c.RequirementPlain, 17, Ink);
+            }
+            Button("Back", () => { referenceOpen = false; Refresh(); }, null, true);
+        }
+
         // Stop-down after a near miss: what almost happened, the standard, then back to work.
         private void IncidentCard(string id)
         {
@@ -532,7 +554,13 @@ namespace Jobsite.Runtime
             if (c != null && !string.IsNullOrEmpty(c.Cfr)) { Label(c.Cfr + "  ·  " + c.Threshold, 19, Accent); Label(c.RequirementPlain, 19, Ink); }
             var reported = c != null && director.Session.GetEvidence(id).Detected;
             Label(reported ? "You reported it, but no control was in place in time." : "It was on site all along. Nobody reported it in time.", 18, Ink);
-            Button("Secure the area · back to work", director.AcknowledgeIncident, null, true);
+            // Own-words review (IncidentReview rubric): what happened, why the site allowed it, the fix. No blame.
+            Label("Your 30-second review: what happened, why was it possible, what changes now?", 18, Color.white);
+            var review = InputBox("It was possible because…");
+            review.characterLimit = 300; review.lineType = InputField.LineType.MultiLineNewline;
+            review.text = incidentDraft; review.onValueChanged.AddListener(v => incidentDraft = v);
+            Button("File the review · secure the area", () => { var t = incidentDraft; incidentDraft = ""; director.ReviewIncident(t); }, null, true);
+            Button("Secure the area · back to work (no review)", () => { incidentDraft = ""; director.AcknowledgeIncident(); });
         }
 
         // Production pressure: Ray pushes back on the stop (GDD N4).

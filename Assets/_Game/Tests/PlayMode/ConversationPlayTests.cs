@@ -93,5 +93,50 @@ namespace Jobsite.PlayTests
             d.BriefInOwnWords("Morning everyone. The trench walls can cave in and bury someone. Nobody goes in until the box is set; OSHA 1926.652 requires it at 5 ft. Tell me if you see a crack.");
             Assert.That(d.OwnWordsTalk.Value.Score, Is.EqualTo(1f).Within(1e-4), d.OwnWordsTalk.Value.Feedback);
         }
+    
+        [UnityTest]
+        public IEnumerator NearMiss_OwnWordsReview_AndFieldReference()
+        {
+            yield return Load(1, true);
+            var d = D;
+            var ladder = d.Conditions.First(x => x.Id == "mon-trailer-ladder");
+            d.Session.GetEvidence(ladder.Id).BecameIncident = true;
+            typeof(ShiftDirector).GetMethod("Handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .Invoke(d, new object[] { new DayEvent(DayEventKind.NearMiss, ladder.Id, d.Session.Clock) });
+            yield return null;
+            Assert.That(d.PendingIncident, Is.EqualTo(ladder.Id));
+            Assert.That(Object.FindObjectsByType<UnityEngine.UI.Button>(FindObjectsSortMode.None).Any(b => b.name.StartsWith("File the review")), Is.True, "the stop-down card offers the review");
+            d.ReviewIncident("The ladder kicked out because it wasn't tied off or extended 3 ft and nobody checked it. We tie it off and extend it before anyone climbs.");
+            yield return null;
+            Assert.That(d.PendingIncident, Is.Null, "a filed review secures the area");
+            Assert.That(d.LastIncidentReview.Value.Score, Is.EqualTo(1f).Within(1e-4), d.LastIncidentReview.Value.Feedback);
+            // Field reference from the site-walk page: one entry per standard, logged as a lookup.
+            if (!d.MenuOpen) d.ToggleTablet();
+            yield return null;
+            var open = Object.FindObjectsByType<UnityEngine.UI.Button>(FindObjectsSortMode.None).First(b => b.name.StartsWith("Field reference"));
+            open.onClick.Invoke(); yield return null;
+            Assert.That(d.ReferenceLookups, Is.EqualTo(1));
+            var texts = Object.FindObjectsByType<UnityEngine.UI.Text>(FindObjectsSortMode.None).Select(t => t.text).ToList();
+            Assert.That(texts.Any(t => t.StartsWith("FIELD REFERENCE")), Is.True);
+            Assert.That(texts.Count(t => t.StartsWith("29 CFR")), Is.GreaterThanOrEqualTo(2), "standards listed");
+        }
+    
+        [UnityTest]
+        public IEnumerator StopWork_StopsTheExcavator_UntilTheStopLifts()
+        {
+            yield return Load(2, true);
+            var d = D;
+            var rig = Object.FindFirstObjectByType<ExcavatorRig>();
+            Assert.That(rig.Running, Is.True);
+            var swing = d.Conditions.First(x => x.Id == "tue-swing-radius");
+            d.Photograph(swing); yield return null;
+            d.Report(swing.Spec.Energy, swing.Spec.Probability, swing.Spec.Severity); yield return null;
+            d.StopWork(); yield return null;
+            Assert.That(rig.Running, Is.False, "the machine stands down with the crew");
+            Assert.That(d.MachinesHalted, Is.True);
+            d.Session.LiftStop(swing.Id);
+            yield return new WaitForSeconds(0.7f);
+            Assert.That(rig.Running, Is.True, "back to work when the stop lifts");
+        }
     }
 }

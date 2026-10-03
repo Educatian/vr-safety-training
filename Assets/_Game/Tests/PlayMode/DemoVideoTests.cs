@@ -167,6 +167,30 @@ namespace Jobsite.PlayTests
             return false;
         }
 
+        // Standing spot around an elevated target (decks, roofs): the direction whose sight line stays farthest from the crew.
+        static Vector3 ClearSpot(Bounds b, float dist)
+        {
+            var c = b.center; var best = Ground(c + new Vector3(0, 0, -dist)); var bestScore = -1f;
+            for (var i = 0; i < 12; i++)
+            {
+                var a = i * Mathf.PI / 6f;
+                var p = new Vector3(c.x + Mathf.Cos(a) * dist, b.max.y + 2f, c.z + Mathf.Sin(a) * dist);
+                if (!Physics.Raycast(p, Vector3.down, out var g, 6f, ~0, QueryTriggerInteraction.Ignore)) continue;
+                if (Mathf.Abs(g.point.y - b.min.y) > 0.8f) continue;            // same floor as the target
+                var eye = g.point + Vector3.up * 1.6f;
+                var score = 99f;
+                foreach (var m in UnityEngine.Object.FindObjectsByType<CrewMember>(FindObjectsSortMode.None))
+                {
+                    if (!m.isActiveAndEnabled) continue;
+                    var q = m.transform.position + Vector3.up * 1.1f;
+                    var dir = (c - eye).normalized; var t = Mathf.Clamp(Vector3.Dot(q - eye, dir), -1f, Vector3.Distance(eye, c));
+                    score = Mathf.Min(score, Vector3.Distance(eye + dir * t, q));
+                }
+                if (score > bestScore) { bestScore = score; best = g.point + Vector3.up * 0.05f; }
+            }
+            return best;
+        }
+
         static Vector3 LookPoint(SiteCondition c) => c.PhotoBounds.center;
 
         // Walk from where the player stands to `to`, eyes drifting from a scan toward `look`.
@@ -318,8 +342,15 @@ namespace Jobsite.PlayTests
             Seg("01_hook");
             yield return Orbit(center, r * 0.85f, 4.2f, a + 95f, a + 132f, 13f, 42f);
             Close();
+            Close();
+
+            // Outro: Thursday's pick, the crane flying the roof beams with the signal person on the radio.
+            yield return Load(4, true);
+            var crane = UnityEngine.Object.FindFirstObjectByType<CraneRig>();
+            var beams = GameObject.Find("SuspendedBeams");
+            var mid = beams != null && crane != null ? (beams.transform.position + crane.Slew.position) * 0.5f + Vector3.up * 2.5f : center;
             Seg("12_outro");
-            yield return Orbit(center, r * 0.75f, 3.2f, a + 160f, a + 195f, 13f, 44f);
+            yield return Orbit(mid, 19f, 6.5f, 205f, 240f, 13f, 46f);
             Close();
         }
 
@@ -393,8 +424,12 @@ namespace Jobsite.PlayTests
             Seg("09_incident");
             yield return Film(1.5f, t => Pose(lad, LookPoint(ladder) + Vector3.right * (t - .5f) * 0.6f));
             NearMiss(d, ladder.Id);
-            yield return Film(5.5f);
-            d.AcknowledgeIncident(); yield return Film(0.5f);
+            yield return Film(3.2f);
+            // The stop-down review in the learner's own words (IncidentReview rubric).
+            yield return Scroll(1f, 0f, 0.8f);
+            yield return Type("The ladder kicked out because it wasn't tied off or extended 3 ft, and nobody checked it. We tie it off before anyone climbs.", 0.2f);
+            if (!Click("File the review")) d.AcknowledgeIncident();
+            yield return Film(2.2f);
             Close();
 
             // 10: results grid, share card and the daily board.
@@ -505,7 +540,7 @@ namespace Jobsite.PlayTests
 
             var hole = C("wed-open-hole");
             var hb = hole.PhotoBounds;
-            Pose(Vantage(hb, 2.8f, 0.3f + Mathf.PI), hb.center);
+            Pose(ClearSpot(hb, 2.8f), hb.center);
             yield return Install(hole);
             if (d.HandsOn.Current == HandsOn.Mode.Cover)
             {

@@ -194,6 +194,44 @@ namespace Jobsite.Core
         public static float LapseFactor(float score) => score >= 0.7f ? float.PositiveInfinity : score >= 0.4f ? 1f : 0.5f;
     }
 
+    // Near-miss review in your own words (after the stop-down): what happened, why it was possible (the condition and
+    // the system behind it, not the person), the fix and its level on the hierarchy, and no blame. A competent person
+    // who blames the worker learns nothing and teaches the crew to stop reporting.
+    public static class IncidentReview
+    {
+        static readonly string[] SystemCause = { @"\bno\b", @"missing", @"wasn'?t", @"weren'?t", @"\bnot\b", @"nobody", @"no ?one", @"never", @"didn'?t", @"lack", @"broken", @"damaged", @"inspect", @"\bplan", @"procedure", @"training", @"rush", @"schedule", @"pressure", @"because", @"\bsince\b", @"left (open|out)", @"\bcheck" };
+        static readonly string[] Engineered = { @"guard", @"\brails?\b", @"midrail", @"cover", @"\bbox\b", @"shor", @"slope", @"bench", @"\bmats?\b", @"gfci", @"barricad", @"cones?\b", @"\bcaps?\b", @"tie ?off", @"tied off", @"harness", @"anchor", @"secure", @"replace", @"remove", @"tag (it )?out", @"lock", @"extend", @"clearance", @"fence", @"spotter", @"ground fault" };
+        static readonly string[] Blame = { @"careless", @"(his|her|their|the worker'?s|marcus'?s?|luis'?s?) fault", @"should (have|'?ve) been (more )?careful", @"not paying attention", @"\blazy\b", @"\bidiot", @"\bstupid", @"\bdumb\b", @"\bblame", @"get (him|her) fired", @"write (him|her) up" };
+
+        public static SpokenResult Score(string text, string hazardName, EnergySource energy)
+        {
+            var t = text ?? "";
+            var tokens = (hazardName ?? "").ToLowerInvariant().Split(new[] { ' ', '-', '/', '(', ')', ',' }, StringSplitOptions.RemoveEmptyEntries).Where(w => w.Length >= 4).ToList();
+            var what = tokens.Any(w => t.ToLowerInvariant().Contains(w)) || Words.Any(t, energy.ToString().ToLowerInvariant()) || Words.Any(t, Words.Consequence);
+            var why = Words.Any(t, SystemCause);
+            var fix = Words.Any(t, Words.Control) || Words.Any(t, Words.Action);
+            var level = Words.Any(t, Engineered);
+            var blame = Words.Any(t, Blame) || Words.Shouting(t) || Words.Any(t, Words.Hostile);
+            var parts = new (bool ok, string missing)[]
+            {
+                (what, "say what happened"),
+                (why, "say why it was possible (what was missing or not checked)"),
+                (fix, "say what changes now"),
+                (level, "fix the condition (guard, cover, GFCI, box), not just a reminder"),
+                (!blame, "look past the person: what let it happen?"),
+            };
+            var n = parts.Count(p => p.ok);
+            var missing = parts.Where(p => !p.ok).Select(p => p.missing).ToList();
+            var fb = n == 5 ? "A real review: what happened, why the site let it happen, and a fix at the condition. The crew will keep reporting."
+                : blame ? "Blaming the worker ends the review and the reporting. " + (missing.Count > 1 ? "Also: " + string.Join("; ", missing.Where(m => !m.StartsWith("look past"))) + "." : "")
+                : $"Partial review ({n}/5). Next time also {string.Join("; ", missing)}.";
+            var flags = string.Join(" ", parts.Select((p, i) => $"{new[] { "what", "why", "fix", "level", "noblame" }[i]}={(p.ok ? 1 : 0)}"));
+            return new SpokenResult(n / 5f, fb.Trim(), flags);
+        }
+
+        public static bool Blamed(SpokenResult r) => r.Flags.Contains("noblame=0");
+    }
+
     // Daily excavation inspection log (1926.651(k)(1)): what a competent person writes down before work starts.
     public static class InspectionLog
     {

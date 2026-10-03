@@ -96,5 +96,26 @@ namespace Jobsite.Tests
             Assert.That(b.Score - a.Score, Is.EqualTo(2 * ArcadeRules.Lead));
             Assert.That(b.Grade, Is.EqualTo(a.Grade));
         }
+    
+        [Test]
+        public void IncidentReview_RewardsSystemsThinking_AndPenalisesBlame()
+        {
+            var good = IncidentReview.Score("The ladder to the trailer roof kicked out because it wasn't extended 3 ft or tied off and nobody checked it. We tie it off and extend it before anyone climbs.", "Ladder to the trailer roof", EnergySource.Gravity);
+            Assert.That(good.Score, Is.EqualTo(1f).Within(1e-4), good.Feedback);
+            var blame = IncidentReview.Score("He was careless and should have been more careful. Tell him to pay attention.", "Ladder to the trailer roof", EnergySource.Gravity);
+            Assert.That(IncidentReview.Blamed(blame), Is.True);
+            Assert.That(blame.Score, Is.LessThan(0.5f));
+            StringAssert.Contains("Blaming", blame.Feedback);
+            var reminder = IncidentReview.Score("The ladder slipped because it was not inspected. Remind everyone to be careful.", "Ladder to the trailer roof", EnergySource.Gravity);
+            Assert.That(reminder.Score, Is.LessThan(1f), "a reminder is not a fix at the condition");
+            StringAssert.Contains("level=0", reminder.Flags);
+        }
+
+        [Test]
+        public void EvidenceModel_KnowsTheReviewAndReferenceObservables()
+        {
+            Assert.That(EvidenceModel.KsaOf("incident_rca"), Is.EqualTo(Ksa.SControl));
+            Assert.That(EvidenceModel.KsaOf("reference_lookup"), Is.EqualTo(Ksa.KStandard));
+        }
     }
 }

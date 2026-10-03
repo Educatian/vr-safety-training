@@ -164,7 +164,7 @@ namespace Jobsite.Runtime
                 Say("Every hazard on today's site is found. Control them for points, or open the tablet and finish for a time bonus.");
             }
             if (!selfReported && Session.CrewTrust >= DaySession.SelfReportTrust && Session.Clock >= 90f) CrewSelfReport();
-            if (Time.time >= nextAffect) { nextAffect = Time.time + 0.5f; ApplyAffect(); }
+            if (Time.time >= nextAffect) { nextAffect = Time.time + 0.5f; ApplyAffect(); ResumeMachines(); }
             foreach (var r in requests.Where(r => !requestIssued.Contains(r.Id) && Session.Clock >= r.AtSeconds).ToList()) IssueRequest(r);
             if (Session.Clock >= ShiftLength) EndShift();
         }
@@ -241,6 +241,31 @@ namespace Jobsite.Runtime
             Log("crew_self_report", target.Id, "trust=" + Session.CrewTrust, Ecd("crew_self_report"), 1f);
         }
 
+        // Stop-work stops the iron too: an excavator working near the stopped exposure sets its bucket down and waits until
+        // the stop lifts or the exposure is controlled (a visible consequence of the call, not just a toast).
+        private readonly Dictionary<string, List<ExcavatorRig>> halted = new Dictionary<string, List<ExcavatorRig>>();
+        public bool MachinesHalted => halted.Count > 0;
+        private void HaltMachines(SiteCondition c)
+        {
+            if (c == null) return;
+            var near = FindObjectsByType<ExcavatorRig>(FindObjectsSortMode.None)
+                .Where(r => r.Running && Vector3.Distance(r.transform.position, c.transform.position) < 25f).ToList();
+            if (near.Count == 0) return;
+            foreach (var r in near) r.Running = false;
+            halted[c.Id] = near;
+            Log("machines_halted", c.Id, "n=" + near.Count);
+        }
+        private void ResumeMachines()
+        {
+            if (halted.Count == 0 || Session == null) return;
+            foreach (var kv in halted.ToList())
+            {
+                if (Session.GetState(kv.Key) == HazardState.Stopped) continue;
+                foreach (var r in kv.Value) if (r != null) r.Running = true;
+                halted.Remove(kv.Key);
+            }
+        }
+
         // Spend shift time on an action; timers and incidents fire as they would in real time.
         private void SpendShiftTime(float seconds)
         {
@@ -272,6 +297,31 @@ namespace Jobsite.Runtime
             }
             else if (ev.Kind == DayEventKind.StopLifted) { CrewGestures.Named("Ray")?.React(CrewGestures.Situation.BackToWork); Log(ev.Kind.ToString(), ev.HazardId, ""); }
             else Log(ev.Kind.ToString(), ev.HazardId, "", Ecd("incident"), 0.5f);
+        }
+
+        // Near-miss review in the learner's own words (IncidentReview rubric), then back to work. Blame costs the crew's
+        // trust (people stop reporting to someone who blames); a real review earns a little of it back.
+        public SpokenResult? LastIncidentReview { get; private set; }
+        public void ReviewIncident(string text)
+        {
+            if (PendingIncident == null || string.IsNullOrWhiteSpace(text)) return;
+            var c = conditions.FirstOrDefault(x => x != null && x.Id == PendingIncident);
+            var r = IncidentReview.Score(text, c != null ? c.DisplayName : "", c != null ? c.Spec.Energy : EnergySource.Gravity);
+            LastIncidentReview = r;
+            Session.Affect.Nudge(CrewAffect.Crew, IncidentReview.Blamed(r) ? -0.2f : 0.12f * r.Score, IncidentReview.Blamed(r) ? 0.1f : 0f);
+            if (!ArcadeMode.Active) Xp += Mathf.RoundToInt(40 * r.Score);
+            Log("incident_rca", PendingIncident, r.Flags, Ecd("incident_rca"), r.Score);
+            LastKsa = Feedback(Jobsite.Core.Ksa.SControl, c != null ? c.Cfr : "", r.Feedback);
+            Say(IncidentReview.Blamed(r) ? "Crew (quietly): Great. Next time nobody says anything." : "Dolores: Good review. That's how it doesn't happen twice.");
+            AcknowledgeIncident();
+        }
+
+        // Field reference (OSHA pocket guide on the tablet). Process data only: when and how often it is opened.
+        public int ReferenceLookups { get; private set; }
+        public void NoteReferenceLookup()
+        {
+            ReferenceLookups++;
+            Log("reference_lookup", Selected != null ? Selected.Id : "site", "n=" + ReferenceLookups, Ecd("reference_lookup"));
         }
 
         public void AcknowledgeIncident()
@@ -636,6 +686,7 @@ namespace Jobsite.Runtime
             if (result == StopOutcome.Justified)
             {
                 CrewGestures.ReactNear(selected.transform.position, 14f, CrewGestures.Situation.WorkStopped, selected.PhotoBounds.center);
+                HaltMachines(selected);
                 CrewGestures.Named("Ray")?.React(CrewGestures.Situation.ForemanPressure);
                 // Production pressure: the foreman pushes back and the learner has to hold the line (GDD N4).
                 PendingSpeakUp = selected.Id;
