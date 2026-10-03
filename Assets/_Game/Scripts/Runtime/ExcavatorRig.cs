@@ -19,6 +19,8 @@ namespace Jobsite.Runtime
 
         public bool Running { get => running; set => running = value; }  // stop-work halts the machine
         public float SwingAngle { get; private set; }
+        public Transform House => house;   // the rotating superstructure (counterweight swings with it)
+        public Transform Boom => boom;
 
         public void Configure(Transform housePivot, Transform boomPivot, Transform stickPivot, Transform bucketPivot)
         { house = housePivot; boom = boomPivot; stick = stickPivot; bucket = bucketPivot; }

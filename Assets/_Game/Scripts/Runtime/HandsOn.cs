@@ -410,7 +410,25 @@ namespace Jobsite.Runtime
             var b = t.PhotoBounds;
             SwingCenter = new Vector3(b.center.x, b.min.y, b.center.z);
             SwingRadius = Mathf.Max(b.extents.x, b.extents.z);
-            CollectNearby(b);
+            // The swing path belongs to the machine: centre on its slew pivot, radius = the rotating superstructure's
+            // farthest point (the counterweight) plus 2 ft. Falls back to the condition box if no rig is near.
+            var (pivot, exclude) = NearestSlew(b.center);
+            if (pivot != null)
+            {
+                var ground = SwingCenter.y;
+                SwingCenter = new Vector3(pivot.position.x, ground, pivot.position.z);
+                var r = 0f;
+                foreach (var rend in pivot.GetComponentsInChildren<Renderer>())
+                {
+                    if (exclude != null && rend.transform.IsChildOf(exclude)) continue;
+                    var e = rend.bounds;
+                    foreach (var sx in new[] { -1f, 1f })
+                        foreach (var sz in new[] { -1f, 1f })
+                            r = Mathf.Max(r, new Vector2(e.center.x + sx * e.extents.x - SwingCenter.x, e.center.z + sz * e.extents.z - SwingCenter.z).magnitude);
+                }
+                SwingRadius = Mathf.Clamp(r + 0.6f, 2f, 9f);
+            }
+            CollectNearby(new Bounds(SwingCenter, Vector3.one * SwingRadius * 2f));
             line = line != null ? line : NewLine("SwingPath", new Color(1f, .2f, .15f, .8f));
             line.enabled = true; line.loop = true; line.positionCount = 48;
             for (var i = 0; i < 48; i++)
@@ -418,6 +436,16 @@ namespace Jobsite.Runtime
                 var ang = i * Mathf.PI * 2f / 48f;
                 line.SetPosition(i, SwingCenter + new Vector3(Mathf.Cos(ang) * SwingRadius, 0.06f, Mathf.Sin(ang) * SwingRadius));
             }
+        }
+
+        static (Transform pivot, Transform exclude) NearestSlew(Vector3 near)
+        {
+            Transform best = null, ex = null; var d = 30f;
+            foreach (var e in FindObjectsByType<ExcavatorRig>(FindObjectsSortMode.None))
+                if (e.House != null && Vector3.Distance(e.House.position, near) < d) { d = Vector3.Distance(e.House.position, near); best = e.House; ex = e.Boom; }
+            foreach (var c in FindObjectsByType<CraneRig>(FindObjectsSortMode.None))
+                if (c.Slew != null && Vector3.Distance(c.Slew.position, near) < d) { d = Vector3.Distance(c.Slew.position, near); best = c.Slew; ex = c.Boom; }
+            return (best, ex);
         }
 
         public void PlaceCone(Vector3 at)

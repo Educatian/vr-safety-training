@@ -37,6 +37,8 @@ namespace Jobsite.Runtime
         public float BoomAngle => boomAngle;
         public float LineLength => lineLength;
         public Vector3 HookPosition => hookBlock != null ? hookBlock.position : transform.position;
+        public Transform Slew => slew;     // the rotating superstructure (counterweight swings with it)
+        public Transform Boom => boom;
         public float LoadSwing => hookBlock == null || boomTip == null ? 0 :
             Vector3.Angle(Vector3.down, hookBlock.position - boomTip.position);
 

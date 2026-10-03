@@ -1099,7 +1099,8 @@ namespace Jobsite.Runtime
                 foreach (var r in OpenRequests.ToList())
                     if (r.Step.Matches(kind, id, detail)) CompleteRequest(r, null);
             }
-            var step = Mission?.OnEvent(kind, id, detail);
+            // Hazard Hunt has no course checklist (no check-in, no inspection routine to sign).
+            var step = ArcadeMode.Active ? null : Mission?.OnEvent(kind, id, detail);
             if (step != null)
             {
                 Log("mission_step", id, Mission.Completed + "/" + Mission.Mission.Steps.Count + " " + step.Text, step.Ksa, 1f, step.Cfr);
