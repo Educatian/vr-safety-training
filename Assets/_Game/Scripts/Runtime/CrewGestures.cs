@@ -18,7 +18,7 @@ namespace Jobsite.Runtime
         private static readonly List<CrewGestures> all = new List<CrewGestures>();
         public static IReadOnlyList<CrewGestures> All => all;
 
-        private Transform pelvis, spine, neck, head, lUpper, lFore, lHand, rUpper, rFore, rHand, lThigh, rThigh, lCalf, rCalf;
+        private Transform pelvis, spine, neck, head, lUpper, lFore, lHand, rUpper, rFore, rHand, lThigh, rThigh, lCalf, rCalf, lClav, rClav;
         private Transform[] bones;
         private Quaternion[] rest;
         private Transform viewer;
@@ -26,7 +26,10 @@ namespace Jobsite.Runtime
         private NameTag nameTag;
         private NpcFace face;
         private bool waved;
-        private float seed;
+        private float seed, tempo = 1f;
+        private float shotStart, shotLen, lookW;
+        private float weightSide = 1f, weightNow, weightVel, nextWeightShift;
+        private Quaternion[] baseBuf, shotBuf;
 
         private enum Shot { None, Wave, Point, Explain, Nod, ThumbsUp, Beckon, Alarmed, Shrug, TapWatch, HandsOnHips, HeadShake, PointUp, ChinScratch }
         private readonly Queue<(Shot shot, float seconds)> combo = new Queue<(Shot, float)>();
@@ -45,13 +48,13 @@ namespace Jobsite.Runtime
         public void Nod(float seconds = 1.6f) => Play(Shot.Nod, seconds);
         public void Point(Vector3 world, float seconds = 3f) { pointAt = world; Play(Shot.Point, seconds); }
 
-        private void Play(Shot s, float seconds) { combo.Clear(); shot = s; shotUntil = Time.time + seconds; if (s == Shot.Explain && face != null) face.Speak(seconds); }
+        private void Play(Shot s, float seconds) { combo.Clear(); StartShot(s, seconds); if (s == Shot.Explain && face != null) face.Speak(seconds); }
 
         // Situation -> combo. Starting durations; tune by eye in the capture tests.
         public void React(Situation s, Vector3 target = default, float delay = 0f)
         {
             if (target != default) pointAt = target;
-            combo.Clear(); shot = Shot.None; shotUntil = 0;
+            combo.Clear(); shot = Shot.None; shotUntil = 0; shotStart = Time.time;
             if (delay > 0) combo.Enqueue((Shot.None, delay));
             if (face != null && face.HasFace) face.Express(MoodFor(s), s == Situation.WorkStopped ? 6f : 3f);
             switch (s)
@@ -112,6 +115,8 @@ namespace Jobsite.Runtime
             nameTag = GetComponent<NameTag>();
             face = GetComponent<NpcFace>();
             seed = Random.value * 100f;
+            tempo = 0.85f + Random.value * 0.3f;                       // personal rhythm: no two people gesture at one speed
+            nextWeightShift = Time.time + Random.Range(2f, 9f); weightSide = Random.value < 0.5f ? -1f : 1f;
             flavorUntil = Time.time + Random.Range(4f, 9f);
         }
 
@@ -133,7 +138,8 @@ namespace Jobsite.Runtime
             lUpper = Find("Bip01 L UpperArm", "LeftArm"); lFore = Find("Bip01 L Forearm", "LeftForeArm"); lHand = Find("Bip01 L Hand", "LeftHand");
             rUpper = Find("Bip01 R UpperArm", "RightArm"); rFore = Find("Bip01 R Forearm", "RightForeArm"); rHand = Find("Bip01 R Hand", "RightHand");
             lThigh = Find("Bip01 L Thigh", "LeftUpLeg"); rThigh = Find("Bip01 R Thigh", "RightUpLeg"); lCalf = Find("Bip01 L Calf", "LeftLeg"); rCalf = Find("Bip01 R Calf", "RightLeg");
-            bones = new[] { pelvis, spine, neck, head, lUpper, lFore, rUpper, rFore, lThigh, rThigh, lCalf, rCalf };
+            lClav = Find("Bip01 L Clavicle", "LeftShoulder"); rClav = Find("Bip01 R Clavicle", "RightShoulder");
+            bones = new[] { pelvis, spine, neck, head, lUpper, lFore, rUpper, rFore, lThigh, rThigh, lCalf, rCalf, lClav, rClav };
             rest = new Quaternion[bones.Length];
             for (var i = 0; i < bones.Length; i++) if (bones[i] != null) rest[i] = bones[i].localRotation;
             haveShown = false;
@@ -191,7 +197,7 @@ namespace Jobsite.Runtime
         private Quaternion[] shown;
         private bool haveShown;
         private float transitionAt;
-        private Shot lastShot; private Flavor lastFlavor; private bool lastReacting;
+        private Shot lastShot; private Flavor lastFlavor; private bool lastReacting, slowTransition;
         private bool toolInHand;
         private float toolEaseUntil;
 
@@ -200,7 +206,7 @@ namespace Jobsite.Runtime
             if (bones == null || lUpper == null) return;
             for (var i = 0; i < bones.Length; i++) if (bones[i] != null) bones[i].localRotation = rest[i];
             var reacting = ComputePose();
-            if (shot != lastShot || flavor != lastFlavor || reacting != lastReacting) transitionAt = Time.time;
+            if (shot != lastShot || flavor != lastFlavor || reacting != lastReacting) { transitionAt = Time.time; slowTransition = flavor != lastFlavor && shot == lastShot; }
             if (reacting != lastReacting && !reacting) toolEaseUntil = Time.time + 0.35f;
             lastShot = shot; lastFlavor = flavor; lastReacting = reacting;
             BlendPose();
@@ -211,7 +217,7 @@ namespace Jobsite.Runtime
         {
             shown ??= new Quaternion[bones.Length];
             var since = Time.time - transitionAt;
-            var tau = Mathf.Lerp(0.22f, 0.07f, Mathf.Clamp01(since / 0.4f));
+            var tau = Mathf.Lerp(slowTransition ? 0.45f : 0.2f, 0.07f, Mathf.Clamp01(since / (slowTransition ? 0.8f : 0.4f)));
             var k = haveShown ? 1f - Mathf.Exp(-Time.deltaTime / tau) : 1f;
             for (var i = 0; i < bones.Length; i++)
             {
@@ -243,6 +249,10 @@ namespace Jobsite.Runtime
         }
 
         // Builds this frame's target pose on top of the rest pose. Returns whether a reaction is playing.
+        // Layers (naturalness pass 2026-10-03): a base layer (breathing, weight shift, idle flavor) and a gesture layer
+        // mixed in by an envelope (ease in ~0.3 s, ease out ~0.4 s), so a gesture grows out of the idle and settles back
+        // into it instead of starting at full amplitude. Rhythms run at a per-person tempo and beat gestures follow slow
+        // noise rather than a sine; nods and head shakes decay like real ones; the gaze turns with a damped weight.
         private bool ComputePose()
         {
             var t = Time.time + seed;
@@ -251,7 +261,7 @@ namespace Jobsite.Runtime
                 shot = Shot.None;
                 if (combo.Count > 0)
                 {
-                    var next = combo.Dequeue(); shot = next.shot; shotUntil = Time.time + next.seconds;
+                    var next = combo.Dequeue(); StartShot(next.shot, next.seconds);
                     if (shot == Shot.Explain && face != null) face.Speak(next.seconds);
                 }
             }
@@ -275,84 +285,152 @@ namespace Jobsite.Runtime
             if (talking && crew.Thinking && !reacting) React(Situation.Listening);
             if (talking && crew.JustAnswered) { React(Situation.Acknowledge); combo.Clear(); Q(Shot.Explain, Mathf.Clamp(crew.LastReplyLength / 14f, 2.5f, 7f)); Q(Shot.Nod, 1f); }
 
-            Breathe(t);
             if (Time.time > flavorUntil && !talking)
             {
                 flavor = activity == Activity.TiedOff ? Flavor.CrossedArms : (Flavor)Random.Range(0, 5);
                 flavorUntil = Time.time + (flavor == Flavor.Relaxed ? Random.Range(6f, 10f) : Random.Range(3f, 5f));
             }
 
-            var down = new Vector3(0f, -1f, 0.1f);
+            // Base layer.
+            WeightShift();
+            Breathe(t);
+            Idle(t);
+
+            // Gesture layer, mixed in by its envelope.
+            var env = Envelope();
+            var tau = Time.time - shotStart;
+            if (shot != Shot.None && shot != Shot.Nod && shot != Shot.HeadShake && env > 0.001f)
+            {
+                Snap(ref baseBuf);
+                ToRest();
+                ApplyWeight();
+                Breathe(t);
+                ShotPose(t, tau);
+                Snap(ref shotBuf);
+                for (var i = 0; i < bones.Length; i++)
+                    if (bones[i] != null) bones[i].localRotation = Quaternion.Slerp(baseBuf[i], shotBuf[i], env);
+            }
+
+            // Head layer: nods and shakes on top, then the gaze, then a little life.
+            var gazeOwned = shot == Shot.Point || shot == Shot.PointUp || shot == Shot.TapWatch || shot == Shot.Alarmed;
+            if (shot == Shot.Nod) Bend(head, NodCurve(tau) * env, 0);
+            if (shot == Shot.HeadShake) { Turn(head, ShakeCurve(tau) * env); Turn(neck, ShakeCurve(tau - 0.05f) * env * 0.3f); }
+            var wantLook = (near || talking) && !gazeOwned ? (talking ? 1f : 0.7f) : 0f;
+            lookW = Mathf.MoveTowards(lookW, wantLook, Time.deltaTime * 1.6f);
+            if (lookW > 0.01f && viewer != null) Look(viewer.position + Vector3.up * 1.6f, Smooth01(lookW));
+            if (!gazeOwned && flavor == Flavor.LookAround) Turn(head, (Mathf.PerlinNoise(seed + 3f, t * 0.25f) - 0.5f) * 70f * (1f - lookW));
+            // Micro-motion: a person is never perfectly still; slow noise on the head (a few degrees).
+            Turn(head, (Mathf.PerlinNoise(seed, t * 0.23f) - 0.5f) * 10f);
+            Bend(head, (Mathf.PerlinNoise(t * 0.19f, seed) - 0.5f) * 5f, 0);
+            return reacting;
+        }
+
+        private void StartShot(Shot s, float seconds) { shot = s; shotStart = Time.time; shotLen = seconds; shotUntil = Time.time + seconds; }
+
+        // 0..1: in over InTime, out over the last 0.4 s (or half the shot when it is short).
+        private float Envelope()
+        {
+            if (shot == Shot.None) return 0f;
+            var inTime = shot == Shot.Alarmed ? 0.12f : shot == Shot.Point ? 0.38f : 0.3f;
+            var outTime = Mathf.Min(0.4f, shotLen * 0.45f);
+            var a = (Time.time - shotStart) / inTime;
+            var b = (shotUntil - Time.time) / Mathf.Max(0.05f, outTime);
+            return Smooth01(Mathf.Min(1f, Mathf.Min(a, b)));
+        }
+
+        // Nods: two or three dips that get smaller. Shake: quick at first, then lazier.
+        private float NodCurve(float tau) => (Mathf.Sin(tau * 12.5f - 1.57f) * 0.5f + 0.5f) * 11f * Mathf.Exp(-0.9f * tau);
+        private float ShakeCurve(float tau) => Mathf.Sin(tau * 11f * tempo) * 14f * (0.55f + 0.45f * Mathf.Exp(-1.5f * Mathf.Max(0f, tau)));
+
+        private void Snap(ref Quaternion[] buf)
+        {
+            buf ??= new Quaternion[bones.Length];
+            for (var i = 0; i < bones.Length; i++) if (bones[i] != null) buf[i] = bones[i].localRotation;
+        }
+        private void ToRest() { for (var i = 0; i < bones.Length; i++) if (bones[i] != null) bones[i].localRotation = rest[i]; }
+        private static float Smooth01(float x) { x = Mathf.Clamp01(x); return x * x * (3f - 2f * x); }
+
+        private void ShotPose(float t, float tau)
+        {
+            var down = new Vector3(-0.04f, -1f, 0.24f);
+            var relaxedL = new Vector3(-0.18f, -0.96f, 0.08f);
+            var n1 = Mathf.PerlinNoise(seed, t * 1.3f * tempo) - 0.5f;
+            var n2 = Mathf.PerlinNoise(t * 1.1f * tempo, seed + 7f) - 0.5f;
             switch (shot)
             {
-                case Shot.Wave:
-                    Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), down);
-                    Arm(true, new Vector3(0.55f, 0.55f, 0.15f), new Vector3(0.15f + Mathf.Sin(t * 9f) * 0.45f, 1f, 0.1f));
+                case Shot.Wave:   // elbow up and bent, the hand does the waving; the body leans a touch away
+                    var w = Mathf.Sin(tau * Mathf.PI * 2f * 1.5f * tempo);
+                    Bend(spine, 0, -2.5f);
+                    Clav(true, 8f);
+                    Arm(false, relaxedL, down);
+                    Arm(true, new Vector3(0.62f, 0.42f, 0.18f), new Vector3(0.12f + w * 0.32f, 1f, 0.12f));
+                    Bend(head, 0, -4f);
                     break;
-                case Shot.Point:
+                case Shot.Point:  // the gaze arrives first, then the arm; a relaxed elbow, not a locked robot arm
                     var dir = transform.InverseTransformDirection((pointAt - rUpper.position).normalized);
                     dir.y = Mathf.Clamp(dir.y, -0.3f, 0.6f);
-                    // Upper arm a little lower and out, forearm on the target: a relaxed elbow, not a locked robot arm.
-                    Arm(true, (dir + new Vector3(0.12f, -0.28f, 0f)).normalized, dir);
-                    Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), new Vector3(0f, -1f, 0.15f));
-                    Look(transform.TransformPoint(dir * 10f), 0.8f);
-                    return reacting;
-                case Shot.Explain:
-                    var w = Mathf.Sin(t * 3.6f);
-                    Arm(false, new Vector3(-0.35f, -0.75f, 0.4f), new Vector3(-0.15f, 0.05f + w * 0.2f, 1f));
-                    Arm(true, new Vector3(0.35f, -0.75f, 0.4f), new Vector3(0.2f, 0.1f - w * 0.25f, 1f));
+                    Look(transform.TransformPoint(dir * 10f), Smooth01(tau / 0.2f) * 0.85f);
+                    var reach = Smooth01((tau - 0.08f) / 0.3f);
+                    Turn(spine, Mathf.Clamp(Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg, -40f, 40f) * 0.25f);
+                    Arm(true, Vector3.Slerp(new Vector3(0.2f, -0.95f, 0.1f), (dir + new Vector3(0.12f, -0.3f, 0f)).normalized, reach),
+                              Vector3.Slerp(down, dir, reach));
+                    Arm(false, relaxedL, down);
+                    break;
+                case Shot.Explain: // beat gestures: forearms forward, hands rise and fall with the speech, never in sync
+                    Bend(spine, 3f + n1 * 3f, n2 * 2f);
+                    Arm(false, new Vector3(-0.3f, -0.84f, 0.34f), new Vector3(-0.18f + n1 * 0.45f, 0.08f + n2 * 0.85f, 1f));
+                    Arm(true, new Vector3(0.3f, -0.84f, 0.36f), new Vector3(0.2f - n2 * 0.45f, 0.12f + n1 * 0.9f, 1f));
+                    Bend(head, n2 * 6f, n1 * 3f);
                     break;
                 case Shot.ThumbsUp:
-                    Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), down);
-                    Arm(true, new Vector3(0.25f, -0.6f, 0.75f), new Vector3(0.1f, 0.85f, 0.4f));
+                    Bend(spine, 2f, 0);
+                    Arm(false, relaxedL, down);
+                    Arm(true, new Vector3(0.28f, -0.55f, 0.75f), new Vector3(0.05f, 0.88f, 0.42f));
+                    Bend(head, -3f + Mathf.Sin(tau * 6f) * 2f * Mathf.Exp(-tau), 0);
                     break;
                 case Shot.Beckon:   // "over here": arm forward, forearm curls toward the body
-                    Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), down);
-                    Arm(true, new Vector3(0.2f, -0.45f, 0.85f), new Vector3(0f, 0.45f + Mathf.Sin(t * 7f) * 0.4f, 0.65f));
+                    Arm(false, relaxedL, down);
+                    Arm(true, new Vector3(0.2f, -0.45f, 0.85f), new Vector3(0f, 0.45f + Mathf.Sin(tau * 7f * tempo) * 0.4f, 0.65f));
+                    Bend(head, 0, 5f);
                     break;
-                case Shot.Alarmed:  // hands up, lean back
-                    Bend(spine, -8f, 0);
-                    Arm(false, new Vector3(-0.5f, 0.15f, 0.8f), new Vector3(-0.2f, 0.85f, 0.45f));
-                    Arm(true, new Vector3(0.5f, 0.15f, 0.8f), new Vector3(0.2f, 0.85f, 0.45f));
+                case Shot.Alarmed:  // hands up, shoulders up, lean back
+                    Bend(spine, -9f, 0); Bend(pelvis, -3f, 0);
+                    Clav(true, 12f); Clav(false, 12f);
+                    Arm(false, new Vector3(-0.5f, 0.12f, 0.8f), new Vector3(-0.2f, 0.85f, 0.45f));
+                    Arm(true, new Vector3(0.5f, 0.12f, 0.8f), new Vector3(0.2f, 0.85f, 0.45f));
+                    if (pointAt != Vector3.zero) Look(pointAt, 0.8f);
                     break;
-                case Shot.Shrug:
-                    Bend(head, 0, 8f);
+                case Shot.Shrug:    // shoulders rise and drop, forearms open, head tilts
+                    var s = Mathf.Sin(Mathf.Clamp01(tau / 0.9f) * Mathf.PI);
+                    Clav(true, 16f * s); Clav(false, 16f * s);
+                    Bend(head, 0, 9f); Bend(spine, -3f, 0);
                     Arm(false, new Vector3(-0.35f, -0.8f, 0.3f), new Vector3(-0.7f, 0.1f, 0.7f));
                     Arm(true, new Vector3(0.35f, -0.8f, 0.3f), new Vector3(0.7f, 0.1f, 0.7f));
                     break;
                 case Shot.TapWatch: // left wrist up, right finger taps it, eyes on the watch
-                    Bend(head, 18f, 0);
+                    Bend(head, 20f, 0); Bend(spine, 4f, 0);
                     Arm(false, new Vector3(-0.25f, -0.8f, 0.45f), new Vector3(0.9f, 0.12f, 0.4f));
-                    Arm(true, new Vector3(0.2f, -0.8f, 0.4f), new Vector3(-0.8f, 0.2f + Mathf.Abs(Mathf.Sin(t * 8f)) * 0.12f, 0.5f));
-                    return reacting;
+                    Arm(true, new Vector3(0.2f, -0.8f, 0.4f), new Vector3(-0.8f, 0.2f + Mathf.Abs(Mathf.Sin(tau * 8f * tempo)) * 0.12f, 0.5f));
+                    break;
                 case Shot.HandsOnHips:
                     Arm(false, new Vector3(-0.75f, -0.6f, -0.2f), new Vector3(0.55f, -0.35f, 0.5f));
                     Arm(true, new Vector3(0.75f, -0.6f, -0.2f), new Vector3(-0.55f, -0.35f, 0.5f));
+                    Bend(spine, -2f, 0);
                     break;
-                case Shot.HeadShake:
-                    Idle(t);
-                    Turn(head, Mathf.Sin(t * 10f) * 14f);
-                    return reacting;
-                case Shot.PointUp:  // weather: points at the sky, looks up
-                    Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), down);
-                    Arm(true, new Vector3(0.2f, 0.85f, 0.35f), new Vector3(0.1f, 1f, 0.2f));
-                    Bend(head, -22f, 0);
-                    return reacting;
+                case Shot.PointUp:  // weather: looks up first, then points at the sky
+                    Bend(head, -22f * Smooth01(tau / 0.25f), 0);
+                    Arm(false, relaxedL, down);
+                    Arm(true, new Vector3(0.22f, 0.82f, 0.35f), new Vector3(0.1f, 1f, 0.22f));
+                    break;
                 case Shot.ChinScratch: // thinking while the learner talks
+                    Bend(head, 6f, 4f); Bend(spine, 2f, 0);
                     Arm(false, new Vector3(-0.3f, -0.85f, 0.35f), new Vector3(0.95f, 0.15f, 0.3f));
-                    Arm(true, new Vector3(0.2f, -0.7f, 0.6f), new Vector3(-0.4f, 0.8f, 0.3f));
+                    Arm(true, new Vector3(0.2f, -0.7f, 0.6f), new Vector3(-0.4f, 0.8f + Mathf.Sin(tau * 5f) * 0.05f, 0.3f));
                     break;
                 default:
                     Idle(t);
                     break;
             }
-            if (shot == Shot.Nod) Bend(head, Mathf.Sin(Time.time * 9f) * 7f, 0);
-            if (near || talking) Look(viewer.position + Vector3.up * 1.6f, talking ? 1f : 0.7f);
-            else if (flavor == Flavor.LookAround) Turn(head, Mathf.Sin(t * 0.9f) * 35f);
-            // Micro-motion: a person is never perfectly still; slow noise on the head (a few degrees).
-            Turn(head, (Mathf.PerlinNoise(seed, t * 0.23f) - 0.5f) * 10f);
-            Bend(head, (Mathf.PerlinNoise(t * 0.19f, seed) - 0.5f) * 5f, 0);
-            return reacting;
         }
 
         private void Idle(float t)
@@ -367,42 +445,68 @@ namespace Jobsite.Runtime
                     Arm(false, new Vector3(-0.3f, -0.85f, 0.35f), new Vector3(0.95f, 0.15f, 0.3f));
                     Arm(true, new Vector3(0.3f, -0.85f, 0.4f), new Vector3(-0.95f, 0.2f, 0.25f));
                     break;
-                case Flavor.WipeBrow:   // Alabama heat
-                    Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), new Vector3(0f, -1f, 0.1f));
-                    Arm(true, new Vector3(0.35f, 0.15f, 0.7f), new Vector3(-0.55f + Mathf.Sin(t * 4f) * 0.25f, 0.75f, -0.35f));
+                case Flavor.WipeBrow:   // Alabama heat: one slow pass across the brow, then the hand drops
+                    var p = Mathf.Repeat(t * 0.6f, 1f);
+                    Arm(false, new Vector3(-0.2f, -0.95f, 0.1f), new Vector3(-0.04f, -1f, 0.24f));
+                    Arm(true, new Vector3(0.35f, 0.15f, 0.7f), new Vector3(-0.55f + Smooth01(p) * 0.5f, 0.75f, -0.35f));
+                    Bend(head, 4f, 0);
                     break;
                 default:
                     var sway = Mathf.Sin(t * 0.8f) * 0.05f;
-                    Arm(false, new Vector3(-0.2f - sway, -0.96f, 0.08f), new Vector3(-0.05f, -1f, 0.18f));
-                    Arm(true, new Vector3(0.2f + sway, -0.96f, 0.08f), new Vector3(0.05f, -1f, 0.18f));
+                    Arm(false, new Vector3(-0.18f - sway, -0.96f, 0.06f), new Vector3(-0.04f, -1f, 0.26f));
+                    Arm(true, new Vector3(0.18f + sway, -0.96f, 0.06f), new Vector3(0.04f, -1f, 0.26f));
                     break;
             }
         }
 
-        // Weight shift + breathing: pelvis sways, spine rises and falls slightly.
+        // Weight on one leg, then the other every 6-14 s: the hip on the free side drops, its knee softens.
+        private void WeightShift()
+        {
+            if (Time.time > nextWeightShift) { weightSide = -weightSide; nextWeightShift = Time.time + Random.Range(6f, 14f); }
+            weightNow = Mathf.SmoothDamp(weightNow, weightSide, ref weightVel, 1.1f, Mathf.Infinity, Time.deltaTime);
+            ApplyWeight();
+        }
+
+        private void ApplyWeight()
+        {
+            var free = Mathf.Abs(weightNow) * 7f;
+            if (weightNow > 0) { Bend(rThigh, -free * 0.5f, 0); Bend(rCalf, free, 0); }
+            else { Bend(lThigh, -free * 0.5f, 0); Bend(lCalf, free, 0); }
+        }
+
+        // Breathing + the hip line that goes with the weight shift (pelvis tilts, spine counters it).
         private void Breathe(float t)
         {
-            Bend(pelvis, 0, Mathf.Sin(t * 0.5f) * 2.5f);
-            Bend(spine, Mathf.Sin(t * 1.6f) * 1.2f, -Mathf.Sin(t * 0.5f) * 1.5f);
+            Bend(pelvis, 0, weightNow * 2.6f + Mathf.Sin(t * 0.5f) * 0.6f);
+            Bend(spine, Mathf.Sin(t * 1.6f * tempo) * 1.2f, -weightNow * 2.2f - Mathf.Sin(t * 0.5f) * 0.5f);
         }
+
+        // Clavicle raise (shrug, alarm, wave). Right shoulder rises with +deg about forward, the left with -deg.
+        private void Clav(bool right, float upDeg) => Bend(right ? rClav : lClav, 0, right ? upDeg : -upDeg);
 
         private void Dig(float t)
         {
-            var c = (Mathf.Sin(t * 2.2f) + 1) * 0.5f;                   // 0 = blade down, 1 = lifting
+            // Asymmetric shovel stroke at a personal tempo: push and lift (55%), a short toss, then lower and push in.
+            var p = Mathf.Repeat(t * 0.35f * tempo, 1f);
+            var c = p < 0.5f ? Smooth01(p / 0.5f) : p < 0.62f ? 1f : 1f - Smooth01((p - 0.62f) / 0.38f);
+            var toss = p > 0.45f && p < 0.72f ? Mathf.Sin((p - 0.45f) / 0.27f * Mathf.PI) : 0f;
             Bend(spine, Mathf.Lerp(38f, 18f, c), 0);
+            Turn(spine, toss * 12f);
             Bend(head, Mathf.Lerp(10f, 0f, c), 0);
             Arm(false, new Vector3(-0.1f, Mathf.Lerp(-0.7f, -0.2f, c), 0.7f), new Vector3(0.25f, Mathf.Lerp(-0.8f, -0.2f, c), 0.6f));
             Arm(true, new Vector3(0.15f, Mathf.Lerp(-0.85f, -0.45f, c), 0.5f), new Vector3(-0.1f, Mathf.Lerp(-0.9f, -0.4f, c), 0.5f));
-            Legs(0, 12f);
+            Legs(0, 12f + c * 4f);
         }
 
         private void Saw(float t)
         {
             var buzz = Mathf.Sin(t * 40f) * 0.015f;
+            var traverse = (Mathf.PerlinNoise(seed, t * 0.3f) - 0.5f) * 0.25f;   // the cut moves along the pipe
             Bend(spine, 34f, 0);   // lean from the waist; pelvis stays over the feet
+            Turn(spine, traverse * 30f);
             Bend(head, 18f, 0);
-            Arm(false, new Vector3(-0.15f, -0.85f, 0.45f), new Vector3(0.25f, -0.55f + buzz, 0.8f));
-            Arm(true, new Vector3(0.15f, -0.85f, 0.45f), new Vector3(-0.2f, -0.6f - buzz, 0.8f));
+            Arm(false, new Vector3(-0.15f, -0.85f, 0.45f), new Vector3(0.25f + traverse, -0.55f + buzz, 0.8f));
+            Arm(true, new Vector3(0.15f, -0.85f, 0.45f), new Vector3(-0.2f + traverse, -0.6f - buzz, 0.8f));
             Legs(0, 18f);
         }
 

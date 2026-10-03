@@ -19,7 +19,8 @@ FONT_DIR = os.path.join(ROOT, "Assets", "_Game", "Resources", "Fonts")
 FONT = os.path.join(FONT_DIR, "BarlowCondensed-SemiBold.ttf")
 AMB = os.path.join(ROOT, "Assets", "_Game", "Resources", "Audio", "ambience.wav")
 FPS = 30
-W, H = 1280, 720
+W, H = 1920, 1080   # output
+PW, PH = 1280, 720  # subtitle layout space (libass scales it to the output)
 
 BLOCKS = [
     ("01", ["01_hook"], "",
@@ -91,7 +92,7 @@ def trim_vo(n):
 
 def phrases(text):
     """Split a line into subtitle cues (sentences; long ones at commas / colons), max ~70 characters."""
-    parts = re.findall(r"[^.?!]+[.?!]?", text)
+    parts = re.split(r"(?<=[.?!])\s+", text)   # sentence ends only (keeps "pages.dev" whole)
     out = []
     for p in (x.strip() for x in parts if x.strip()):
         if len(p) <= 70:
@@ -148,7 +149,7 @@ def block_video(i, segs, target, cap=1.7):
     for s, r in zip(segs, raw):
         share = target * r / total            # this clip's share of the block
         src_len = min(r, share * speed)        # source seconds used at that speed
-        dst = os.path.join(OUT, f"clip_{i:02d}_{s}_{share:.2f}_{speed:.3f}.mp4")
+        dst = os.path.join(OUT, f"clip{H}_{i:02d}_{s}_{share:.2f}_{speed:.3f}.mp4")
         parts.append(dst)
         if os.path.exists(dst):          # resumable: the edit runs in short steps
             continue
@@ -177,8 +178,18 @@ def ass_escape(s):
     return s.replace("{", "(").replace("}", ")")
 
 
+def install_font():
+    """libass finds the game's font through fontconfig (fontsdir alone falls back to a default sans)."""
+    d = os.path.expanduser("~/.fonts")
+    if not os.path.exists(os.path.join(d, os.path.basename(FONT))):
+        os.makedirs(d, exist_ok=True)
+        subprocess.run(["cp", FONT, d], check=True)
+        subprocess.run(["fc-cache", "-f", d], check=False)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
+    install_font()
     timeline = []      # (n, segs, label, text, vo_path, vo_dur, start)
     t = LEAD
     for n, segs, label, text in BLOCKS:
@@ -217,8 +228,8 @@ def main():
     with open(ass, "w", encoding="utf-8") as f:
         f.write(f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: {W}
-PlayResY: {H}
+PlayResX: {PW}
+PlayResY: {PH}
 WrapStyle: 0
 ScaledBorderAndShadow: yes
 
@@ -237,11 +248,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for a, b2, c in lab:
             f.write(f"Dialogue: 0,{ts(a, True)},{ts(b2, True)},Label,,0,0,0,,{{\\fad(250,250)}}{ass_escape(c)}\n")
         # Opening title over the hook, closing card over the outro.
-        f.write(f"Dialogue: 1,{ts(0.4, True)},{ts(4.6, True)},Title,,0,0,0,,{{\\fad(500,600)\\pos({W // 2},{H // 2 - 40})}}COMPETENT PERSON\n")
-        f.write(f"Dialogue: 1,{ts(0.9, True)},{ts(4.6, True)},Tag,,0,0,0,,{{\\fad(500,600)\\pos({W // 2},{H // 2 + 40})}}A serious game about seeing hazards before they hurt someone\n")
+        f.write(f"Dialogue: 1,{ts(0.4, True)},{ts(4.6, True)},Title,,0,0,0,,{{\\fad(500,600)\\pos({PW // 2},{PH // 2 - 40})}}COMPETENT PERSON\n")
+        f.write(f"Dialogue: 1,{ts(0.9, True)},{ts(4.6, True)},Tag,,0,0,0,,{{\\fad(500,600)\\pos({PW // 2},{PH // 2 + 40})}}A serious game about seeing hazards before they hurt someone\n")
         o = timeline[-1][7]
-        f.write(f"Dialogue: 1,{ts(o + 0.2, True)},{ts(total, True)},Title,,0,0,0,,{{\\fad(600,0)\\pos({W // 2},{H // 2 - 70})}}COMPETENT PERSON\n")
-        f.write(f"Dialogue: 1,{ts(o + 1.0, True)},{ts(total, True)},Tag,,0,0,0,,{{\\fad(600,0)\\pos({W // 2},{H // 2 + 10})}}Play free in your browser · competent-person.pages.dev\n")
+        f.write(f"Dialogue: 1,{ts(o + 0.2, True)},{ts(total, True)},Title,,0,0,0,,{{\\fad(600,0)\\pos({PW // 2},{PH // 2 - 70})}}COMPETENT PERSON\n")
+        f.write(f"Dialogue: 1,{ts(o + 1.0, True)},{ts(total, True)},Tag,,0,0,0,,{{\\fad(600,0)\\pos({PW // 2},{PH // 2 + 10})}}Play free in your browser · competent-person.pages.dev\n")
 
     # audio: narration lines on the timeline + the site bed, ducked under the voice
     inputs, filt, mix = [], [], []
