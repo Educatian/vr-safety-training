@@ -15,10 +15,13 @@ namespace Jobsite.Runtime
     {
         public static Episode Selected;          // null = show the episode menu
         public static bool SkipIntro;            // tests / "replay without intro"
-        public static bool ForcePrologue;        // play the game's opening on the next menu (menu button, capture tests)
+        public static bool ForcePrologue;        // play the game's opening on the next load (menu replay, capture tests)
         // First visit plays the opening; automated runs never do unless they ask for it.
-        static bool PrologueDue => ForcePrologue || !Application.isBatchMode && PlayerPrefs.GetInt(Prologue.SeenKey, 0) == 0;
+        // The opening is the first mission's cold open: it plays when Episode 1 (Monday) starts, then hands over to the
+        // episode's own intro. Automated runs skip it unless a test asks for it.
+        static bool PrologueDue(Episode ep) => ForcePrologue || ep != null && ep.Number == 1 && !Application.isBatchMode;
         private bool inPrologue;
+        public bool InPrologue => inPrologue;
 
         public enum State { Menu, Intro, Playing }
         public State Current { get; private set; } = State.Playing;
@@ -56,9 +59,10 @@ namespace Jobsite.Runtime
             {
                 // A shared result link (…/?daily) drops the visitor straight into today's Hazard Hunt.
                 if (ArcadeMode.TryStartFromUrl()) return;
-                if (PrologueDue) { StartCoroutine(PlayPrologue()); return; }
+                if (ForcePrologue) { StartCoroutine(PlayPrologue()); return; }   // WATCH INTRO from the menu
                 ShowMenu(); return;
             }
+            if (!SkipIntro && PrologueDue(Selected)) { StartCoroutine(PlayPrologue()); return; }
             if (!SkipIntro && Selected.Shots.Count > 0) StartCoroutine(Intro(Selected));
         }
 
@@ -530,8 +534,14 @@ namespace Jobsite.Runtime
             if (canvas != null) foreach (Transform c in canvas.transform) Destroy(c.gameObject);
             NameTag.Hidden = false;
             captionText = null; speakerText = null; Caption = ""; Speaker = "";
-            ShowMenu();
+            // Before a mission: straight into the episode's title card and cold open. From the menu replay: back to the menu.
+            if (Selected == null) ShowMenu();
+            else if (Selected.Shots.Count > 0) StartCoroutine(MissionIntro());
+            else EndIntro();
         }
+
+        // One frame later, so the press that skipped the opening does not also skip the episode's title card.
+        private IEnumerator MissionIntro() { yield return null; yield return Intro(Selected); }
 
         private IEnumerator WatchSkip()
         {

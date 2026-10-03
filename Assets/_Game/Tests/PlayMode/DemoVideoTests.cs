@@ -627,15 +627,16 @@ namespace Jobsite.PlayTests
         public IEnumerator P_Prologue()
         {
             ArcadeMode.Exit();
-            EpisodeDirector.Selected = null; EpisodeDirector.SkipIntro = false; EpisodeDirector.ForcePrologue = true;
+            EpisodeDirector.Selected = Episodes.Get(1); EpisodeDirector.SkipIntro = false; EpisodeDirector.ForcePrologue = true;
             yield return SceneManager.LoadSceneAsync("Assets/_Game/Scenes/Jobsite.unity", LoadSceneMode.Single);
             yield return null;
             var eps = UnityEngine.Object.FindFirstObjectByType<EpisodeDirector>();
             cam = eps.CinematicCamera; cam.targetTexture = rt;
             Seg("p_prologue");
-            for (var i = 0; i < Fps * 120 && eps.Current == EpisodeDirector.State.Intro; i++) { yield return null; Grab(); }
-            yield return Film(1.5f);   // the menu comes up
+            for (var i = 0; i < Fps * 120 && eps.InPrologue; i++) { yield return null; Grab(); }
+            yield return Film(5f);     // Episode 1's title card takes over: the mission begins
             Close();
+            EpisodeDirector.Selected = null;
         }
     }
 }
