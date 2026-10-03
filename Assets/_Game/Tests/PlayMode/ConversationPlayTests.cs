@@ -84,6 +84,7 @@ namespace Jobsite.PlayTests
             var spoil = d.Conditions.First(x => x.Id == "tue-spoil-at-edge");
             d.Photograph(trench); yield return null; d.ToggleTablet();
             d.Photograph(spoil); yield return null; d.ToggleTablet();
+            Assert.That(d.Selected, Is.Null, "putting the tablet away returns it to the site-walk page (log, leads, hints)");
             d.SubmitInspectionLog("Type C", true, "Trench box", new[] { trench.Id, spoil.Id }, "Moved the trench box over the crew; spoil pulled back 2 ft.");
             Assert.That(d.InspectionLogResult.Value.Score, Is.GreaterThanOrEqualTo(0.99f), d.InspectionLogResult.Value.Feedback);
             d.Photograph(trench); yield return null;

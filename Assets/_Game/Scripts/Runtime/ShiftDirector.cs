@@ -339,7 +339,11 @@ namespace Jobsite.Runtime
             if (TalkingTo != null) { EndTalk(); return; }
             if (Current != Phase.Shift) return;
             if (Blocking) { Say("Answer the alert on your tablet first."); return; }
-            MenuOpen = !MenuOpen; tablet.Refresh();
+            MenuOpen = !MenuOpen;
+            // Putting the tablet away leaves the condition page: the next open shows the site-walk home (leads, hints,
+            // the excavation log, finish shift). Before, the first photo pinned the tablet to that condition for the day.
+            if (!MenuOpen) selected = null;
+            tablet.Refresh();
         }
 
         // ---------- interaction ----------
